@@ -43,7 +43,7 @@ jobs:
             terraform -chdir="$directory" init -backend=false -input=false -lockfile=readonly
             terraform -chdir="$directory" validate
           done
-      - uses: azure/setup-helm@v4.3.0
+      - uses: azure/setup-helm@v5.0.1
         with:
           version: v3.17.3
       - run: helm lint infra/helm/demo && helm template demo infra/helm/demo > /tmp/demo.yaml
