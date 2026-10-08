@@ -65,7 +65,7 @@ jobs:
             cat /tmp/ecr-error >&2
             exit 1
           fi
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
         if: steps.existing.outputs.exists == 'false'
       - uses: docker/build-push-action@v6
         if: steps.existing.outputs.exists == 'false'
