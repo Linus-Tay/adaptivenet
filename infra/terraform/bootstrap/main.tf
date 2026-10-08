@@ -61,9 +61,9 @@ resource "aws_ecr_lifecycle_policy" "images" {
 }
 resource "aws_iam_role" "github" {
   for_each = {
-    images = "repo:${var.github_repository}:ref:refs/heads/main"
-    plan   = "repo:${var.github_repository}:ref:refs/heads/main"
-    apply  = "repo:${var.github_repository}:ref:refs/heads/main"
+    images = "repo:Linus-Tay@82197955/adaptivenet@1409577150:ref:refs/heads/main"
+    plan   = "repo:Linus-Tay@82197955/adaptivenet@1409577150:ref:refs/heads/main"
+    apply  = "repo:Linus-Tay@82197955/adaptivenet@1409577150:ref:refs/heads/main"
   }
   name                 = "adaptivenet-github-${each.key}"
   max_session_duration = 3600
