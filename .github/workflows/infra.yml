@@ -1,5 +1,9 @@
 name: Infrastructure
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/infra.yml'
   workflow_dispatch:
     inputs:
       operation:
@@ -61,7 +65,7 @@ jobs:
           retention-days: 1
   apply:
     needs: plan
-    if: inputs.operation == 'apply'
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'apply'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
