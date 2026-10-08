@@ -1,0 +1,2 @@
+@import "tailwindcss";
+body{background:#0b1423;color:#e6edf7;font-family:Arial,sans-serif;margin:0}main{max-width:960px;margin:60px auto;padding:24px}h1{font-size:36px;font-weight:700;margin:18px 0}p{margin:16px 0;color:#b9c8da}button{background:#235c9b;border:1px solid #5a8ac0;border-radius:8px;padding:12px;margin:8px 8px 8px 0;cursor:pointer}button:disabled{opacity:.4}pre{background:#14263b;padding:20px;white-space:pre-wrap;border-radius:12px}a{color:#7fd9c6}small{color:#7fd9c6}

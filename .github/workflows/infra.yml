@@ -1,0 +1,99 @@
+name: Infrastructure
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Plan first; apply creates the development foundation only
+        required: true
+        type: choice
+        options: [plan, apply]
+        default: plan
+permissions:
+  contents: read
+concurrency:
+  group: terraform-dev
+  cancel-in-progress: false
+jobs:
+  plan:
+    if: vars.AWS_READY == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_IN_AUTOMATION: 'true'
+      TF_VAR_aws_account_id: ${{ vars.AWS_ACCOUNT_ID }}
+      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+    defaults:
+      run:
+        working-directory: infra/terraform/environments/dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.13.5'
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Verify AWS account
+        env:
+          EXPECTED_ACCOUNT: ${{ vars.AWS_ACCOUNT_ID }}
+        run: test "$(aws sts get-caller-identity --query Account --output text)" = "$EXPECTED_ACCOUNT"
+      - name: Initialize locked remote state
+        run: terraform init -input=false -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET" -backend-config="key=dev/terraform.tfstate" -backend-config="region=$TF_VAR_aws_region" -backend-config="encrypt=true" -backend-config="use_lockfile=true"
+      - run: terraform validate
+      - name: Save exact plan
+        run: |
+          terraform plan -input=false -lock-timeout=120s -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+          cat plan.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dev-plan-${{ github.run_id }}
+          path: |
+            infra/terraform/environments/dev/tfplan
+            infra/terraform/environments/dev/plan.txt
+          retention-days: 1
+  apply:
+    needs: plan
+    if: inputs.operation == 'apply'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_IN_AUTOMATION: 'true'
+      TF_VAR_aws_account_id: ${{ vars.AWS_ACCOUNT_ID }}
+      TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+    defaults:
+      run:
+        working-directory: infra/terraform/environments/dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.13.5'
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_TERRAFORM_APPLY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Verify AWS account
+        env:
+          EXPECTED_ACCOUNT: ${{ vars.AWS_ACCOUNT_ID }}
+        run: test "$(aws sts get-caller-identity --query Account --output text)" = "$EXPECTED_ACCOUNT"
+      - run: terraform init -input=false -lockfile=readonly -backend-config="bucket=$TF_STATE_BUCKET" -backend-config="key=dev/terraform.tfstate" -backend-config="region=$TF_VAR_aws_region" -backend-config="encrypt=true" -backend-config="use_lockfile=true"
+      - uses: actions/download-artifact@v4
+        with:
+          name: dev-plan-${{ github.run_id }}
+          path: infra/terraform/environments/dev
+      - name: Apply the plan produced by this run
+        run: terraform apply -input=false -lock-timeout=120s tfplan

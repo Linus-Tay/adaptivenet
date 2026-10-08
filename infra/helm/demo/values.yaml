@@ -1,0 +1,5 @@
+image:
+  repository: adaptivenet
+  tag: dev
+region: region-a
+replicas: 2

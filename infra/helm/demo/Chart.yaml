@@ -1,0 +1,5 @@
+apiVersion: v2
+name: adaptivenet-demo
+description: Stateless demo API only; no fault privileges or cloud provisioning
+type: application
+version: 0.1.0

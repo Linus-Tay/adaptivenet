@@ -1,0 +1,133 @@
+{
+  "name": "adaptivenet-lab",
+  "services": {
+    "demo-a": {
+      "build": ".",
+      "command": [
+        "uvicorn",
+        "adaptivenet.demo_api:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "environment": {
+        "REGION": "region-a"
+      },
+      "ports": [
+        "127.0.0.1:8101:8000"
+      ]
+    },
+    "demo-b": {
+      "build": ".",
+      "command": [
+        "uvicorn",
+        "adaptivenet.demo_api:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "environment": {
+        "REGION": "region-b"
+      },
+      "ports": [
+        "127.0.0.1:8102:8000"
+      ]
+    },
+    "gateway": {
+      "build": ".",
+      "command": [
+        "uvicorn",
+        "adaptivenet.gateway:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "environment": {
+        "LAB_TOKEN": "${LAB_TOKEN:?Set LAB_TOKEN in .env}",
+        "REGION_A_URL": "http://demo-a:8000",
+        "REGION_B_URL": "http://demo-b:8000"
+      },
+      "ports": [
+        "127.0.0.1:8080:8000"
+      ]
+    },
+    "control-api": {
+      "build": ".",
+      "command": [
+        "uvicorn",
+        "adaptivenet.control_api:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "environment": {
+        "LAB_TOKEN": "${LAB_TOKEN:?Set LAB_TOKEN in .env}",
+        "GATEWAY_URL": "http://gateway:8000",
+        "REGISTRY_DB_PATH": "/app/data/registry.db"
+      },
+      "ports": [
+        "127.0.0.1:8000:8000"
+      ],
+      "volumes": [
+        "registry-data:/app/data"
+      ]
+    },
+    "experiment-runner": {
+      "build": ".",
+      "command": [
+        "uvicorn",
+        "adaptivenet.experiment_runner:app",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000"
+      ],
+      "environment": {
+        "LAB_TOKEN": "${LAB_TOKEN:?Set LAB_TOKEN in .env}",
+        "GATEWAY_URL": "http://gateway:8000"
+      },
+      "ports": [
+        "127.0.0.1:8001:8000"
+      ]
+    },
+    "dashboard": {
+      "build": {
+        "context": ".",
+        "dockerfile": "apps/Dockerfile",
+        "args": {
+          "APP": "dashboard"
+        }
+      },
+      "environment": {
+        "CONTROL_API_URL": "http://control-api:8000",
+        "EXPERIMENT_URL": "http://experiment-runner:8000",
+        "LAB_TOKEN": "${LAB_TOKEN:?Set LAB_TOKEN in .env}"
+      },
+      "ports": [
+        "127.0.0.1:3000:3000"
+      ]
+    },
+    "demo-web": {
+      "build": {
+        "context": ".",
+        "dockerfile": "apps/Dockerfile",
+        "args": {
+          "APP": "demo-web"
+        }
+      },
+      "environment": {
+        "GATEWAY_URL": "http://gateway:8000"
+      },
+      "ports": [
+        "127.0.0.1:3001:3001"
+      ]
+    }
+  },
+  "volumes": {
+    "registry-data": {}
+  }
+}

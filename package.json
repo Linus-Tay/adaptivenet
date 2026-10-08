@@ -1,0 +1,13 @@
+{
+  "name": "adaptivenet",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:dashboard": "npm run dev --workspace=@adaptivenet/dashboard",
+    "dev:demo": "npm run dev --workspace=@adaptivenet/demo-web",
+    "build": "npm run build --workspaces",
+    "typecheck": "npm run typecheck --workspaces"
+  }
+}
