@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+"""Explicitly create RIPE Atlas measurements, never during Terraform apply."""
+import argparse
+import ipaddress
+import json
+import os
+import sys
+import httpx
+
+URL = 'https://atlas.ripe.net/api/v2/measurements/'
+
+def public_target(value):
+    if any(c in value for c in '/:@?#\\') or len(value) > 253 or not value:
+        raise ValueError('Supply a publicly reachable IP or DNS hostname, without scheme/path')
+    try:
+        ip = ipaddress.ip_address(value)
+        if not ip.is_global: raise ValueError('Target must have a publicly routable IP')
+    except ValueError as error:
+        if 'Target must' in str(error): raise
+        if not all(part and len(part) <= 63 and part.replace('-', '').isalnum() and not part.startswith('-') and not part.endswith('-') for part in value.split('.')) or '.' not in value:
+            raise ValueError('Invalid hostname') from error
+    return value
+
+def measurement(target, probes=5, interval=900):
+    return {'definitions': [{'target': public_target(target), 'description': f'AdaptiveNet external ping {target}', 'type': 'ping', 'af': 4, 'is_oneoff': False, 'interval': interval}], 'probes': [{'requested': probes, 'type': 'area', 'value': 'WW'}], 'is_oneoff': False}
+
+def main():
+    p = argparse.ArgumentParser()
+    p.add_argument('--region-a', required=True, help='Public target for region A')
+    p.add_argument('--region-b', required=True, help='Public target for region B')
+    p.add_argument('--create', action='store_true', help='Actually create potentially credit-consuming measurements')
+    args = p.parse_args()
+    requests = [(name, measurement(target)) for name, target in (('region-a', args.region_a), ('region-b', args.region_b))]
+    if not args.create:
+        print(json.dumps({'mode':'dry-run', 'measurement_requests': requests}, indent=2)); return
+    key = os.getenv('ATLAS_API_KEY')
+    if not key: p.error('ATLAS_API_KEY is required with --create')
+    created = {}
+    with httpx.Client(timeout=25, trust_env=False) as client:
+        for name, payload in requests:
+            response = client.post(URL, json=payload, headers={'Authorization': f'Key {key}'})
+            response.raise_for_status()
+            created[name] = response.json()['measurements'][0]
+    print('Add this to .env (IDs also appear in your RIPE Atlas account):')
+    print('ATLAS_MEASUREMENTS=' + ','.join(f'{k}={v}' for k,v in created.items()))
+
+if __name__ == '__main__': main()

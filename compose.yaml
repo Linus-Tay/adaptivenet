@@ -67,7 +67,11 @@
       "environment": {
         "LAB_TOKEN": "${LAB_TOKEN:?Set LAB_TOKEN in .env}",
         "GATEWAY_URL": "http://gateway:8000",
-        "REGISTRY_DB_PATH": "/app/data/registry.db"
+        "REGISTRY_DB_PATH": "/app/data/registry.db",
+        "INTERNAL_REGION_A_URL": "http://demo-a:8000",
+        "INTERNAL_REGION_B_URL": "http://demo-b:8000",
+        "LOCAL_AUTO_MITIGATION": "${LOCAL_AUTO_MITIGATION:-false}",
+        "ATLAS_MEASUREMENTS": "${ATLAS_MEASUREMENTS:-}"
       },
       "ports": [
         "127.0.0.1:8000:8000"

@@ -1,0 +1,11 @@
+{
+  "contract_version": "adaptivenet.proposal.v1",
+  "snapshot_id": "REPLACE_WITH_REAL_LATEST_SNAPSHOT_ID",
+  "action": "shift_traffic",
+  "confidence": 0.91,
+  "target_region_a_percent": 40,
+  "evidence": [
+    "region-a:network_rtt_p95_ms elevated relative to calibrated baseline",
+    "region-b:app_up=1, capacity independently verified"
+  ]
+}
