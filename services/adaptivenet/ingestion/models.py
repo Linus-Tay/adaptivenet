@@ -6,6 +6,7 @@ import json
 import math
 
 REGIONS = ("region-a", "region-b")
+OBSERVATION_REGIONS = REGIONS + ("global",)
 
 @dataclass(frozen=True)
 class Observation:
@@ -20,10 +21,12 @@ class Observation:
     labels: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self):
-        if self.region not in REGIONS:
+        if self.region not in OBSERVATION_REGIONS:
             raise ValueError("unrecognized region")
-        if self.source not in ("aws_amp", "ripe_atlas"):
+        if self.source not in ("aws_amp", "ripe_atlas", "aws_cloudwatch"):
             raise ValueError("unrecognized source")
+        if (self.region == "global") != (self.source == "aws_cloudwatch"):
+            raise ValueError("CloudFront CloudWatch metrics belong to global only")
         if not self.metric or not self.unit or not math.isfinite(self.value):
             raise ValueError("missing or non-finite metric")
         if not math.isfinite(self.observed_at) or self.observed_at <= 0:

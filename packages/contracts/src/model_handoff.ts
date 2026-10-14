@@ -18,6 +18,8 @@ export interface ModelInputV1 {
   quality: Record<Region, Record<string, unknown>>;
   provenance: Record<Region, Record<string, unknown>>;
   comparison: Record<string, number | null>;
+  /** Optional global CDN telemetry; never treat as a region-a / region-b observation. */
+  cloudfront?: { status: string; distribution_id: string | null; features: Record<string, number | null>; provenance: Record<string, unknown> };
   actions_enabled: false;
 }
 

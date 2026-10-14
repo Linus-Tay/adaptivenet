@@ -54,6 +54,7 @@ def metric_queries(distribution: str) -> list[dict]:
 
 
 def _stamp(value) -> float:
+    # AWS CLI returns an ISO8601 datetime; verify timezone and finite timestamp.
     if not isinstance(value, str):
         raise ValueError("CloudWatch timestamp is not a string")
     dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
@@ -91,6 +92,7 @@ def parse_metric_data(payload: dict, distribution: str, now: float) -> list[Obse
             valid.append((ts,float(value)))
         if not valid:
             continue
+        # Most recent real CloudWatch point, do not synthesize values or zero-fill.
         ts, value=max(valid, key=lambda row:row[0])
         rows.append(Observation("global","aws_cloudwatch",metric,value,unit,ts,now,
                                 source_id=distribution))
@@ -108,6 +110,7 @@ def collect_cloudfront(distribution: str, profile: str, now: float | None=None, 
     result=subprocess.run(args, capture_output=True,text=True,timeout=timeout,check=False,
                           env={**os.environ,"AWS_PAGER":""})
     if result.returncode:
+        # Never echo AWS CLI stderr, which could contain account or session details.
         raise RuntimeError(f"cloudfront_cloudwatch_query_failed_exit_{result.returncode}")
     try: body=json.loads(result.stdout)
     except (ValueError,TypeError) as exc:

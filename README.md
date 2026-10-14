@@ -73,11 +73,11 @@ The `sources.py` collector queries a **fixed list of PromQL expressions** (no ar
 
 ## 3. CloudFront, EKS, scaling and real AWS mitigation
 
-**Current scope: AWS EC2 + Prometheus + RIPE Atlas telemetry is working; no real AWS traffic shifts or Kubernetes scaling are enabled.** The local lab, Terraform definitions and shadow-controller review are different things. **Infrastructure code is not proof of deployment.** Use the read-only checks below and the actual AWS account/state before claiming a resource is live.
+**Current scope: AWS EC2 + Prometheus + RIPE Atlas telemetry works; CloudFront infrastructure and ingestion code are now included, but a CloudFront distribution has NOT been deployed or verified. No ML-driven AWS traffic shifts or Kubernetes scaling are enabled.** The local lab, Terraform definitions and shadow-controller review are different things. **Infrastructure code is not proof of deployment.** Use the read-only checks below and the actual AWS account/state before claiming a resource is live.
 
 | Capability | Present in the repository | Deployed / operational? | Who completes it |
 |---|---|---|---|
-| **CloudFront CDN** | **No `aws_cloudfront_distribution` resource**, CloudFront configuration or CloudWatch collector in this stack | Not part of the verified two-EC2 demo; **no CloudFront metrics in the current dashboard/model** | Infrastructure + ingestion, *only if a CDN is required* |
+| **CloudFront CDN** | Isolated Terraform distribution (SG primary, Virginia failover) and a CloudWatch collector are included | **Not deployed/verified**; metrics are not visible until a distribution ID is configured and live CloudWatch data is available | Infrastructure + ingestion |
 | **EKS / Kubernetes** | `infra/terraform/environments/platform/main.tf` and `modules/observability-region/main.tf` can define EKS + a managed node group; `enable_eks=false` and `enable_second_region=false` by default | **Not verified deployed**; current tested workloads are EC2 instances | Infrastructure |
 | **Kubernetes app** | `infra/helm/demo/templates/workload.yaml` defines a Deployment + Service with health probes and resource requests/limits | Helm chart exists, but no confirmed EKS release or production ingress/load balancer | Infrastructure + application |
 | **Pod autoscaling (HPA)** | No `HorizontalPodAutoscaler` manifest, metrics-server provisioning, KEDA or external-metrics wiring | **Not implemented** | Scaling/controller + infrastructure |
@@ -86,15 +86,61 @@ The `sources.py` collector queries a **fixed list of PromQL expressions** (no ar
 | **Real Route 53 mitigation** | No read/write-back adapter to change live weights; `ingestion/decisions.py` always rejects execution | **Not implemented** | Controller |
 | **ML-driven scale-out** | `ml/predictor.py` is a rule-based example; `scale_out` is explicitly rejected by the reviewer | **Not implemented** | ML + controller + scaling |
 
-**Where are CloudFront metrics?** Nowhere in AdaptiveNet yet. The collector (`ingestion/sources.py`) reads AWS Managed Prometheus metrics from the **regional EC2 apps/nodes**, plus external **RIPE Atlas** pings. It does **not** read CloudWatch's `AWS/CloudFront` namespace. If a CloudFront distribution is added, the ingestion team can collect `Requests`, `4xxErrorRate`, `5xxErrorRate` and bytes via CloudWatch `GetMetricData` in **`us-east-1`** (dimensions `DistributionId` and `Region=Global`), with original timestamps and quality checks. `CacheHitRate` and `OriginLatency` require **additional CloudFront metrics** that may incur charges. CloudFront aggregates viewer/CDN traffic; it is **not a substitute** for per-region origin/pod health or RIPE RTT. See the [AWS CloudFront metrics reference](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/programming-cloudwatch-metrics.html).
+**Where are CloudFront metrics?** In the new collector `services/adaptivenet/ingestion/cloudfront.py`: CloudWatch `AWS/CloudFront` Requests, error rates and bytes in `us-east-1` using `DistributionId` and `Region=Global`. They are **global CDN** metrics, optional and nullable, not regional AMP or RIPE RTT. They appear once the separately deployed distribution is configured in `.env` and has published metrics. `CacheHitRate` and `OriginLatency` need separately enabled additional metrics.
 
-**Routing architecture must be chosen first:** Route 53 weighted DNS records can split *DNS answers* between **regional public endpoints** (EC2 now, regional load balancers if moving to EKS). DNS caches/TTL mean a change is **not an instant, exact per-request 50/50 split**. Putting a **single CloudFront distribution** in front introduces a different origin-routing layer; editing two Route 53 records does **not** automatically change that distribution's origin weights. CloudFront is **optional** for demonstrating DNS-based regional failover. Agree on the actual traffic path before implementing either mechanism. See [AWS weighted routing](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-policy-weighted.html).
+**Routing architecture must be chosen first:** Route 53 weighted DNS records can split *DNS answers* between **regional public endpoints** (EC2 now, regional load balancers if moving to EKS). DNS caches/TTL mean a change is **not an instant, exact per-request 50/50 split**. Putting a **single CloudFront distribution** in front introduces a different origin-routing layer; editing two Route 53 records does **not** automatically change that distribution's origin weights. CloudFront is now the **planned CDN/primary-origin-failover path**; Route 53 weighted DNS is a separate future control mechanism. Agree on the actual traffic path before implementing either mechanism. See [AWS weighted routing](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-policy-weighted.html).
+
+### CloudFront AWS setup — deliberate and isolated
+
+1. From the AWS owner, confirm account ID, AWS CLI profile, actual regional instance IDs/IPs, and permission to read EC2/CloudFront/CloudWatch. Review cost (CloudFront requests and transfer) and the security limitations above. The Terraform configuration defaults to EC2 instance IDs `i-0039feaedbd2b3266` (SG) and `i-0ea5125bcb2d201ec` (US); **verify these are still the right instances**. Do **not** run in the existing demo-cloud/platform Terraform state.
+2. Set up a **separate, private, versioned S3 Terraform state key**, such as `cloudfront/terraform.tfstate`, in the existing approved state bucket. The Terraform module uses an explicit S3 backend so it cannot accidentally deploy using untracked local state. Obtain the reviewed bucket and lock settings from the infra owner.
+3. With Terraform 1.13.x and an AWS-authorized profile, from `infra/terraform/environments/cloudfront/`:
+
+```bash
+aws sso login --profile adaptivenet-admin
+export AWS_PROFILE=adaptivenet-admin
+terraform fmt -check
+terraform init -backend-config="bucket=YOUR_EXISTING_PRIVATE_STATE_BUCKET" -backend-config="key=cloudfront/terraform.tfstate" -backend-config="region=ap-southeast-1" -backend-config="encrypt=true" -backend-config="use_lockfile=true"
+terraform validate
+terraform plan -var="aws_account_id=YOUR_ACCOUNT_ID" -out=cf.tfplan
+terraform show cf.tfplan
+# ONLY after reviewing changes/costs/permissions and confirming this is the expected account:
+terraform apply cf.tfplan
+terraform output cloudfront_distribution_id
+terraform output cloudfront_domain_name
+```
+
+The CloudFront stack is globally scoped but uses **AWS us-east-1** for the distribution API/metrics. Apply creates a billed resource and takes time to deploy. If the plan proposes replacing EC2/EKS or destroying anything unexpected, **stop**. The stack's `prevent_destroy` and `retain_on_delete` guards are intentional. A standalone S3 state bucket is **not** created by this module; reuse the existing approved private remote backend. Terraform AWS write permissions and cloudfront:GetDistribution + cloudwatch:GetMetricData read permissions are required for end-to-end verification.
+
+4. From the repository root, set the returned **distribution ID** (not the domain, not an AWS key) and verify:
+
+```bash
+python scripts/cloudfront_configure.py --id YOUR_DISTRIBUTION_ID
+python scripts/cloudfront_doctor.py
+python scripts/cloudfront_probe.py --count 5
+python scripts/cloudfront_probe.py --count 5 --run
+python scripts/ingestion.py once --profile adaptivenet-admin
+python scripts/ingestion.py serve --port 8766
+```
+
+Use `--run` only with authorization to generate bounded real traffic. Allow CloudWatch publishing time before diagnosing missing metrics. Restart any previous `watch` and `serve` processes so the new code and `.env` are reloaded. An environment variable named `CLOUDFRONT_DISTRIBUTION_ID` overrides `.env` and may need to be unset. The `cloudfront` field is **global and optional**: if the distribution is unconfigured, the dashboard says `not_configured`; if metrics are missing/stale, they stay `null` and do not falsify AWS/RIPE model readiness.
+
+### CloudFront dashboard metrics, interpretation and follow-on work
+
+| CloudFront metric | Display | Source |
+|---|---|---|
+| `cloudfront_requests` | Requests per 60-second CloudWatch period | CloudFront `Requests`, `Sum` |
+| `cloudfront_4xx_pct` / `cloudfront_5xx_pct` | Error percentage | `4xxErrorRate` / `5xxErrorRate`, `Average` |
+| `cloudfront_total_error_pct` | Total error percentage | `TotalErrorRate`, `Average` |
+| `cloudfront_bytes_downloaded` / `cloudfront_bytes_uploaded` | Bytes per 60-second period | `BytesDownloaded` / `BytesUploaded`, `Sum` |
+
+**Limits:** Standard CloudFront metrics do **not** include every desired measurement. `CacheHitRate` and `OriginLatency` require additional metrics/charges and are not enabled by this stack. CloudFront metrics are **global aggregate signals**, not per-region origin latency. The current origin failover has fixed SG-primary/US-backup behavior and **does not perform ML-controlled weighted balancing**. The source currently queries one metric point per key; do not use a single metric point as a training history or failover trigger. Use stored snapshots/controlled experiments for training.
 
 **Work required before claiming end-to-end automatic resilience:**
 
 1. **Infrastructure / scaling team:** choose EC2 vs EKS and the entry point (Route 53 directly to healthy regional endpoints, or a separately designed CloudFront arrangement). If choosing EKS, review Terraform state/costs, deploy and secure both clusters, publish an application image, install the Helm workload and regional ingress/load balancers, and verify fail/restart behavior. The existing ECR image publishing workflow is **not an EKS deployment pipeline**.
 2. **Scaling team:** implement and test a **baseline autoscaler without ML**: Kubernetes Metrics Server + HPA for pod replicas, plus verified node-capacity scaling (Karpenter/Cluster Autoscaler or reviewed EKS Auto Mode). Define min/max replicas, resource requests, quotas, cooldown/stabilization and load tests. If HPA owns replica count, a future ML controller should adjust a **reviewed HPA target or policy**, rather than race HPA by separately setting replica counts. [AWS HPA guide](https://docs.aws.amazon.com/eks/latest/userguide/horizontal-pod-autoscaler.html).
-3. **Data team:** keep the current AMP + RIPE contract; repair/validate optional HTTP p95 histograms; add **pod replicas/availability, scaling events, regional load balancer health** and other EKS signals if deployed. Add **CloudFront CloudWatch metrics only if a distribution is actually used**, with separately labeled global metrics and explicit missingness. Version and test any changed ML feature contract.
+3. **Data team:** keep the current AMP + RIPE contract; repair/validate optional HTTP p95 histograms; add **pod replicas/availability, scaling events, regional load balancer health** and other EKS signals if deployed. Use the included **CloudFront CloudWatch metrics once a distribution is deployed**, with separately labeled global metrics and explicit missingness. Version and test any changed ML feature contract.
 4. **ML team:** train and evaluate `ml/predictor.py` on *labeled, time-split* normal/overload/failure experiments, compare internal-only vs combined features fairly, quantify false alarms and detection delay, and return `adaptivenet.proposal.v1` recommendations. A proposal is not an infrastructure command.
 5. **Controller team:** connect an inference runner to `ingestion/decisions.py` in **shadow mode first**. Add repeated-evidence/hysteresis, route ownership, up-to-date destination health/capacity, least-privilege authentication, cooldown, idempotency, max-step limits, operator approval, full audit and verified rollback. **Then**, with a separately reviewed authorization and tested adapters, support bounded Route 53 record-weight changes and/or HPA policy updates. Today's `services/adaptivenet/controller/` and `gateway.py` affect the **local simulator only**; they do not act on AWS. Never call Terraform apply as an automatic mitigation operation.
 6. **Experiment / UI team:** compare **no mitigation vs baseline HPA / fixed routing vs ML-guided shadow policy**, then test approved live actions in a disposable environment. Record recovery time, SLO impact, false positives, extra capacity cost, DNS propagation and rollback. The `:8766` dashboard shows **metrics and data readiness**, not currently executed failover.

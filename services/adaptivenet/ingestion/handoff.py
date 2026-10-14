@@ -95,6 +95,7 @@ def build_model_input(snapshot: dict, *, mode: Mode = "internal_only",
         "quality": quality,
         "provenance": provenance,
         "comparison": dict(snapshot.get("comparison") or {}),
+        "cloudfront": dict(snapshot.get("cloudfront") or {}),
         "actions_enabled": False,
     }
 
