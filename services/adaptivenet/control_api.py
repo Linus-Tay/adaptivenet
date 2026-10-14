@@ -3,9 +3,13 @@ from fastapi import FastAPI, Header
 from .gateway import authorize, Weights
 from .experiment_runner import forward
 from .registry import router as registry_router
+from .collectors.atlas.client import router as atlas_router
+from .controller.routes import router as controller_router
 
 app = FastAPI(title="AdaptiveNet control API")
 app.include_router(registry_router)
+app.include_router(atlas_router)
+app.include_router(controller_router)
 
 @app.get("/healthz")
 def health():

@@ -24,3 +24,12 @@ bootstrap-outputs.json
 .DS_Store
 .env.*
 !.env.example
+
+# Additional local secret and generated-file protection
+*.pem
+*.key
+*.p12
+*.pfx
+*.sqlite*
+*.log
+.aws/
