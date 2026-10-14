@@ -1,207 +1,203 @@
 # AdaptiveNet
 
-**Network-aware resilience, from real telemetry to safe decisions.**
+**Two-region resilience research: collect measurements → build trustworthy features → predict → review actions.**
 
-AdaptiveNet compares a **Singapore** workload (`region-a`) with **N. Virginia** (`region-b`). It collects AWS-internal and RIPE Atlas external observations, builds timestamped feature snapshots, and exposes a clean contract for the ML and controller teams.
+Singapore is `region-a` (`ap-southeast-1`); Northern Virginia is `region-b` (`us-east-1`). The real workloads run on AWS EC2, while collection and the current ingestion dashboard run locally. Our experiment compares **internal-only** versus **internal + RIPE Atlas** decisions.
 
-> **Current checkpoint (14 Oct 2026):** Both AWS regions are ingesting real internal metrics; `ready_for_internal_only_model=true` was verified on the user's Mac. RIPE measurements were stopped, so combined readiness is **false**. The controller is **shadow/review only**; **no AWS mitigation is connected or enabled**. These are historical verified results, not guarantees of current uptime.
+> **Verified checkpoint — 14 October 2026:** Both AWS regions produced fresh internal metrics; the internal-only model input was ready. Original RIPE Atlas measurements were stopped, so combined input was not ready. There is **no trained ML model and no automatic AWS mitigation** yet. These are past test results, not an uptime guarantee.
 
-## 1. How the system fits together
+## 1. Find the right component
+
+```text
+adaptivenet/
+├── apps/
+│   ├── demo-web/                # Public-facing Next.js catalogue (local UI, :3001)
+│   └── dashboard/               # Next.js local lab/control UI (:3000)
+├── services/adaptivenet/
+│   ├── demo_api.py              # Python catalogue API (also used by local Docker lab)
+│   ├── ingestion/               # REAL telemetry → SQLite → features → model input
+│   │   ├── sources.py           # AWS Prometheus + RIPE Atlas API clients
+│   │   ├── models.py            # Validated observations and deduplication IDs
+│   │   ├── store.py             # SQLite WAL, time-indexed events and snapshots
+│   │   ├── features.py          # Rolling windows, EWMA, missing/stale checks
+│   │   ├── handoff.py           # Model input + conservative demonstration baseline
+│   │   ├── decisions.py         # Shadow-only proposal safety review
+│   │   ├── config.py            # Region/workspace/measurement configuration
+│   │   ├── cli.py               # Implementation of once/watch/serve/export
+│   │   └── api.py               # Minimal read-only telemetry dashboard (:8766)
+│   ├── controller/              # LOCAL demo controller/route policy (not AWS actuation)
+│   ├── gateway.py               # Local-only simulated routing
+│   ├── control_api.py           # Local operator API; not the ingestion API
+│   ├── experiment_runner.py     # Local fault-injection endpoints
+│   └── collectors/             # Earlier standalone metric collectors
+├── ml/predictor.py              # ML TEAM: replace rule example with model inference
+├── packages/contracts/src/     # TypeScript interfaces for model/features
+├── scripts/                    # Short entry-point CLIs; see commands below
+├── infra/terraform/            # REAL AWS IaC; never apply without review
+├── infra/helm/demo/            # Future Kubernetes workload chart (EKS not deployed)
+├── tests/                      # Offline regression suite
+├── docs/TEAM_HANDOFF.md         # Model → proposal → controller field contracts
+├── docs/DATA_DICTIONARY.md      # Feature units and meanings
+└── README.md                   # The project's only README
+```
+
+**Two different demonstrations:** `apps/demo-web` + `apps/dashboard` use the **local simulated gateway**. The current **real AWS telemetry viewer** is `http://127.0.0.1:8766`, implemented in `ingestion/api.py`. It is deliberately simple; neither Next.js UI is yet wired to this feature API. Deployed EC2 workloads and Prometheus configuration are defined in `infra/terraform/environments/demo-cloud` and `infra/terraform/modules/public-demo`.
+
+## 2. Data flow and actual metrics
 
 ```mermaid
 flowchart LR
-    A[Singapore AWS AMP] --> C[Collector]
-    B[Virginia AWS AMP] --> C
-    R[RIPE Atlas ping results] --> C
-    C --> N[Validate + normalize]
-    N --> J[(SQLite WAL event journal)]
-    J --> F[Rolling features + quality checks]
-    F --> S[Versioned feature snapshot]
-    S --> UI[Read-only dashboard/API]
-    S --> M[Model adapter]
-    M --> P[Model proposal]
-    P --> G[Controller policy review]
-    G --> D[Shadow decision log]
-    D -. future, gated .-> X[Mitigation adapter: NOT IMPLEMENTED]
+    AWS[AWS AMP<br/>Singapore + Virginia] --> C[Ingestion collector]
+    RIPE[RIPE Atlas<br/>ping probes] --> C
+    C --> V[Validate + timestamp + deduplicate]
+    V --> DB[(SQLite WAL)]
+    DB --> F[Feature windows + freshness gates]
+    F --> API[Read-only API / dashboard]
+    F --> M[Versioned model input]
+    M --> ML[ML team: predictor]
+    ML --> P[Proposal JSON]
+    P --> CTRL[Controller: review + cooldown]
+    CTRL -. future guarded integration .-> X[AWS mitigation: NOT connected]
 ```
 
-**Rules:** `null` means unknown, **not** zero; stale signals never become current by polling; a prediction is **not** permission to change routing.
-
-## 2. Current status
-
-| Area | Status | Evidence / limitation |
+| Input source | Raw observations fetched | Features available to ML |
 |---|---|---|
-| AWS demo EC2 (SG + US) | Deployed | `/healthz` answered in both regions |
-| Amazon Managed Prometheus | Connected | Application, CPU, memory and HTTP counters observed |
-| Ingestion + storage | Working locally | Idempotent event inserts in SQLite WAL |
-| Feature engineering | Working locally | Both regions internally fresh in latest verified test |
-| HTTP catalog p95 | Traffic-dependent | May be `null` when 5-minute histogram rates cannot be evaluated |
-| RIPE Atlas | Historical results | Two measurements stopped; fresh external signals not currently available |
-| Model integration | Handoff contract + safe example | **No trained production model** |
-| Controller | Policy review only | `approved_for_execution=false`; no AWS writes |
-| Automatic AWS failover / EKS autoscaling | Not implemented | Route 53 routing disabled in the current demo |
+| AWS Managed Prometheus — application | `adaptivenet_demo_up`; catalog request counters and duration histogram buckets | Up/down, requests/s, HTTP 5xx/s, error ratio, catalog HTTP p95 (only with usable traffic) |
+| AWS Managed Prometheus — node exporter | `node_cpu_seconds_total`, `node_memory_MemAvailable_bytes`, `node_memory_MemTotal_bytes`, `node_load1` | CPU busy %, memory bytes/available %, 1-minute load |
+| RIPE Atlas ping probes | Per-probe packet replies, RTT, packet loss, **original** timestamps | External RTT p50/p95, packet loss %, reporting-probe count |
+| Feature engine | Indexed historical observations, source quality and region labels | EWMA, robust z-score (when sample count permits), regional deltas, missing masks and provenance |
 
-## 3. Quick start (macOS and Windows)
+The `sources.py` collector queries a **fixed list of PromQL expressions** (no arbitrary model-supplied PromQL). Responses become validated `Observation` records. SHA-256-based event IDs prevent repeated RIPE results and repeat polling from being double-counted. `store.py` persists records atomically in SQLite WAL with B-tree indexes. `features.py` buckets by `(region, metric)` using dictionaries and computes bounded time windows with a `deque`.
 
-### macOS
+**Safety rules:** `null` means **unknown**, never zero. A zero request rate can be real; an unavailable p95 is not automatically a problem. Missing or expired probe readings are **not** outages. AMP samples have a 3-minute freshness threshold (plus a bounded 30-second clock-skew allowance); RIPE signals use a 35-minute freshness limit and require at least three probes. A saved snapshot is also checked again for age before *live* inference.
 
-From your existing repository root:
+## 3. Quick start: macOS and Windows
+
+**Requirements for offline work:** Python 3.11+, Git. **Extra for live AWS collection:** AWS CLI v2, `awscurl`, valid AWS IAM Identity Center login with permission to query both AMP workspaces. **Optional UI/demo lab:** Node.js + npm or Docker. The private repository requires GitHub access.
+
+### macOS (Terminal)
 
 ```bash
-cd "$HOME/Downloads/adaptivenet 5"  # adjust if cloned elsewhere
-source .venv/bin/activate          # or: python3 -m venv .venv && source .venv/bin/activate
-python -m pip install -e '.[dev]'
+# Clone once, then run inside the cloned repository.
+git clone https://github.com/Linus-Tay/adaptivenet.git
+cd adaptivenet
+# If the cleanup PR is not merged yet, checkout its branch first.
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[dev]' awscurl certifi
 python -m pytest -q
 
+# Live collection only (requires an approved AWS SSO profile).
+aws configure sso --profile adaptivenet-admin   # first-time setup only
 aws sso login --profile adaptivenet-admin
-export SSL_CERT_FILE="$(brew --prefix ca-certificates)/share/ca-certificates/cacert.pem"
+export SSL_CERT_FILE="$(python -c 'import certifi; print(certifi.where())')"
 python scripts/ingestion.py once --profile adaptivenet-admin
 ```
-
-Run continuous collection (Mac Terminal 1):
-
-```bash
-python scripts/ingestion.py watch --profile adaptivenet-admin --interval 120
-```
-
-Run the read-only API (Mac Terminal 2):
-
-```bash
-source .venv/bin/activate
-python scripts/ingestion.py serve --port 8766
-```
-
-Open **http://127.0.0.1:8766**. The API only reads saved snapshots; the **`watch` process** is what collects data. This local API binds to loopback and has no user login: **never expose port 8766 publicly**.
-
-`awscurl`, AWS CLI and valid AWS SSO authorization are required for live collection. If RIPE is stopped, the **combined model** will remain not ready; the **internal-only baseline** can still be ready.
 
 ### Windows (PowerShell)
 
-Use **Windows PowerShell or PowerShell 7**. Python ingestion and ML handoff run natively; Docker and Node.js are not needed for this part.
-
-**Prerequisites:** Install [Git for Windows](https://git-scm.com/downloads/win), [Python 3.11+](https://www.python.org/downloads/windows/) (include the Python launcher), and [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html). Live AWS queries additionally require an authorized AWS IAM Identity Center profile with access to both AMP workspaces. Without access, you can still run the offline tests.
-
-**PowerShell — first-time setup:**
-
-~~~powershell
-Set-Location $HOME
+```powershell
 git clone https://github.com/Linus-Tay/adaptivenet.git
-Set-Location "$HOME\adaptivenet"
-
+Set-Location .\adaptivenet
 py -3 -m venv .venv
 $env:Path = "$PWD\.venv\Scripts;$env:Path"
-python -m pip install --upgrade pip
 python -m pip install -e ".[dev]" awscurl certifi
 python -m pytest -q
 
-Get-Command awscurl
-~~~
-
-The virtual environment's Scripts directory is added to PATH **for this PowerShell window only**. This allows the collector to launch awscurl without changing the PowerShell execution policy or running Activate.ps1. Repeat the PATH line in new PowerShell windows.
-
-**Live ingestion (authorized team members only):**
-
-~~~powershell
-# Configure this profile once with your approved SSO portal, account, and role.
-aws configure sso --profile adaptivenet-admin
+# Live collection only (requires an approved AWS SSO profile).
+aws configure sso --profile adaptivenet-admin   # first-time setup only
 aws sso login --profile adaptivenet-admin
-
-# Verified trust bundle for RIPE Atlas HTTPS access.
 $env:SSL_CERT_FILE = python -c "import certifi; print(certifi.where())"
-
-python scripts/ingestion_doctor.py --profile adaptivenet-admin
 python scripts/ingestion.py once --profile adaptivenet-admin
-~~~
+```
 
-Use your own team-approved AWS profile name if it differs from adaptivenet-admin, including in each --profile argument. Signing in does **not** automatically grant AMP query permissions; ask the infrastructure owner for read-only access if needed. Never share AWS credentials, SSO caches or RIPE API keys.
+The PowerShell `Path` command selects the virtual environment without changing execution policy. Repeat it in **each new PowerShell window**. Change `adaptivenet-admin` if your team has a different approved profile; **do not share a personal SSO token**. A teammate without AWS access can still run the tests and work on a sanitized exported dataset.
 
-**PowerShell window 1 — background collection while this window remains open:**
+### Run the ingestion viewer (both operating systems)
 
-~~~powershell
-Set-Location "$HOME\adaptivenet"
-$env:Path = "$PWD\.venv\Scripts;$env:Path"
-$env:SSL_CERT_FILE = python -c "import certifi; print(certifi.where())"
-aws sso login --profile adaptivenet-admin
+In **Terminal 1** (your virtual environment must be active):
+
+```bash
 python scripts/ingestion.py watch --profile adaptivenet-admin --interval 120
-~~~
+```
 
-**PowerShell window 2 — local read-only API and dashboard:**
+In **Terminal 2** (activate the same virtual environment, but AWS login is not required for serving saved data):
 
-~~~powershell
-Set-Location "$HOME\adaptivenet"
-$env:Path = "$PWD\.venv\Scripts;$env:Path"
+```bash
 python scripts/ingestion.py serve --port 8766
-~~~
+```
 
-Open **http://127.0.0.1:8766**. Use **Ctrl+C** to stop each process. The API serves persisted snapshots; the watch process actually polls AWS/RIPE. **Do not expose this unauthenticated port publicly.**
+Open **http://127.0.0.1:8766**. The page **only reads existing snapshots**. Only `once` and `watch` collect data. Stop either with Ctrl+C. **Never expose this unauthenticated localhost API to the internet.**
 
-**ML teammate commands (after at least one snapshot is saved locally):**
+Endpoints: `GET /v1/features/latest`, `GET /v1/features/history?limit=50`, `GET /v1/ingestion/status`.
 
-~~~powershell
-python scripts/model_handoff.py input --mode internal_only --out data/model-input.json
-python scripts/model_handoff.py demo --mode internal_only
-python scripts/ingestion.py export --format jsonl --limit 200 --out data/features-v1.jsonl
-~~~
+## 4. RIPE Atlas stopped, cloned, or replaced measurements
 
-These commands read the local SQLite journal, which is intentionally excluded from Git. Teammates without AWS access need a sanitized feature export or recorded snapshot from an authorized teammate to run the model handoff; the tests themselves work offline. If RIPE measurements have stopped, combined readiness remains false even if the dashboard is running.
+The first measurements, Singapore `222734302` and Virginia `222734303`, are **historical**. Stopping or closing your laptop does not delete their results. Polling old results does not make them fresh. Running/cloning **new recurring measurements uses RIPE credits**, independently of the local dashboard.
 
-## 4. For ML teammates — three commands
+When you clone them on [RIPE Atlas](https://atlas.ripe.net/measurements/), confirm each cloned ping still targets the **current public address** of the correct EC2 instance. EC2 public IPs can change after stop/start. Set a bounded end time so probes don't run longer than needed.
+
+In your cloned repository, use this **read-only status check** and then register the **NEW IDs**:
 
 ```bash
-# Export snapshots as model input; never commit local experiment data by default.
+python scripts/ripe_measurements.py status
+python scripts/ripe_measurements.py set --region-a NEW_SG_ID --region-b NEW_US_ID
+python scripts/ripe_measurements.py status
+python scripts/ingestion.py once --profile adaptivenet-admin
+```
+
+Replace `NEW_SG_ID` and `NEW_US_ID` with the actual integer measurement IDs. `set` validates public RIPE metadata/results, changes only `ATLAS_MEASUREMENTS` in the local `.env`, and backs up the old `.env` under ignored `data/config-backups/`. It **does not create or stop measurements or spend RIPE credits**. If a clone has not produced results yet, you can save IDs with `--offline` after verifying them in RIPE's browser, then check status later. Restart any running `watch` process to pick up the new IDs. If `ATLAS_MEASUREMENTS` is also exported in your shell, unset it because shell variables override `.env`.
+
+To create **new** measurements from the command line rather than clone in RIPE's UI, see `scripts/atlas_setup.py --help`; it requires an explicit confirmation, API key and bounded stop time. Never commit a RIPE creation key.
+
+## 5. ML → controller teammate handoff
+
+```bash
+# After at least one local snapshot exists:
 python scripts/model_handoff.py input --mode internal_only --out data/model-input.json
-
-# Run a conservative, non-ML baseline through controller review (no AWS writes).
 python scripts/model_handoff.py demo --mode internal_only
-
-# Export timestamped training examples (add controlled experiment labels separately).
 python scripts/ingestion.py export --format jsonl --limit 200 --out data/features-v1.jsonl
 ```
 
-Use `--mode combined` only when *both* AWS and RIPE signals are fresh. The model adapter keeps `null` values and adds explicit missing-value masks and snapshot age. It rejects an old snapshot for **live inference**, even if an older saved `ready` flag was true.
+| Owner | Edit here | Contract |
+|---|---|---|
+| Data/ingestion | `services/adaptivenet/ingestion/{sources,models,store,features}.py` | Raw telemetry → `adaptivenet.features.v1` snapshots |
+| ML/model | **`ml/predictor.py`** | Input `adaptivenet.model_input.v1` → proposal `adaptivenet.proposal.v1` |
+| Controller | `services/adaptivenet/ingestion/decisions.py` | Validate proposals → `adaptivenet.decision_review.v1` (shadow only) |
+| Local routing simulation | `services/adaptivenet/controller/engine.py` + `gateway.py` | Separate simulation; **not** permissioned AWS actions |
+| Frontend | `apps/dashboard`, `packages/contracts/src/` | Eventually visualize proposals and outcomes |
 
-**Model input:** `adaptivenet.model_input.v1` → **model returns:** `adaptivenet.proposal.v1` → **controller reviews:** `adaptivenet.decision_review.v1`.
+`ml/predictor.py` currently delegates to a **conservative rule example**, not a trained classifier and **not yet wired into live inference**. ML teammates should replace its pure `predict(model_input)` function, then connect a reviewed inference runner. Train and evaluate on time-split **labeled experiments**, comparing internal-only versus combined input when RIPE is fresh. Model output is a *proposal*, never an AWS API command.
 
-The proposed action vocabulary is `hold`, `investigate`, `shift_traffic`, `scale_out`. A model can **propose** a traffic shift, but the present controller deliberately never executes it. Start with `hold` / `investigate`; do not fabricate a route change for a demo.
+**Proposals:** `hold`, `investigate`, `shift_traffic`, `scale_out`. The shadow reviewer always returns `approved_for_execution=false` and `executed=false`. A future actuator must independently verify route ownership, destination health, permission, repeated evidence, cooldown, idempotency, rollback and audit history. Nothing here automatically changes AWS routing.
 
-Read **[ML + controller handoff](docs/TEAM_HANDOFF.md)** and **[data dictionary](docs/DATA_DICTIONARY.md)** before integrating a predictor. The code entry point is [`services/adaptivenet/ingestion/handoff.py`](services/adaptivenet/ingestion/handoff.py).
+## 6. Optional demo applications (different from ingestion viewer)
 
-## 5. Interfaces and ownership
-
-| Path | Teammate responsibility |
-|---|---|
-| `services/adaptivenet/ingestion/sources.py` | AWS AMP / RIPE collectors and normalization |
-| `models.py`, `store.py`, `features.py` (same folder) | Immutable events → indexed journal → rolling features |
-| `handoff.py` (same folder) | Versioned model input + safe baseline/example |
-| `decisions.py` (same folder) | Validate model proposal, independently gate potential actions |
-| `scripts/ingestion.py` | `once`, `watch`, `serve`, `export`, `review` |
-| `scripts/model_handoff.py` | `input`, `demo`, `review` for classmates |
-| `packages/contracts/src/` | TypeScript frontend/model contracts |
-| `ml/` | Training, evaluation and future model adapters |
-| `infra/terraform/` | Infrastructure: **do not apply** without a reviewed change |
-
-API: `GET /v1/features/latest`, `GET /v1/features/history?limit=50`, `GET /v1/ingestion/status`.
-
-Data structure choices: frozen `dataclass` observations; SHA-256 event IDs for deduplication; `defaultdict` for O(1)-average region/metric bucketing; bounded `deque` for rolling features; SQLite B-tree indexes for time-range lookup. The feature builder is **pure Python** and can be unit-tested offline. See the short explanations in [TEAM_HANDOFF.md](docs/TEAM_HANDOFF.md).
-
-## 6. Team development and GitHub
+For a **local simulated** full demo (requires Docker + a random `LAB_TOKEN` in `.env`):
 
 ```bash
-# Start on a feature branch instead of changing main directly.
-git switch -c feature/ingestion-ml-handoff
+# macOS/Linux; on Windows use Copy-Item .env.example .env instead.
+cp .env.example .env
+# Edit .env: replace LAB_TOKEN placeholder with a long random value.
+docker compose up --build
+```
+
+This runs `demo-web` at **http://127.0.0.1:3001**, local operator dashboard at **http://127.0.0.1:3000**, control API at `:8000`, and simulated gateway at `:8080`. The Docker demo uses **locally simulated** A/B routing and fault injection; it is not the EC2/RIPE data pipeline. Do not expose local demo ports publicly.
+
+Or, with Node.js and the local Python services already running, `npm ci`, then `npm run dev:demo` and `npm run dev:dashboard` in separate terminals. Their API routes expect the local gateway and control services.
+
+## 7. Experiments, checks, and Git safety
+
+```bash
 python -m pytest -q
-python scripts/check_push_safety.py --staged  # after staging changes
-# Stage only the intended source/docs; verify before pushing.
-git status --short
+python scripts/ingestion_doctor.py --profile adaptivenet-admin   # read-only AWS + RIPE
+python scripts/amp_metric_doctor.py --profile adaptivenet-admin # read-only AMP details
+python scripts/catalog_probe.py --run                       # small real HTTP test traffic
+python scripts/check_push_safety.py --staged                # run after git add
 ```
 
-For exact staging, commit, push and pull-request instructions, read **[GitHub handoff](docs/GITHUB_HANDOFF.md)**. **Never commit** `.env`, `.aws/`, `.venv/`, SQLite files, Terraform state, AWS credentials or RIPE creation keys.
+Run commands in the **repository root** with your virtual environment activated. `data/` (SQLite/features/backups), `.env`, `.venv`, local credentials and Terraform state are **ignored by Git**. Do not use `git add -f` for them. Use feature branches and review `git diff --cached --name-only` before pushing.
 
-## 7. What is still needed for the research demo?
+**Infrastructure caution:** AWS EC2, managed Prometheus, IAM and CloudWatch already exist, but your clone has only their Terraform definitions—not the live Terraform state. **Never run `terraform apply`, `destroy`, or import state based only on this README.** AWS deployment changes need a separate reviewed plan, verified remote state and cost/permission approval. Neither EKS nor real Route 53 failover is implemented.
 
-1. **ML team:** label controlled faults (normal, congestion, HTTP 5xx, overload), train and evaluate a detector with chronological train/test splits; compare AWS-only vs AWS+RIPE fairly.
-2. **Controller team:** shadow logging, consecutive-signal/hysteresis and cooldown logic, permissioned policy evaluation; *later* an independent health-verified reversible actuator.
-3. **Experiment team:** bounded load + injected failures, recovery metrics, false positives, time-to-detect, confidence calibration and reproducible logs.
-4. **Frontend team:** show model version, data age, uncertainty, proposals and review decisions without pretending that shadow actions changed AWS.
-
-**No automatic mitigation is allowed until authenticated actuation, current-route readback, destination health, cooldown, idempotency, rollback and auditability are implemented and tested.**
+**Next research tasks:** collect labeled controlled incidents, train and calibrate the ML model, measure detection/recovery times and false positives, connect a read-only inference runner, then develop an independently guarded reversible actuator. Until then, all decisions remain **shadow-mode**.
