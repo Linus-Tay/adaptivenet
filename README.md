@@ -71,7 +71,45 @@ The `sources.py` collector queries a **fixed list of PromQL expressions** (no ar
 
 **Safety rules:** `null` means **unknown**, never zero. A zero request rate can be real; an unavailable p95 is not automatically a problem. Missing or expired probe readings are **not** outages. AMP samples have a 3-minute freshness threshold (plus a bounded 30-second clock-skew allowance); RIPE signals use a 35-minute freshness limit and require at least three probes. A saved snapshot is also checked again for age before *live* inference.
 
-## 3. Quick start: macOS and Windows
+## 3. CloudFront, EKS, scaling and real AWS mitigation
+
+**Current scope: AWS EC2 + Prometheus + RIPE Atlas telemetry is working; no real AWS traffic shifts or Kubernetes scaling are enabled.** The local lab, Terraform definitions and shadow-controller review are different things. **Infrastructure code is not proof of deployment.** Use the read-only checks below and the actual AWS account/state before claiming a resource is live.
+
+| Capability | Present in the repository | Deployed / operational? | Who completes it |
+|---|---|---|---|
+| **CloudFront CDN** | **No `aws_cloudfront_distribution` resource**, CloudFront configuration or CloudWatch collector in this stack | Not part of the verified two-EC2 demo; **no CloudFront metrics in the current dashboard/model** | Infrastructure + ingestion, *only if a CDN is required* |
+| **EKS / Kubernetes** | `infra/terraform/environments/platform/main.tf` and `modules/observability-region/main.tf` can define EKS + a managed node group; `enable_eks=false` and `enable_second_region=false` by default | **Not verified deployed**; current tested workloads are EC2 instances | Infrastructure |
+| **Kubernetes app** | `infra/helm/demo/templates/workload.yaml` defines a Deployment + Service with health probes and resource requests/limits | Helm chart exists, but no confirmed EKS release or production ingress/load balancer | Infrastructure + application |
+| **Pod autoscaling (HPA)** | No `HorizontalPodAutoscaler` manifest, metrics-server provisioning, KEDA or external-metrics wiring | **Not implemented** | Scaling/controller + infrastructure |
+| **Node autoscaling** | An optional EKS node group has `min_size=1`, `desired_size=2`, `max_size=4` | These are **capacity bounds, not a working node autoscaler**; no Karpenter/Cluster Autoscaler integration | Infrastructure + scaling |
+| **Route 53 DNS routing** | `infra/terraform/environments/demo-cloud/main.tf` conditionally defines two weighted `A` records (50/50) and `/healthz` checks with `enable_route53=false` | Configuration **disabled by default**; deployed DNS routing not verified | Infrastructure |
+| **Real Route 53 mitigation** | No read/write-back adapter to change live weights; `ingestion/decisions.py` always rejects execution | **Not implemented** | Controller |
+| **ML-driven scale-out** | `ml/predictor.py` is a rule-based example; `scale_out` is explicitly rejected by the reviewer | **Not implemented** | ML + controller + scaling |
+
+**Where are CloudFront metrics?** Nowhere in AdaptiveNet yet. The collector (`ingestion/sources.py`) reads AWS Managed Prometheus metrics from the **regional EC2 apps/nodes**, plus external **RIPE Atlas** pings. It does **not** read CloudWatch's `AWS/CloudFront` namespace. If a CloudFront distribution is added, the ingestion team can collect `Requests`, `4xxErrorRate`, `5xxErrorRate` and bytes via CloudWatch `GetMetricData` in **`us-east-1`** (dimensions `DistributionId` and `Region=Global`), with original timestamps and quality checks. `CacheHitRate` and `OriginLatency` require **additional CloudFront metrics** that may incur charges. CloudFront aggregates viewer/CDN traffic; it is **not a substitute** for per-region origin/pod health or RIPE RTT. See the [AWS CloudFront metrics reference](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/programming-cloudwatch-metrics.html).
+
+**Routing architecture must be chosen first:** Route 53 weighted DNS records can split *DNS answers* between **regional public endpoints** (EC2 now, regional load balancers if moving to EKS). DNS caches/TTL mean a change is **not an instant, exact per-request 50/50 split**. Putting a **single CloudFront distribution** in front introduces a different origin-routing layer; editing two Route 53 records does **not** automatically change that distribution's origin weights. CloudFront is **optional** for demonstrating DNS-based regional failover. Agree on the actual traffic path before implementing either mechanism. See [AWS weighted routing](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/routing-policy-weighted.html).
+
+**Work required before claiming end-to-end automatic resilience:**
+
+1. **Infrastructure / scaling team:** choose EC2 vs EKS and the entry point (Route 53 directly to healthy regional endpoints, or a separately designed CloudFront arrangement). If choosing EKS, review Terraform state/costs, deploy and secure both clusters, publish an application image, install the Helm workload and regional ingress/load balancers, and verify fail/restart behavior. The existing ECR image publishing workflow is **not an EKS deployment pipeline**.
+2. **Scaling team:** implement and test a **baseline autoscaler without ML**: Kubernetes Metrics Server + HPA for pod replicas, plus verified node-capacity scaling (Karpenter/Cluster Autoscaler or reviewed EKS Auto Mode). Define min/max replicas, resource requests, quotas, cooldown/stabilization and load tests. If HPA owns replica count, a future ML controller should adjust a **reviewed HPA target or policy**, rather than race HPA by separately setting replica counts. [AWS HPA guide](https://docs.aws.amazon.com/eks/latest/userguide/horizontal-pod-autoscaler.html).
+3. **Data team:** keep the current AMP + RIPE contract; repair/validate optional HTTP p95 histograms; add **pod replicas/availability, scaling events, regional load balancer health** and other EKS signals if deployed. Add **CloudFront CloudWatch metrics only if a distribution is actually used**, with separately labeled global metrics and explicit missingness. Version and test any changed ML feature contract.
+4. **ML team:** train and evaluate `ml/predictor.py` on *labeled, time-split* normal/overload/failure experiments, compare internal-only vs combined features fairly, quantify false alarms and detection delay, and return `adaptivenet.proposal.v1` recommendations. A proposal is not an infrastructure command.
+5. **Controller team:** connect an inference runner to `ingestion/decisions.py` in **shadow mode first**. Add repeated-evidence/hysteresis, route ownership, up-to-date destination health/capacity, least-privilege authentication, cooldown, idempotency, max-step limits, operator approval, full audit and verified rollback. **Then**, with a separately reviewed authorization and tested adapters, support bounded Route 53 record-weight changes and/or HPA policy updates. Today's `services/adaptivenet/controller/` and `gateway.py` affect the **local simulator only**; they do not act on AWS. Never call Terraform apply as an automatic mitigation operation.
+6. **Experiment / UI team:** compare **no mitigation vs baseline HPA / fixed routing vs ML-guided shadow policy**, then test approved live actions in a disposable environment. Record recovery time, SLO impact, false positives, extra capacity cost, DNS propagation and rollback. The `:8766` dashboard shows **metrics and data readiness**, not currently executed failover.
+
+**Read-only verification by an AWS-authorized teammate** (Mac/Windows terminals; these commands do **not** create infrastructure):
+
+```bash
+aws cloudfront list-distributions --profile adaptivenet-admin --query "DistributionList.Items[].{Id:Id,Domain:DomainName}" --output table
+aws eks list-clusters --region ap-southeast-1 --profile adaptivenet-admin
+aws eks list-clusters --region us-east-1 --profile adaptivenet-admin
+```
+
+These checks show what the signed-in account can list. For Route 53, inspect the intended hosted zone and current records with the infrastructure owner, and reconcile with verified remote Terraform state **before** enabling `enable_route53` or `enable_eks`. A `git push`, PR merge, model prediction or dashboard refresh does **not** deploy these resources.
+
+## 4. Quick start: macOS and Windows
 
 **Requirements for offline work:** Python 3.11+, Git. **Extra for live AWS collection:** AWS CLI v2, `awscurl`, valid AWS IAM Identity Center login with permission to query both AMP workspaces. **Optional UI/demo lab:** Node.js + npm or Docker. The private repository requires GitHub access. **Until this handoff is merged into `main`, run `git switch feature/ingestion-ml-handoff` immediately after cloning** (macOS or Windows); skip that command after merge.
 
@@ -125,7 +163,7 @@ Open **http://127.0.0.1:8766**. The page **only reads existing snapshots**. Only
 
 Endpoints: `GET /v1/features/latest`, `GET /v1/features/history?limit=50`, `GET /v1/ingestion/status`.
 
-## 4. RIPE Atlas stopped, cloned, or replaced measurements
+## 5. RIPE Atlas stopped, cloned, or replaced measurements
 
 The first measurements, Singapore `222734302` and Virginia `222734303`, are **historical**. Stopping or closing your laptop does not delete their results. Polling old results does not make them fresh. Running/cloning **new recurring measurements uses RIPE credits**, independently of the local dashboard.
 
@@ -177,7 +215,7 @@ python scripts/atlas_setup.py --region-a CURRENT_SG_PUBLIC_IP --region-b CURRENT
 
 The command above is **dry run**. After reviewing the target IPs, probe count, stop time and credits, add `--create` to the end of the same command if genuinely necessary. Then run `unset ATLAS_API_KEY`. In Windows PowerShell, use `$secret = Read-Host "RIPE creation key" -AsSecureString`, `$env:ATLAS_API_KEY = [System.Net.NetworkCredential]::new("", $secret).Password`, run the dry run/create commands, then `Remove-Item Env:ATLAS_API_KEY`. A shell environment variable is temporary; it is **not** a place for long-term secret storage. Do not print or commit the key.
 
-## 5. When the dashboard shows `Unavailable`
+## 6. When the dashboard shows `Unavailable`
 
 An unavailable value means **missing, stale, or insufficient source data**, not zero. Check these in order from the **same repository root**:
 
@@ -201,7 +239,7 @@ If the collector reports `region-a:http_p95_ms:no_series` or `region-b:http_p95_
 
 **Re-check:** `python scripts/ingestion.py once --profile adaptivenet-admin` and refresh `http://127.0.0.1:8766`. Continue debugging any `no_series` values that matter to your experiment, but do not change Terraform, monitoring agents or live routes based on a blank widget alone.
 
-## 6. ML → controller teammate handoff
+## 7. ML → controller teammate handoff
 
 After at least one local snapshot exists:
 
@@ -223,7 +261,7 @@ python scripts/ingestion.py export --format jsonl --limit 200 --out data/feature
 
 **Proposals:** `hold`, `investigate`, `shift_traffic`, `scale_out`. The shadow reviewer always returns `approved_for_execution=false` and `executed=false`. A future actuator must independently verify route ownership, destination health, permission, repeated evidence, cooldown, idempotency, rollback and audit history. Nothing here automatically changes AWS routing.
 
-## 7. Optional demo applications (different from ingestion viewer)
+## 8. Optional demo applications (different from ingestion viewer)
 
 For a **local simulated** full demo (requires Docker + a random `LAB_TOKEN` in `.env`):
 
@@ -238,7 +276,7 @@ This runs `demo-web` at **http://127.0.0.1:3001**, local operator dashboard at *
 
 Or, with Node.js and the local Python services already running, `npm ci`, then `npm run dev:demo` and `npm run dev:dashboard` in separate terminals. Their API routes expect the local gateway and control services.
 
-## 8. Experiments, checks, and Git safety
+## 9. Experiments, checks, and Git safety
 
 ```bash
 python -m pytest -q
