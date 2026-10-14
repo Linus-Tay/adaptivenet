@@ -41,7 +41,9 @@ flowchart LR
 | Controller | Policy review only | `approved_for_execution=false`; no AWS writes |
 | Automatic AWS failover / EKS autoscaling | Not implemented | Route 53 routing disabled in the current demo |
 
-## 3. Quick start (Mac)
+## 3. Quick start (macOS and Windows)
+
+### macOS
 
 From your existing repository root:
 
@@ -72,6 +74,76 @@ python scripts/ingestion.py serve --port 8766
 Open **http://127.0.0.1:8766**. The API only reads saved snapshots; the **`watch` process** is what collects data. This local API binds to loopback and has no user login: **never expose port 8766 publicly**.
 
 `awscurl`, AWS CLI and valid AWS SSO authorization are required for live collection. If RIPE is stopped, the **combined model** will remain not ready; the **internal-only baseline** can still be ready.
+
+### Windows (PowerShell)
+
+Use **Windows PowerShell or PowerShell 7**. Python ingestion and ML handoff run natively; Docker and Node.js are not needed for this part.
+
+**Prerequisites:** Install [Git for Windows](https://git-scm.com/downloads/win), [Python 3.11+](https://www.python.org/downloads/windows/) (include the Python launcher), and [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html). Live AWS queries additionally require an authorized AWS IAM Identity Center profile with access to both AMP workspaces. Without access, you can still run the offline tests.
+
+**PowerShell — first-time setup:**
+
+~~~powershell
+Set-Location $HOME
+git clone https://github.com/Linus-Tay/adaptivenet.git
+Set-Location "$HOME\adaptivenet"
+
+py -3 -m venv .venv
+$env:Path = "$PWD\.venv\Scripts;$env:Path"
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]" awscurl certifi
+python -m pytest -q
+
+Get-Command awscurl
+~~~
+
+The virtual environment's Scripts directory is added to PATH **for this PowerShell window only**. This allows the collector to launch awscurl without changing the PowerShell execution policy or running Activate.ps1. Repeat the PATH line in new PowerShell windows.
+
+**Live ingestion (authorized team members only):**
+
+~~~powershell
+# Configure this profile once with your approved SSO portal, account, and role.
+aws configure sso --profile adaptivenet-admin
+aws sso login --profile adaptivenet-admin
+
+# Verified trust bundle for RIPE Atlas HTTPS access.
+$env:SSL_CERT_FILE = python -c "import certifi; print(certifi.where())"
+
+python scripts/ingestion_doctor.py --profile adaptivenet-admin
+python scripts/ingestion.py once --profile adaptivenet-admin
+~~~
+
+Use your own team-approved AWS profile name if it differs from adaptivenet-admin, including in each --profile argument. Signing in does **not** automatically grant AMP query permissions; ask the infrastructure owner for read-only access if needed. Never share AWS credentials, SSO caches or RIPE API keys.
+
+**PowerShell window 1 — background collection while this window remains open:**
+
+~~~powershell
+Set-Location "$HOME\adaptivenet"
+$env:Path = "$PWD\.venv\Scripts;$env:Path"
+$env:SSL_CERT_FILE = python -c "import certifi; print(certifi.where())"
+aws sso login --profile adaptivenet-admin
+python scripts/ingestion.py watch --profile adaptivenet-admin --interval 120
+~~~
+
+**PowerShell window 2 — local read-only API and dashboard:**
+
+~~~powershell
+Set-Location "$HOME\adaptivenet"
+$env:Path = "$PWD\.venv\Scripts;$env:Path"
+python scripts/ingestion.py serve --port 8766
+~~~
+
+Open **http://127.0.0.1:8766**. Use **Ctrl+C** to stop each process. The API serves persisted snapshots; the watch process actually polls AWS/RIPE. **Do not expose this unauthenticated port publicly.**
+
+**ML teammate commands (after at least one snapshot is saved locally):**
+
+~~~powershell
+python scripts/model_handoff.py input --mode internal_only --out data/model-input.json
+python scripts/model_handoff.py demo --mode internal_only
+python scripts/ingestion.py export --format jsonl --limit 200 --out data/features-v1.jsonl
+~~~
+
+These commands read the local SQLite journal, which is intentionally excluded from Git. Teammates without AWS access need a sanitized feature export or recorded snapshot from an authorized teammate to run the model handoff; the tests themselves work offline. If RIPE measurements have stopped, combined readiness remains false even if the dashboard is running.
 
 ## 4. For ML teammates — three commands
 
