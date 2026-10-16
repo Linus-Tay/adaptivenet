@@ -77,6 +77,15 @@ def validate_target(profile: str, expected_account: str, region: str):
         raise RuntimeError("Instance is not the expected RUNNING tagged AdaptiveNet demo instance")
     return aws_region, instance_id
 
+def verify_ssm_online(profile: str, aws_region: str, instance_id: str) -> None:
+    """Reject non-managed or disconnected demo instances before any AWS write."""
+    result = aws_read(["ssm", "describe-instance-information", "--region", aws_region,
+                       "--filters", "Key=InstanceIds,Values=" + instance_id], profile=profile)
+    items = result.get("InstanceInformationList", [])
+    if not any(item.get("InstanceId") == instance_id and item.get("PingStatus") == "Online"
+               for item in items):
+        raise RuntimeError("EC2 not confirmed SSM Online; refusing live fault")
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--region", choices=sorted(TARGETS), required=True)
@@ -101,6 +110,7 @@ def main(argv=None):
         required = "STOP-" + args.region.upper()
         if args.confirm != required:
             parser.error("Live request requires --confirm " + required)
+        verify_ssm_online(args.profile, aws_region, instance_id)
         payload = aws_write(["ssm", "send-command", "--region", aws_region,
                              "--instance-ids", instance_id, "--document-name", "AWS-RunShellScript",
                              "--comment", "AdaptiveNet bounded demo fault; recovery scheduled before stop",
