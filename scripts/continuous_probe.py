@@ -45,7 +45,7 @@ def resolve_targets(profile: str, env_file: Path, *, cloudfront_only: bool = Fal
             host = aws_text(["ec2", "describe-instances", "--region", aws_region,
                              "--instance-ids", instance_id,
                              "--query", "Reservations[0].Instances[0].PublicDnsName"], profile)
-            if not host.startswith("ec2-") or not host.endswith(".compute.amazonaws.com"):
+            if not host.startswith("ec2-") or not host.endswith((".compute.amazonaws.com", ".compute-1.amazonaws.com")):
                 raise ValueError(f"{region} has no expected public EC2 DNS name")
             targets[region] = "http://" + host + "/api/catalog"
     return targets
