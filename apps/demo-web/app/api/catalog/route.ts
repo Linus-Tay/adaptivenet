@@ -24,7 +24,8 @@ export async function GET(request: Request) {
   const started = Date.now();
   try {
     const upstream = await fetch(url, {cache: "no-store", signal: AbortSignal.timeout(8000)});
-    const body = await upstream.json();
+    // CloudFront 502/503 error pages can be HTML. Preserve their real HTTP status.
+    const body = await upstream.json().catch(() => ({}));
     return Response.json({source, status: upstream.status, elapsed_ms: Date.now()-started,
       origin: typeof body?.region === "string" ? body.region : null, response: body},
     {status: upstream.status, headers: {"Cache-Control": "no-store"}});
