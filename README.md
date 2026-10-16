@@ -211,6 +211,25 @@ Open **http://127.0.0.1:8766**. The page **only reads existing snapshots**. Only
 
 Endpoints: `GET /v1/features/latest`, `GET /v1/features/history?limit=50`, `GET /v1/ingestion/status`.
 
+### Why CloudFront can appear missing in the observatory
+
+CloudFront is rendered **immediately below Overview**, ahead of Regional health, whether telemetry is available or not. The CloudFront panel always displays the configured distribution ID and all six metric slots. A dash means **missing or stale CloudWatch observations**, not a missing distribution or zero requests. **Auto refresh** only reloads the local SQLite snapshot: it does **not** poll AWS.
+
+If the page says `Snapshot stale` or warns that the ingestion collector is not updating, from the **same checkout and Python environment** run:
+
+```bash
+cd "$HOME/Downloads/adaptivenet-cleanup-review"
+source .venv/bin/activate
+export AWS_PROFILE=adaptivenet-admin
+python scripts/cloudfront_probe.py --count 5 --run
+python scripts/cloudfront_doctor.py --lookback-minutes 180
+python scripts/ingestion.py once --profile adaptivenet-admin
+```
+
+The probe sends five real HTTPS GET requests (tiny real traffic), so run it only when authorized. CloudWatch metrics can appear after a publication delay; if the doctor shows old samples or none, wait and repeat the **doctor and ingestion once**. Check `/v1/features/latest` for `cloudfront.status`, `cloudfront.distribution_id` and `cloudfront.features.cloudfront_requests`. If `source_errors` includes `global:cloudfront:...`, check AWS SSO and `cloudwatch:GetMetricData`. The doctor reports recent **and historical** (up to 180 minutes) samples without passing old readings into the live model.
+
+To keep collection active, use **another terminal** with `python scripts/ingestion.py watch --profile adaptivenet-admin --interval 120` while `serve` runs separately. Restart the dashboard process after pulling this change. CloudFront remains read-only: no AWS routes, EKS resources, or DNS records are modified.
+
 ### Observatory dashboard (new)
 
 The read-only **Network Observatory** is served at **http://127.0.0.1:8766/** directly by `scripts/ingestion.py serve`. It is **not** the Next.js local lab on port 3000 or the CloudFront website. It requires no `npm install`, CDN, image assets, or frontend API key.
