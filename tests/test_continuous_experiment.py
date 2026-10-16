@@ -84,3 +84,14 @@ def test_ssm_offline_safely_prevents_fault():
             {'InstanceId':'i-0039feaedbd2b3266','PingStatus':'ConnectionLost'}]}):
         with pytest.raises(RuntimeError,match='SSM Online'):
             aws_fault.verify_ssm_online('demo','ap-southeast-1','i-0039feaedbd2b3266')
+
+def test_public_origin_dns_supports_virginia_compute_1(tmp_path):
+    env = tmp_path / ".env"
+    env.write_text("CLOUDFRONT_DISTRIBUTION_ID=E1234567890ABC\n")
+    domains = iter(["d2zsecrmlm6eiu.cloudfront.net",
+                    "ec2-54-179-156-53.ap-southeast-1.compute.amazonaws.com",
+                    "ec2-100-58-157-137.compute-1.amazonaws.com"])
+    with patch.object(continuous_probe, "aws_text", side_effect=lambda *args, **kw: next(domains)):
+        urls = continuous_probe.resolve_targets("demo", env)
+    assert set(urls) == {"cloudfront", "region-a", "region-b"}
+    assert urls["region-b"].startswith("http://ec2-100-58-157-137.compute-1.amazonaws.com")
