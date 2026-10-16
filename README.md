@@ -211,6 +211,23 @@ Open **http://127.0.0.1:8766**. The page **only reads existing snapshots**. Only
 
 Endpoints: `GET /v1/features/latest`, `GET /v1/features/history?limit=50`, `GET /v1/ingestion/status`.
 
+### Observatory dashboard (new)
+
+The read-only **Network Observatory** is served at **http://127.0.0.1:8766/** directly by `scripts/ingestion.py serve`. It is **not** the Next.js local lab on port 3000 or the CloudFront website. It requires no `npm install`, CDN, image assets, or frontend API key.
+
+It displays:
+- **Overview:** model-input readiness, snapshot age (live inference rejects snapshots older than 180 seconds), healthy regions, RIPE probe coverage, and global CloudFront request count.
+- **Singapore and Virginia:** RIPE latency/packet loss, CPU, memory, app/HTTP diagnostics, and source freshness.
+- **History:** selectable real-time-series charts across up to 120 persisted snapshots; absent measurements remain gaps instead of invented points.
+- **CloudFront (global):** requests, 4xx/5xx/total error percentages and transferred bytes from CloudWatch `us-east-1`, when configured and observed.
+- **Data quality:** individual source gates, current upstream `no_series` errors, and last poll details.
+- **Feature explorer:** searchable and scope-filterable full regional and global feature values, units, and observation ages, with links to all three read-only API endpoints.
+
+**Seeing the old page?** Stop the running `serve` process with Ctrl+C (the HTML is loaded when the Python process starts), pull this branch, and restart `python scripts/ingestion.py serve --port 8766` from the **same repo and SQLite database** as `watch`. Force-reload the browser. Run `python scripts/ingestion.py once --profile adaptivenet-admin` if the data has become stale. Auto-refresh reads saved snapshots every 30 seconds; it does not run ingestion or update AWS.
+
+**CloudFront still blank?** Verify local `.env` has `CLOUDFRONT_DISTRIBUTION_ID`, `python scripts/cloudfront_doctor.py` returns actual CloudWatch points after legitimate requests, then restart `watch` and run one cycle. `Unavailable` always means missing/stale, never 0. The dashboard is intentionally loopback-only and has no authentication; do not expose port 8766 publicly.
+
+
 ## 5. RIPE Atlas stopped, cloned, or replaced measurements
 
 The first measurements, Singapore `222734302` and Virginia `222734303`, are **historical**. Stopping or closing your laptop does not delete their results. Polling old results does not make them fresh. Running/cloning **new recurring measurements uses RIPE credits**, independently of the local dashboard.
