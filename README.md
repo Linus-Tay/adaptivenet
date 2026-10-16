@@ -211,6 +211,19 @@ Open **http://127.0.0.1:8766**. The page **only reads existing snapshots**. Only
 
 Endpoints: `GET /v1/features/latest`, `GET /v1/features/history?limit=50`, `GET /v1/ingestion/status`.
 
+### CloudFront last-known metrics (fixed disappearing cards)
+
+The CloudFront **live features** have a strict 900-second/15-minute observation freshness limit. Standard CloudWatch request metrics may stop updating during quiet periods, because there is no new traffic. A snapshot collected just before the 900-second limit can show `fresh`, then the next poll can correctly show `no_fresh_metrics`.
+
+**This no longer makes the last real values disappear from the dashboard.** Each snapshot now has two separate fields under `cloudfront`:
+
+- `features` and `provenance`: **live-only**, automatically `null`/missing when CloudWatch observations become stale; used for quality checks and ML ingestion.
+- `last_known`: the latest *historically observed* value for each metric from the **same configured distribution ID**, with `observed_at`, `age_seconds`, `value`, `unit`, `source`, and `display_only: true`. This is only for the UI and can remain visible for up to the existing seven-day local retention period. The model-input adapter **excludes** `last_known` entirely.
+
+In the CloudFront cards, a current sample uses the regular color; an older sample appears **amber**, marked **STALE**, with the exact recording time. The top CloudFront Requests KPI uses the same distinction. **A last-known value of 0 is valid**, while no observed value still shows a dash. There is no automatic traffic generation, AWS mutation or relaxation of ML safety.
+
+To load the new fields after pulling this branch, run `python scripts/ingestion.py once --profile adaptivenet-admin` in the original project checkout. Stop and restart `python scripts/ingestion.py serve --port 8766` to load the new dashboard, and restart `watch` if it was running old Python code. The local SQLite journal retains previously collected observations, so **do not delete or recreate the database**.
+
 ### Why CloudFront can appear missing in the observatory
 
 CloudFront is rendered **immediately below Overview**, ahead of Regional health, whether telemetry is available or not. The CloudFront panel always displays the configured distribution ID and all six metric slots. A dash means **missing or stale CloudWatch observations**, not a missing distribution or zero requests. **Auto refresh** only reloads the local SQLite snapshot: it does **not** poll AWS.
