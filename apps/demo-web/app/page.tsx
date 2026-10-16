@@ -2,7 +2,7 @@
 import {useEffect, useRef, useState} from "react";
 
 type Result = {source:string;status:number;elapsed_ms:number;origin:string|null;
-  error?:string;checked_at:string};
+  response?:{items?:Array<{id:string;name:string;price:number}>};error?:string;checked_at:string};
 const sources=["cloudfront","region-a","region-b"] as const;
 const labels:Record<string,[string,string]>={
   cloudfront:["CloudFront CDN","Primary Singapore · automatic Virginia origin failover"],
@@ -26,7 +26,7 @@ export default function Page(){
           const response=await fetch("/api/catalog?source="+source,{cache:"no-store",signal:AbortSignal.timeout(11000)});
           const body=await response.json();
           return {source,status:response.status,elapsed_ms:body.elapsed_ms??Math.round(performance.now()-begin),
-            origin:body.origin??null,error:body.error,
+            origin:body.origin??null,response:body.response,error:body.error,
             checked_at:new Date().toLocaleTimeString()} as Result;
         }catch{
           return {source,status:504,elapsed_ms:Math.round(performance.now()-begin),
@@ -62,6 +62,19 @@ export default function Page(){
         <footer>Last request: {r?.checked_at??"None"}</footer>
       </article>
     })}</div>
+    <section className="catalogue"><h2>Live coffee catalogue</h2><p>These items come from your real CloudFront origin. The CDN panel above shows which region served them.</p><div className="catalogue-items">
+      {(rows.cloudfront?.response?.items??[]).map(item=><article key={item.id}><span>{item.name}</span><strong>${typeof item.price==='number'?('
+      <p>An EC2 application outage may produce an origin failure while CloudFront still returns 200 from Virginia. RIPE ICMP probes test network reachability, not the HTTP application.</p>
+      {events.length===0?<div className="empty">Run a check to record actual HTTP observations.</div>:
+        events.map((e,i)=><div className="event" key={i}><span>{e.checked_at}</span><b>{e.source}</b>
+          <span className={e.status===200?"ok":"err"}>HTTP {e.status}</span><span>{e.elapsed_ms} ms</span>
+          <span>Origin: {e.origin??"—"}</span></div>)}
+    </section>
+    <footer className="workload-footer">Public workload test page · No AWS configuration, routing or scaling actions here</footer>
+  </main>;
+}
++item.price.toFixed(2)):'—'}</strong></article>)}
+      </div>{!rows.cloudfront?.response?.items?.length&&<p>Run a real HTTP check to load the catalogue.</p>}</section>
     <section className="timeline"><h2>Request timeline</h2>
       <p>An EC2 application outage may produce an origin failure while CloudFront still returns 200 from Virginia. RIPE ICMP probes test network reachability, not the HTTP application.</p>
       {events.length===0?<div className="empty">Run a check to record actual HTTP observations.</div>:
