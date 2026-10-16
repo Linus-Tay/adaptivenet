@@ -108,10 +108,15 @@ def test_one_aws_read_command_and_no_writes():
 
 
 def test_dashboard_exposes_cloudfront_and_all_regional_features():
-    assert 'CloudFront (global CDN)' in HTML
-    assert "Object.entries(v.features)" in HTML
-    assert "Object.keys(labels)" in HTML
-    assert 'CF' not in HTML or 'cloudfront' in HTML.lower()
+    assert 'CloudFront delivery' in HTML
+    assert 'Performance trends' in HTML
+    assert 'Data quality gates' in HTML
+    assert 'Feature explorer' in HTML
+    assert "Object.entries(f)" in HTML
+    assert "Object.entries(cfLabels)" in HTML
+    assert '/v1/features/history?limit=120' in HTML
+    assert 'Auto refresh: on' in HTML
+    assert "No AWS actions" in HTML
 
 
 def test_configure_cloudfront_preserves_other_env_settings(tmp_path):
