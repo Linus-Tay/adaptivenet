@@ -3,6 +3,7 @@
 from __future__ import annotations
 import argparse
 import os
+import signal
 from pathlib import Path
 import subprocess
 import sys
@@ -51,7 +52,8 @@ def main(argv=None):
         for command, extra in command_set(profile=args.profile, interval=args.interval,
                 traffic=args.traffic, probe_interval=args.probe_interval, with_ui=args.with_ui):
             print('Starting:', ' '.join(command), flush=True)
-            processes.append(subprocess.Popen(command, cwd=str(ROOT), env={**env, **extra}))
+            processes.append(subprocess.Popen(command, cwd=str(ROOT), env={**env, **extra},
+                                            start_new_session=(os.name != 'nt')))
         print('Observer: http://127.0.0.1:8766', flush=True)
         if args.with_ui:
             print('Real-workload test: http://127.0.0.1:3001 | Separate operator: http://127.0.0.1:3000', flush=True)
@@ -64,12 +66,18 @@ def main(argv=None):
     finally:
         for proc in reversed(processes):
             if proc.poll() is None:
-                proc.terminate()
+                if os.name != 'nt':
+                    os.killpg(proc.pid, signal.SIGTERM)
+                else:
+                    proc.terminate()
         for proc in reversed(processes):
             try:
                 proc.wait(timeout=8)
             except subprocess.TimeoutExpired:
-                proc.kill()
+                if os.name != 'nt':
+                    os.killpg(proc.pid, signal.SIGKILL)
+                else:
+                    proc.kill()
                 proc.wait()
 
 if __name__ == '__main__':
