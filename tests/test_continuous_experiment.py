@@ -58,10 +58,12 @@ def test_ssm_dry_run_does_not_write():
 
 def test_explicit_live_ssm_command_is_allowlisted_and_auditable(tmp_path):
     with patch.object(aws_fault,'validate_target',return_value=('ap-southeast-1','i-0039feaedbd2b3266')):
-        with patch.object(aws_fault,'aws_write',return_value={'Command':{'CommandId':'test-id'}}) as write:
-            assert aws_fault.main(['--region','region-a','--expected-account','468354413374',
-                '--duration','20','--execute','--confirm','STOP-REGION-A',
-                '--out',str(tmp_path/'journal.jsonl')])==0
+        with patch.object(aws_fault,'verify_ssm_online') as ssm:
+            with patch.object(aws_fault,'aws_write',return_value={'Command':{'CommandId':'test-id'}}) as write:
+                assert aws_fault.main(['--region','region-a','--expected-account','468354413374',
+                    '--duration','20','--execute','--confirm','STOP-REGION-A',
+                    '--out',str(tmp_path/'journal.jsonl')])==0
+            ssm.assert_called_once_with('adaptivenet-admin','ap-southeast-1','i-0039feaedbd2b3266')
     cmd=write.call_args.args[0]
     assert cmd[:2]==['ssm','send-command']
     assert 'AWS-RunShellScript' in cmd
@@ -76,3 +78,9 @@ def test_http_503_is_recorded_as_failure_not_availability():
 
 def test_unsafe_probe_interval_rejected():
     with pytest.raises(SystemExit): continuous_probe.main(['--interval','30'])
+
+def test_ssm_offline_safely_prevents_fault():
+    with patch.object(aws_fault,'aws_read',return_value={'InstanceInformationList':[
+            {'InstanceId':'i-0039feaedbd2b3266','PingStatus':'ConnectionLost'}]}):
+        with pytest.raises(RuntimeError,match='SSM Online'):
+            aws_fault.verify_ssm_online('demo','ap-southeast-1','i-0039feaedbd2b3266')
