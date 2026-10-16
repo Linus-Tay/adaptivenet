@@ -3,7 +3,9 @@ from __future__ import annotations
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, parse_qs
 import json
+from pathlib import Path
 from .store import Store
+from .witness import recent_probes
 
 # Bundled, self-contained dashboard: no external JavaScript or CSS dependencies.
 from importlib.resources import files
@@ -29,6 +31,10 @@ def serve(db_path: str, *, port: int = 8766):
                 except ValueError:
                     self.respond(400, b'{"error":"invalid limit"}'); return
                 data = {"snapshots":store.recent_snapshots(limit)}
+            elif route == "/v1/experiments/probes":
+                data = {"mode": "read_only", "source": "explicit_http_witness",
+                        "note": "Traffic is generated only if continuous_probe.py --run is active.",
+                        "events": recent_probes(Path(db_path).parent / "probe-events.jsonl", limit=40)}
             elif route == "/v1/ingestion/status":
                 data = {"latest_run":store.latest_run(),"latest_snapshot": (store.latest_snapshot() or {}).get("snapshot_id"),"automation_enabled":False}
             else:
