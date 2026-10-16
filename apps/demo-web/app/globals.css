@@ -35,3 +35,11 @@ body{background:#0b1423;color:#e6edf7;font-family:Arial,sans-serif;margin:0}main
 .workload .event{display:grid;grid-template-columns:1fr 1.1fr .85fr .8fr 1fr;gap:10px;padding:10px 0;border-top:1px solid #2e4058;font-size:12px;color:#b7c6d9}
 .workload .ok{color:#70e1be}.workload .err{color:#ff99a8}
 @media(max-width:880px){.workload-grid{grid-template-columns:1fr}.workload .event{grid-template-columns:1fr 1fr}.workload-card p{min-height:0}}
+
+.workload .catalogue{border:1px solid #2c415c;background:#121f32;border-radius:17px;padding:22px;margin:22px 0}
+.workload .catalogue h2{font-size:20px;margin:0 0 11px}
+.workload .catalogue p{font-size:12px;color:#9eafc6}
+.workload .catalogue-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:16px}
+.workload .catalogue-items article{padding:16px;background:#0d1a2a;border:1px solid #31435a;border-radius:12px;display:flex;justify-content:space-between;gap:12px}
+.workload .catalogue-items strong{color:#80e2c4}
+@media(max-width:650px){.workload .catalogue-items{grid-template-columns:1fr}}
