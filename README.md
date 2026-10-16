@@ -157,6 +157,65 @@ aws eks list-clusters --region us-east-1 --profile adaptivenet-admin
 
 These checks show what the signed-in account can list. For Route 53, inspect the intended hosted zone and current records with the infrastructure owner, and reconcile with verified remote Terraform state **before** enabling `enable_route53` or `enable_eks`. A `git push`, PR merge, model prediction or dashboard refresh does **not** deploy these resources.
 
+### Live end-to-end experiment: three separate interfaces
+
+**This is now implemented for local operation against the real deployed CloudFront/EC2 sources, with an explicitly gated AWS fault option.** It does not deploy Kubernetes/HPA or perform automatic mitigation. The real EC2 fault runner is code-complete but still requires live validation of SSM access, service name and automatic restoration on the instance.
+
+| Interface | URL | What it touches |
+|---|---|---|
+| **Observer / metrics** | http://127.0.0.1:8766 | READ ONLY: AWS AMP/Prometheus, RIPE Atlas, CloudFront CloudWatch + optional independent HTTP witness journal |
+| **Experiment controller** | http://127.0.0.1:3000 | In real AWS mode, displays approved SSM CLI commands but **blocks all browser AWS mutations**. In local-lab mode, its buttons affect **only the local simulated gateway** |
+| **Public workload test page** | http://127.0.0.1:3001 | Sends real HTTP to CloudFront and directly to SG/VA EC2 to visibly compare failover and regional failures; **does not inject faults** |
+| **Actual CloudFront/EC2 backend** | https://d2zsecrmlm6eiu.cloudfront.net/api/catalog | Existing deployed AWS workload. SG is primary; Virginia is CloudFront's failover origin for configured conditions. The Next.js test page is local, **not deployed behind CloudFront** |
+
+**Start everything from ONE local terminal** after pulling the ingestion branch, with AWS SSO credentials, `.env` containing your distribution/RIPE measurement IDs, Python dependencies and Node.js/npm:
+
+```bash
+cd "$HOME/Downloads/adaptivenet-cleanup-review"
+git switch feature/ingestion-ml-handoff
+git pull --ff-only
+source .venv/bin/activate
+python -m pip install -e '.[dev]' awscurl certifi
+npm ci
+aws sso login --profile adaptivenet-admin
+export AWS_PROFILE=adaptivenet-admin
+export SSL_CERT_FILE="$(python -c 'import certifi; print(certifi.where())')"
+python scripts/ripe_measurements.py status
+python scripts/cloudfront_doctor.py --lookback-minutes 180
+
+# Existing port 8766, 3000 and 3001 servers must first be stopped.
+python scripts/live_monitor.py --traffic --with-ui
+```
+
+This supervises `ingestion.py watch --interval 120`, the read-only `:8766` dashboard, a **bounded real** `GET /api/catalog` witness against CloudFront + both regional public EC2 origins **once every 60 seconds**, and the two separate Next.js UIs. It writes actual HTTP witness results to ignored `data/probe-events.jsonl`; the observer reads this via `GET /v1/experiments/probes`. The journal is **not** Prometheus, RIPE, ML input, or a replacement for AWS measurements. **HTTP witness traffic incurs actual CloudFront/transfer charges**; `--traffic` opts in explicitly. Without traffic, omit `--traffic`; CloudWatch request metrics may disappear during quiet periods (historical values remain marked stale). Ctrl+C stops all child processes. To run only real telemetry and observer, use `python scripts/live_monitor.py`.
+
+**Real application-availability fault: optional, explicit AWS SSM approval.** Existing Terraform EC2 instance profiles include AmazonSSMManagedInstanceCore, but **the SSM agent, role permissions and exact running service must be verified live**. The script restricts targets to instance IDs `i-0039feaedbd2b3266` in Singapore or `i-0ea5125bcb2d201ec` in Virginia, checks actual AWS account + RUNNING state + Project=AdaptiveNet/Environment=demo tags, and accepts only 10–60 seconds. It pre-schedules a separate systemd service restart timer **before** stopping `adaptivenet-demo.service`. SSM delivery/restart is not guaranteed without live testing—check both afterwards. It never changes CloudFront/Route 53 weights or Kubernetes.
+
+In **a second terminal**, first preview **without changing AWS**:
+
+```bash
+cd "$HOME/Downloads/adaptivenet-cleanup-review"
+source .venv/bin/activate
+aws sso login --profile adaptivenet-admin
+python scripts/aws_fault.py --region region-a --duration 30 \
+  --expected-account 468354413374
+```
+
+**ONLY in an authorized, disposable AWS experiment window**, run the explicitly confirmed command:
+
+```bash
+python scripts/aws_fault.py --region region-a --duration 30 \
+  --expected-account 468354413374 \
+  --execute --confirm STOP-REGION-A
+```
+
+The CLI prints the AWS SSM command ID and the exact `aws ssm get-command-invocation` read to verify whether the command **actually executed**; SSM request acceptance alone does not prove an outage. Observe **SG direct origin failure** in `:3001`, with the possibility that CloudFront instead serves **Virginia**. Check the direct SG endpoint again after the 30-second interval to verify recovery. The `:8766` observer separately shows real CloudWatch request metrics, regional AMP health and RIPE probe timestamps; their different update cadences mean not every source changes immediately.
+
+**This is an application/service fault, not an ICMP/packet-loss fault.** A stopped catalogue HTTP service can make CloudFront fail over and reduce direct-origin HTTP availability while RIPE Atlas pings remain normal. Kubernetes autoscaling/Route 53 mitigation, network impairment injection, and ML inference/actuation are **not yet implemented** in this flow. Do not claim they are demonstrated.
+
+**Architecture boundaries:** all real AWS reads and bounded HTTP probes are independent of model output; no app website hosts privileged fault endpoints; `:8766` has no mutation route; `:3000` real mode rejects POST mutations; real fault actions require AWS SSO permissions, target verification and confirmation. If multiple local copies exist, **always run all three interfaces from the same `adaptivenet-cleanup-review` checkout**. Neither the watcher nor the website runs permanently after the Mac shuts down.
+
+
 ## 4. Quick start: macOS and Windows
 
 **Requirements for offline work:** Python 3.11+, Git. **Extra for live AWS collection:** AWS CLI v2, `awscurl`, valid AWS IAM Identity Center login with permission to query both AMP workspaces. **Optional UI/demo lab:** Node.js + npm or Docker. The private repository requires GitHub access. **Until this handoff is merged into `main`, run `git switch feature/ingestion-ml-handoff` immediately after cloning** (macOS or Windows); skip that command after merge.
