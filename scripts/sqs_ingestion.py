@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "services"))
 
 from adaptivenet.ingestion.cli import collect_source_poll
+from adaptivenet.ingestion.config import read_env_file
 from adaptivenet.ingestion.sqs_transport import (
     Outbox, encode_poll, resolve_queue_url, sqs_client, receive_one, queue_health,
 )
@@ -39,8 +40,11 @@ def main(argv=None) -> int:
         parser.error("interval >= 60s; wait-seconds between 0 and 20")
     # Explicit commands are required. The default ingestion.py watcher still
     # uses its original direct SQLite mode; do not run BOTH ingestion modes.
+    settings = read_env_file(args.env_file)
+    queue_candidate = args.queue_url or settings.get("ADAPTIVENET_SQS_QUEUE_URL")
+    expected_account = os.environ.get("ADAPTIVENET_AWS_ACCOUNT_ID") or settings.get("ADAPTIVENET_AWS_ACCOUNT_ID") or args.account_id
     client = sqs_client(args.profile)
-    queue_url = resolve_queue_url(client, args.queue_url, args.account_id)
+    queue_url = resolve_queue_url(client, queue_candidate, expected_account)
     outbox = Outbox(args.outbox) if args.command.startswith("publish-") else None
 
     def publish():
