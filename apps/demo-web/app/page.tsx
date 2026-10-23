@@ -62,9 +62,19 @@ export default function Page(){
         <footer>Last request: {r?.checked_at??"None"}</footer>
       </article>
     })}</div>
-    <section className="catalogue"><h2>Live coffee catalogue</h2><p>These items come from your real CloudFront origin. The CDN panel above shows which region served them.</p><div className="catalogue-items">
-      {(rows.cloudfront?.response?.items??[]).map(item=><article key={item.id}><span>{item.name}</span><strong>${typeof item.price==='number'?('
-      <p>An EC2 application outage may produce an origin failure while CloudFront still returns 200 from Virginia. RIPE ICMP probes test network reachability, not the HTTP application.</p>
+    <section className="catalogue">
+      <h2>Live coffee catalogue</h2>
+      <p>Items returned from the real CloudFront origin; the cards above identify the serving region.</p>
+      <div className="catalogue-items">
+        {(rows.cloudfront?.response?.items??[]).map(item=>
+          <article key={item.id}><span>{item.name}</span>
+            <strong>{typeof item.price==="number" ? "$"+item.price.toFixed(2) : "—"}</strong>
+          </article>)}
+      </div>
+      {!rows.cloudfront?.response?.items?.length&&<p>Run a real HTTP check to load the catalogue.</p>}
+    </section>
+    <section className="timeline"><h2>Request timeline</h2>
+      <p>A Singapore HTTP application failure may be hidden from the CloudFront viewer by Virginia origin failover. RIPE ICMP measures network reachability, not application health.</p>
       {events.length===0?<div className="empty">Run a check to record actual HTTP observations.</div>:
         events.map((e,i)=><div className="event" key={i}><span>{e.checked_at}</span><b>{e.source}</b>
           <span className={e.status===200?"ok":"err"}>HTTP {e.status}</span><span>{e.elapsed_ms} ms</span>
