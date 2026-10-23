@@ -27,3 +27,21 @@ body{background:#0b1423;color:#e6edf7;font-family:Arial,sans-serif;margin:0}main
 .operator-grid small{display:block;color:#9dafc8;margin-top:9px;font-size:11px}
 .operator-footer{color:#849bb8;font-size:11px;margin:25px 0}
 @media(max-width:800px){.operator-links,.operator-grid{grid-template-columns:1fr}}
+
+
+/* Keyboard-accessible contextual explanations beside every experiment action. */
+.operator-info{display:inline-flex;align-items:center;justify-content:center;position:relative;flex:0 0 24px;width:24px;height:24px;border:1px solid #52728d;border-radius:99px;color:#8fe4db;background:#122a40;font-size:16px;cursor:help}
+.operator-info:focus-visible{outline:2px solid #69dacd;outline-offset:3px}
+.operator-tooltip{display:none;position:absolute;left:calc(100% + 9px);top:-18px;z-index:10;width:min(300px,65vw);padding:12px 14px;border:1px solid #456986;border-radius:11px;background:#071728;box-shadow:0 10px 35px #0009;text-align:left;color:#d7e8f7;font-size:11px;line-height:1.55}
+.operator-info:hover .operator-tooltip,.operator-info:focus .operator-tooltip{display:block}
+.operator-action{display:flex;align-items:center;gap:8px;min-width:0}
+.operator-action button{flex:1}
+.fault-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:20px 0}
+.fault-fields select{width:100%;padding:11px 13px;border-radius:10px;background:#0c1b2d;border:1px solid #47627e;color:#f3f8ff}
+.fault-button-row{display:flex;align-items:center;gap:12px;margin:14px 0;flex-wrap:wrap}
+.fault-button-row .operator-danger{background:#833342;border:1px solid #b95163;color:#fff0f2;font-weight:700}
+.fault-button-row .operator-danger:hover:enabled{background:#a33d4e}
+.fault-button-row button:disabled{cursor:not-allowed;opacity:.5}
+.operator-help{color:#aabdd0;font-size:11px;line-height:1.5;max-width:450px}
+.operator-result{padding:13px;border:1px solid #5e805f;background:#18382c;border-radius:10px;color:#a5e5cb!important}
+@media(max-width:700px){.fault-fields{grid-template-columns:1fr}.operator-info .operator-tooltip{left:auto;right:0;top:28px}.operator-grid{grid-template-columns:1fr}}
