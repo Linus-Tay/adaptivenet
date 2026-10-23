@@ -15,23 +15,23 @@ from .decisions import review_proposal
 from .cloudfront import distribution_id, collect_cloudfront
 
 
-def cycle(db_path, *, profile="adaptivenet-admin", env_file=None, now=None):
+def collect_source_poll(*, profile="adaptivenet-admin", env_file=None, now=None):
+    """Existing live collectors shared by direct SQLite and queued SQS modes."""
     started_at = time.time() if now is None else now
-    store = Store(db_path)
     collected = collect_all(region_configs(env_file), profile, started_at)
     cf_id = distribution_id(env_file)
     if cf_id:
         try:
-            collected.observations.extend(collect_cloudfront(cf_id,profile,started_at))
+            collected.observations.extend(collect_cloudfront(cf_id, profile, started_at))
         except (OSError, ValueError, RuntimeError, TimeoutError) as exc:
-            # Missing CloudFront telemetry must not suppress valid AWS + RIPE signals.
-            collected.errors.append("global:cloudfront:"+type(exc).__name__)
-
-    # A remote query can return samples timestamped AFTER collection began.
-    # Using started_at as the snapshot cutoff incorrectly drops those valid samples,
-    # particularly Virginia queries retrieved later in the collection cycle.
-    # Keep deterministic injected-now semantics for offline replay/tests.
+            collected.errors.append("global:cloudfront:" + type(exc).__name__)
     evaluated_at = max(started_at, time.time()) if now is None else now
+    return collected, cf_id, evaluated_at
+
+
+def cycle(db_path, *, profile="adaptivenet-admin", env_file=None, now=None):
+    collected, cf_id, evaluated_at = collect_source_poll(profile=profile, env_file=env_file, now=now)
+    store = Store(db_path)
     saved = store.record(collected.observations, collected.errors, collected.status, at=evaluated_at)
     # Source timestamps remain immutable; do not refresh historical Atlas data.
     # Include only bounded future-skewed AMP samples. The feature builder also
