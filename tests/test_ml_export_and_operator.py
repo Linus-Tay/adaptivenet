@@ -28,15 +28,21 @@ def test_ml_export_has_real_timestamp_and_missing_masks_without_stale_display_va
     assert "last_known" not in row["cloudfront_live_at_collection"]
     assert row["missing"]["region-a"]["app_up"] is True
 
-def test_operator_requires_explicit_localhost_optin_and_confirm():
+def test_operator_supports_local_one_button_demo_faults():
     server=(ROOT/"apps/dashboard/app/api/aws-fault/route.ts").read_text()
-    assert 'ENABLE_REAL_AWS_FAULT_UI' in server
-    assert '127.0.0.1:3000' in server
-    assert 'STOP-REGION-A' in server and 'STOP-REGION-B' in server
-    assert "90_000" in server
-    assert '"--execute"' in server
+    ui=(ROOT/"apps/dashboard/app/page.tsx").read_text()
+    # No separate arming toggle or arbitrary remote command.
+    assert 'ENABLE_REAL_AWS_FAULT_UI' not in server
+    assert 'requestInProgress' in server
+    assert 'ADAPTIVENET_MODE' in server
+    assert '"region-a"' in server and '"region-b"' in server
+    assert '[10, 20, 30, 45, 60]' in server
+    assert 'aws_fault.py' in server
+    assert '"--execute"' in server and '"--confirm"' in server
     assert 'shell: false' in server
-    assert 'lastSubmittedAt' in server
+    # A locally initiated button press remains a user-confirmed action.
+    assert 'window.confirm(' in ui
+    assert '/api/aws-fault' in ui
 
 def test_fault_controls_are_separate_from_public_workload():
     ui=(ROOT/"apps/dashboard/app/page.tsx").read_text()
