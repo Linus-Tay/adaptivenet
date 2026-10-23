@@ -131,7 +131,8 @@ class Outbox:
         path = self.path / (message["batch_id"] + ".json")
         if path.exists():
             return path
-        temporary = self.path / (message["batch_id"] + ".tmp")
+        # A crash may leave an old .tmp; a unique name never prevents replay.
+        temporary = self.path / (message["batch_id"] + f".{os.getpid()}.{time.time_ns()}.tmp")
         fd = os.open(temporary, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as output:
