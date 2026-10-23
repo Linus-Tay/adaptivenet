@@ -17,7 +17,12 @@ def environment():
                 env.setdefault(key.strip(), value.strip())
     if not env.get("LAB_TOKEN"):
         raise SystemExit("Copy .env.example to .env and set LAB_TOKEN first.")
-    env["PYTHONPATH"] = str(ROOT / "services")
+    env["PYTHONPATH"] = str(ROOT / "services") + os.pathsep + str(ROOT)  # services package + ml/
+    # The controller's three probe views (direct regions, gateway pinned, gateway unpinned).
+    env.setdefault("INTERNAL_REGION_A_URL", "http://127.0.0.1:8101")
+    env.setdefault("INTERNAL_REGION_B_URL", "http://127.0.0.1:8102")
+    env.setdefault("EXTERNAL_PROBE_URL", "http://127.0.0.1:8080")
+    env.setdefault("SCALE_ACTUATOR", "emulated")  # kubernetes in-cluster; none to disable scale-out
     return env
 
 def start(env):

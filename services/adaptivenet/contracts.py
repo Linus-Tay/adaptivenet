@@ -20,6 +20,9 @@ class TelemetryEvent(BaseModel):
 
 class Fault(BaseModel):
     region: Literal["region-a", "region-b"]
+    # network: injected on the user path (gateway); in-region probes do not see it.
+    # compute: injected inside the regional workload; every observer sees it.
+    kind: Literal["network", "compute"] = "network"
     latency_ms: int = Field(default=0, ge=0, le=5000)
     error_rate: float = Field(default=0, ge=0, le=1)
     duration_seconds: int = Field(default=30, ge=1, le=120)

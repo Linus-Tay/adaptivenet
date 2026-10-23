@@ -2,7 +2,7 @@
 
 **Real AWS telemetry + bounded experiments + ML-ready features.** AdaptiveNet monitors two regional EC2 catalogue APIs through AWS Managed Prometheus (AMP), RIPE Atlas, and CloudFront CloudWatch. A collector can publish timestamped telemetry polls through SQS to a separate SQLite feature worker (with direct-SQLite fallback); three *separate* interfaces make it possible to see the workload, observe metrics, and control authorized experiments.
 
-> **Current stage (October 2026):** CloudFront is deployed, both regional API origins and AMP/RIPE data have been observed live, and six CloudFront metrics have been collected. SQS producer/consumer code now exists, but live SQS deployment/access still needs verification. EKS/HPA, trained ML and automatic mitigation are not running. See the status table.
+> **Current stage (October 2026):** CloudFront is deployed, both regional API origins and AMP/RIPE data have been observed live, and six CloudFront metrics have been collected. SQS producer/consumer code now exists, but live SQS deployment/access still needs verification. EKS/HPA and a trained model are not running. A model-driven mitigation loop (predict -> review -> act -> verify recovery) now runs in the local lab; see [docs/MITIGATION.md](docs/MITIGATION.md).
 
 ## 1. What runs and how it works
 
@@ -63,7 +63,7 @@ The CloudFront domain is **not** hosting the Next.js pages. Those are local rese
 | SQS + DLQ | SQS/DLQ Terraform, producer, consumer, outbox, tests, IAM policies and alarms | Verify queue and permissions live; EKS hosting later |
 | EKS / Helm | Terraform/Helm scaffolding exists; `enable_eks=false` default | Cluster deployment, HPA, node scaling, ingress and evaluation unfinished |
 | Route 53 | Weighted DNS/health-check Terraform exists, off by default | No model-controlled route-weight adapter |
-| ML / controller | Feature and proposal contracts + rule baseline + shadow safety reviewer | Train/evaluate predictive model and later build audited actuator |
+| ML / controller | Contracts, dual-view rules predictor, reviewer, mitigation controller with route/scale/failover actuators and recovery verification (local lab verified; [docs/MITIGATION.md](docs/MITIGATION.md)) | Trained model on labeled runs; AWS route actuator; Kubernetes scale actuator verified live |
 
 **CloudFront, RIPE and AMP are independent.** CloudFront viewer metrics are *global*; AMP is per-region; RIPE measures ICMP network reachability (an HTTP service failure can leave RIPE ping healthy). This difference should be recorded as experimental evidence, not treated as a broken sensor.
 

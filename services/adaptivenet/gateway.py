@@ -8,7 +8,7 @@ import os
 import random
 import secrets
 import time
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 import httpx
 from pydantic import BaseModel, Field
@@ -17,6 +17,10 @@ from .contracts import Fault
 app = FastAPI(title="LOCAL route and fault simulator")
 faults: dict = {}
 weight_a = 100
+
+# External probes pin one region, like a RIPE Atlas measurement targets one
+# regional endpoint. User requests never set it and follow the route weights.
+PROBE_HEADER = "x-adaptivenet-probe-region"
 
 def authorize(token: str | None):
     expected = os.environ.get("LAB_TOKEN", "")
@@ -48,6 +52,8 @@ def route(body: Weights, x_lab_token: str | None = Header(default=None)):
 @app.post("/admin/faults")
 def inject(body: Fault, x_lab_token: str | None = Header(default=None)):
     authorize(x_lab_token)
+    if body.kind != "network":
+        raise HTTPException(422, "The gateway only injects network-path faults; compute faults belong to the regional workload")
     faults[body.region] = (body.model_dump(), time.monotonic() + body.duration_seconds)
     return {"status": "active", **body.model_dump()}
 
@@ -57,9 +63,23 @@ def clear(x_lab_token: str | None = Header(default=None)):
     faults.clear()
     return {"status": "cleared"}
 
+_upstream: httpx.AsyncClient | None = None
+
+def upstream() -> httpx.AsyncClient:
+    # One shared client: building a client per request costs tens of milliseconds of
+    # event-loop time each, which under concurrent probes showed up as fake latency.
+    global _upstream
+    if _upstream is None:
+        _upstream = httpx.AsyncClient(timeout=3, trust_env=False)
+    return _upstream
+
 @app.get("/api/catalog")
-async def catalog():
-    region = "region-a" if random.random() * 100 < weight_a else "region-b"
+async def catalog(request: Request):
+    pinned = request.headers.get(PROBE_HEADER)
+    if pinned in ("region-a", "region-b"):
+        region = pinned
+    else:
+        region = "region-a" if random.random() * 100 < weight_a else "region-b"
     fault, expiry = faults.get(region, ({}, 0))
     if expiry > time.monotonic():
         await asyncio.sleep(fault["latency_ms"] / 1000)
@@ -68,8 +88,7 @@ async def catalog():
     url = os.getenv("REGION_A_URL" if region == "region-a" else "REGION_B_URL",
                     "http://127.0.0.1:8101" if region == "region-a" else "http://127.0.0.1:8102")
     try:
-        async with httpx.AsyncClient(timeout=3, trust_env=False) as client:
-            response = await client.get(url + "/api/catalog")
+        response = await upstream().get(url + "/api/catalog")
         return JSONResponse(response.json(), status_code=response.status_code)
     except (httpx.HTTPError, ValueError):
         return JSONResponse({"region": region, "error": "upstream unavailable"}, status_code=502)

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Simple local teammate CLI: model input, conservative demo, policy review.
+"""Simple local teammate CLI: model input, conservative demo, policy review, controller.
 
 All commands are read-only except --out writing a local JSON file. No AWS calls.
+`controller` runs the real model -> review -> decision path on the latest stored
+AWS/RIPE snapshot in shadow mode: the decision is printed, nothing is actuated.
 """
 from __future__ import annotations
 
@@ -20,7 +22,8 @@ from adaptivenet.ingestion.decisions import review_proposal
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("input", "demo", "review"))
+    parser.add_argument("command", choices=("input", "demo", "review", "controller"))
+    parser.add_argument("--current-region-a-percent", type=int, default=100, help="controller: current route weight")
     parser.add_argument("--db", default=str(ROOT / "data/adaptivenet-ingestion.db"))
     parser.add_argument("--mode", choices=("internal_only", "combined"), default="internal_only")
     parser.add_argument("--proposal", help="Model-provided JSON proposal, required for review")
@@ -30,7 +33,14 @@ def main(argv=None) -> int:
     if snapshot is None:
         parser.error("no snapshot yet; run python scripts/ingestion.py once")
 
-    if args.command == "review":
+    if args.command == "controller":
+        sys.path.insert(0, str(ROOT))
+        from adaptivenet.controller.mitigation import MitigationController
+        engine = MitigationController(mode=args.mode)
+        result = engine.decide(snapshot, args.current_region_a_percent)
+        result["note"] = ("shadow: one tick, no hysteresis history, nothing actuated; "
+                          "a live AWS route/scale actuator does not exist yet")
+    elif args.command == "review":
         if not args.proposal:
             parser.error("--proposal JSON file required")
         proposal = json.loads(Path(args.proposal).read_text(encoding="utf-8"))

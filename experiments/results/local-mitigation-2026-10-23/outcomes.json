@@ -1,0 +1,129 @@
+[
+  {
+    "scenario": "healthy",
+    "expected": "hold",
+    "action": "hold",
+    "ticks_to_action": null,
+    "seconds_to_action": null,
+    "actuation": null,
+    "verification": null,
+    "causes": [
+      "healthy",
+      "healthy",
+      "healthy",
+      "healthy"
+    ],
+    "final_region_a_percent": 100,
+    "ok": true
+  },
+  {
+    "scenario": "network",
+    "expected": "shift_traffic",
+    "action": "shift_traffic",
+    "ticks_to_action": 3,
+    "seconds_to_action": 9.6,
+    "actuation": {
+      "status": "applied",
+      "region_a_percent": 75
+    },
+    "verification": {
+      "seq": 4,
+      "action": "shift_traffic",
+      "status": "recovered",
+      "checks": 2,
+      "healthy_ticks": 2,
+      "checked_at": 1792758682.7024705,
+      "detail": "user_path_5xx_pct=0.0 latency_worst_ms=150.54",
+      "recovered_after_seconds": 11.3
+    },
+    "causes": [
+      "network_degradation",
+      "network_degradation",
+      "network_degradation",
+      "network_degradation",
+      "network_degradation",
+      "network_degradation",
+      "network_degradation",
+      "network_degradation",
+      "network_degradation",
+      "network_degradation",
+      "network_degradation",
+      "network_degradation",
+      "network_degradation",
+      "network_degradation",
+      "network_degradation"
+    ],
+    "steps": 4,
+    "seconds_to_recovery": 55.1,
+    "final_region_a_percent": 0,
+    "ok": true
+  },
+  {
+    "scenario": "compute",
+    "expected": "scale_out",
+    "action": "scale_out",
+    "ticks_to_action": 3,
+    "seconds_to_action": 8.5,
+    "actuation": {
+      "status": "scaled",
+      "region": "region-a",
+      "from": 1,
+      "to": 2,
+      "emulated": true
+    },
+    "verification": {
+      "seq": 1,
+      "action": "scale_out",
+      "status": "recovered",
+      "checks": 2,
+      "healthy_ticks": 2,
+      "checked_at": 1792758700.6600215,
+      "detail": "region-a is healthy",
+      "recovered_after_seconds": 9.1
+    },
+    "causes": [
+      "compute_overload",
+      "compute_overload",
+      "compute_overload",
+      "healthy",
+      "healthy",
+      "healthy"
+    ],
+    "steps": 1,
+    "seconds_to_recovery": 17.6,
+    "final_region_a_percent": 100,
+    "ok": true
+  },
+  {
+    "scenario": "critical",
+    "expected": "failover",
+    "action": "failover",
+    "ticks_to_action": 2,
+    "seconds_to_action": 2.7,
+    "actuation": {
+      "status": "applied",
+      "region_a_percent": 0
+    },
+    "verification": {
+      "seq": 1,
+      "action": "failover",
+      "status": "recovered",
+      "checks": 2,
+      "healthy_ticks": 2,
+      "checked_at": 1792758710.5129843,
+      "detail": "user_path_5xx_pct=0.0 latency_worst_ms=148.66",
+      "recovered_after_seconds": 6.8
+    },
+    "causes": [
+      "critical_failure",
+      "critical_failure",
+      "critical_failure",
+      "critical_failure",
+      "critical_failure"
+    ],
+    "steps": 1,
+    "seconds_to_recovery": 9.5,
+    "final_region_a_percent": 0,
+    "ok": true
+  }
+]

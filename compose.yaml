@@ -92,7 +92,9 @@
       ],
       "environment": {
         "LAB_TOKEN": "${LAB_TOKEN:?Set LAB_TOKEN in .env}",
-        "GATEWAY_URL": "http://gateway:8000"
+        "GATEWAY_URL": "http://gateway:8000",
+        "REGION_A_URL": "http://demo-a:8000",
+        "REGION_B_URL": "http://demo-b:8000"
       },
       "ports": [
         "127.0.0.1:8001:8000"
