@@ -19,7 +19,7 @@ class RegionConfig:
 
 def read_env_file(path: str | Path | None) -> dict[str, str]:
     # Read only known non-secret infrastructure variables. Do not evaluate shell expressions.
-    allowed = {"ATLAS_MEASUREMENTS", "AMP_SG_WORKSPACE_ID", "AMP_US_WORKSPACE_ID"}
+    allowed = {"ATLAS_MEASUREMENTS", "AMP_SG_WORKSPACE_ID", "AMP_US_WORKSPACE_ID", "CLOUDFRONT_DISTRIBUTION_ID"}
     if not path or not Path(path).exists():
         return {}
     values = {}

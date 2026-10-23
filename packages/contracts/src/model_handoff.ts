@@ -1,5 +1,5 @@
 /** ML feature adapter contract. No control/actuation permission implied. */
-import type { IngestionFeatures, ModelProposalV1, ReviewV1, Region } from "./ingestion";
+import type { CloudFrontTelemetry, IngestionFeatures, ModelProposalV1, ReviewV1, Region } from "./ingestion";
 
 export type InferenceMode = "internal_only" | "combined";
 export type ModelFeature = keyof IngestionFeatures;
@@ -18,6 +18,8 @@ export interface ModelInputV1 {
   quality: Record<Region, Record<string, unknown>>;
   provenance: Record<Region, Record<string, unknown>>;
   comparison: Record<string, number | null>;
+  /** Optional global CDN telemetry; never treat as a region-a / region-b observation. */
+  cloudfront?: Omit<CloudFrontTelemetry, "last_known">; // stale display-only values are excluded by build_model_input
   actions_enabled: false;
 }
 

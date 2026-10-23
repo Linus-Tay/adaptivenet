@@ -63,7 +63,8 @@ def robust_zscore(history: list[float]) -> float | None:
 
 
 def make_snapshot(events: list[Observation], now: float, *, errors: list[str] | None = None,
-                  configured_probes=5) -> dict:
+                  configured_probes=5, cloudfront_distribution: str | None = None,
+                  cloudfront_last_observations: list[Observation] | None = None) -> dict:
     errors = errors or []
     # No event from the future and no source timestamp exceeding supported history.
     buckets: dict[tuple[str, str], list[Observation]] = defaultdict(list)
@@ -143,6 +144,45 @@ def make_snapshot(events: list[Observation], now: float, *, errors: list[str] | 
                         "ripe_minimum_probes": MIN_PROBES, "allowed_aws_clock_skew_seconds": AMP_CLOCK_SKEW_SEC, "freshness_seconds": {"aws_amp": AMP_FRESH_SEC, "ripe_atlas": ATLAS_FRESH_SEC}},
             "provenance": provenance,
         }
+    # Global CloudFront metrics are separate from regional AMP/RIPE metrics.
+    # They are optional to the current ML readiness gates.
+    from .cloudfront import STANDARD, FRESH_SECONDS
+    cf_metrics = {name: None for name in STANDARD}
+    cf_provenance = {}
+    for metric in STANDARD:
+        values = [e for e in events if e.region == "global" and e.source == "aws_cloudwatch"
+                  and e.metric == metric and e.source_id == cloudfront_distribution
+                  and 0 <= now-e.observed_at <= FRESH_SECONDS and e.collected_at <= now]
+        if values:
+            latest = max(values, key=lambda e:(e.observed_at,e.event_id))
+            cf_metrics[metric] = round(latest.value, 4)
+            cf_provenance[metric] = {"observed_at": iso(latest.observed_at),
+                                     "age_seconds": round(now-latest.observed_at),
+                                     "source": "aws_cloudwatch"}
+    # Historical UI values are separated from live features so stale data
+    # cannot accidentally be consumed as a real-time model feature.
+    cf_last_known = {}
+    historical_events = cloudfront_last_observations if cloudfront_last_observations is not None else events
+    for metric in STANDARD:
+        candidates = [e for e in historical_events
+                      if e.region == "global" and e.source == "aws_cloudwatch"
+                      and e.metric == metric and e.source_id == cloudfront_distribution
+                      and 0 <= now - e.observed_at <= 7 * 86400
+                      and e.collected_at <= now]
+        if candidates:
+            latest = max(candidates, key=lambda e: (e.observed_at, e.event_id))
+            cf_last_known[metric] = {
+                "value": round(latest.value, 4), "unit": latest.unit,
+                "observed_at": iso(latest.observed_at),
+                "age_seconds": round(now - latest.observed_at),
+                "source": "aws_cloudwatch", "display_only": True,
+            }
+    cf_status = ("not_configured" if not cloudfront_distribution else
+                 "fresh" if any(v is not None for v in cf_metrics.values()) else "no_fresh_metrics")
+    cloudfront = {"status": cf_status, "distribution_id": cloudfront_distribution,
+                  "aws_region": "us-east-1", "metric_scope": "global",
+                  "freshness_seconds": FRESH_SECONDS, "features": cf_metrics,
+                  "provenance": cf_provenance, "last_known": cf_last_known}
     a, b = (regions[key]["features"] for key in REGIONS)
     def delta(key):
         return round(a[key]-b[key], 3) if a[key] is not None and b[key] is not None else None
@@ -172,7 +212,7 @@ def make_snapshot(events: list[Observation], now: float, *, errors: list[str] | 
                 "pipeline_mode": "read_only", "ready_for_model": ready,
                 "ready_for_internal_only_model": internal_only_ready,
                 "ready_for_automatic_action": False, "quality_reasons": reasons,
-                "regions": regions, "comparison": comparison,
+                "regions": regions, "comparison": comparison, "cloudfront": cloudfront,
                 "source_errors": errors, "model_notes": [
                     "Null means unavailable, never zero; preserve missingness in model preprocessing.",
                     "RIPE ICMP RTT differs from HTTP request duration; compare trends, not absolute values.",

@@ -35,6 +35,29 @@ export interface RegionFeatureBundle {
   };
   provenance: Record<string, unknown>;
 }
+/** Last real CloudWatch observation, display only; never an ML freshness substitute. */
+export interface CloudFrontLastObserved {
+  value: number;
+  unit: string;
+  observed_at: string;
+  age_seconds: number;
+  source: "aws_cloudwatch";
+  display_only: true;
+}
+
+export interface CloudFrontTelemetry {
+  status: "not_configured" | "fresh" | "no_fresh_metrics";
+  distribution_id: string | null;
+  aws_region: "us-east-1";
+  metric_scope: "global";
+  freshness_seconds: number;
+  /** Live-only: stale values must be null, not zero. */
+  features: Record<string, MaybeNumber>;
+  provenance: Record<string, unknown>;
+  /** Historical UI-only values, up to the local SQLite retention window. */
+  last_known?: Record<string, CloudFrontLastObserved>;
+}
+
 export interface FeatureSnapshotV1 {
   contract_version: "adaptivenet.features.v1";
   snapshot_id: string;
@@ -55,6 +78,7 @@ export interface FeatureSnapshotV1 {
     http_p95_a_minus_b_ms: MaybeNumber;
   };
   source_errors: string[];
+  cloudfront?: CloudFrontTelemetry;
   model_notes: string[];
 }
 export type RecommendedAction = "hold" | "investigate" | "shift_traffic" | "scale_out";

@@ -2,6 +2,30 @@
 
 **Read this first:** the telemetry pipeline is working in a local dev environment. It is not a trained predictive model or a production-grade failover controller.
 
+## October 2026: live experiment and dataset handoff
+
+The data pipeline now fuses **regional AWS Managed Prometheus + external RIPE Atlas + global CloudFront CloudWatch** observations. The latter is **global viewer/CDN data**, not independent SG or VA application measurements. CloudFront`.last_known` is historical **UI-only**; it is **not passed into the versioned model input**.
+
+Three surfaces are intentionally different:
+- `:3001` *workload viewer*: real CloudFront + SG/VA API requests, coffee catalogue, HTTP outcomes and origin evidence; no fault controls.
+- `:8766` *observer*: local read-only feature snapshots, CloudFront/AMP/RIPE and independent HTTP witness journal.
+- `:3000` *operator*: manually authorized fault button targeting allowlisted EC2, only when explicitly armed; does not call a trained model.
+
+**Modelling export commands** (from activated Python virtualenv and project root):
+
+~~~bash
+python scripts/model_handoff.py input --mode combined --out data/model-input.json
+python scripts/model_handoff.py input --mode internal_only --out data/internal-model-input.json
+python scripts/export_ml_dataset.py --mode combined --limit 500 --out data/ml-snapshots.jsonl
+python scripts/model_handoff.py demo --mode combined
+~~~
+
+The JSONL dataset records **real snapshot timestamps, the exact source features, missing masks and provenance**. Its `fault_label` and `label_source` fields are **intentionally null**. You must generate explicit run labels after independently verifying that SSM actually stopped the application, when the impairment started, when the service recovered, and whether CloudFront failed over. A submitted SSM command or a browser click **does not establish ground truth**. Pair fault and nonfault intervals, and time-split by experiment/run, not random snapshot rows.
+
+**Data limitations:** RIPE Atlas ICMP samples are relatively sparse and can stay healthy while an application service is stopped; CDN request metrics can stop publishing during quiet traffic; Prometheus `http_p95_ms` may be null if histogram buckets are unavailable. Missingness, delayed publication and source timestamps are scientifically relevant. Do not treat stale as zero or use a future recovery outcome as a predictive input.
+
+**SQS and Kubernetes scope:** Terraform describes an SQS + DLQ dev stack and optional EKS/Helm definitions, but **the active collector currently polls sources directly and persists to local SQLite**. There is no live queue consumer in the ML pipeline and no deployed HPA/scale adapter. A conventional HPA baseline should be implemented before claiming any ML scaling improvement.
+
 ## One-minute diagram
 
 ```text

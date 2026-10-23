@@ -95,6 +95,9 @@ def build_model_input(snapshot: dict, *, mode: Mode = "internal_only",
         "quality": quality,
         "provenance": provenance,
         "comparison": dict(snapshot.get("comparison") or {}),
+        # Last-known observations are for the UI only, NEVER live model inputs.
+        "cloudfront": {k: v for k, v in (snapshot.get("cloudfront") or {}).items()
+                       if k != "last_known"},
         "actions_enabled": False,
     }
 

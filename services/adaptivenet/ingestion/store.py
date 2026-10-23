@@ -87,6 +87,34 @@ class Store:
         return [Observation(r["region"], r["source"], r["metric"], r["value"], r["unit"],
                             r["observed_at"], r["collected_at"], r["source_id"], json.loads(r["labels_json"])) for r in rows]
 
+    def latest_cloudfront_observations(self, distribution: str, *, at: float, retain_days: int = 7) -> list[Observation]:
+        """Last real CloudFront observations for display only, by metric.
+
+        Bounded to the existing SQLite retention window. No synthetic samples,
+        no old data promoted to fresh; reuse the indexed (region,metric,time)
+        lookup and filter by the exact CloudFront distribution ID.
+        """
+        from .cloudfront import STANDARD
+        oldest = at - retain_days * 86400
+        observations = []
+        with self.connect() as con:
+            for metric in STANDARD:
+                row = con.execute("""SELECT region,source,metric,value,unit,observed_at,collected_at,
+                                            source_id,labels_json
+                                     FROM observations
+                                     WHERE region='global' AND source='aws_cloudwatch'
+                                       AND metric=? AND source_id=?
+                                       AND observed_at BETWEEN ? AND ?
+                                       AND collected_at <= ?
+                                     ORDER BY observed_at DESC,event_id DESC LIMIT 1""",
+                                  (metric, distribution, oldest, at, at)).fetchone()
+                if row is not None:
+                    observations.append(Observation(
+                        row["region"], row["source"], row["metric"], row["value"],
+                        row["unit"], row["observed_at"], row["collected_at"],
+                        row["source_id"], json.loads(row["labels_json"])))
+        return observations
+
     def store_snapshot(self, snapshot: dict):
         with self.connect() as con:
             con.execute("INSERT OR IGNORE INTO feature_snapshots(snapshot_id,computed_at,body_json) VALUES(?,?,?)",

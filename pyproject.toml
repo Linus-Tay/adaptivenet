@@ -16,5 +16,8 @@ ml = ["scikit-learn>=1.5,<2"]
 [tool.setuptools.packages.find]
 where = ["services"]
 
+[tool.setuptools.package-data]
+"adaptivenet.ingestion" = ["dashboard.html"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

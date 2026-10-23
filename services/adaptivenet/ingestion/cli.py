@@ -1,4 +1,4 @@
-"""Mac-local, read-only source collector + persisted feature builder."""
+"""Cross-platform read-only source collector + persisted feature builder."""
 from __future__ import annotations
 import argparse
 import csv
@@ -12,12 +12,21 @@ from .features import make_snapshot, AMP_CLOCK_SKEW_SEC
 from .sources import collect_all
 from .store import Store
 from .decisions import review_proposal
+from .cloudfront import distribution_id, collect_cloudfront
 
 
 def cycle(db_path, *, profile="adaptivenet-admin", env_file=None, now=None):
     started_at = time.time() if now is None else now
     store = Store(db_path)
     collected = collect_all(region_configs(env_file), profile, started_at)
+    cf_id = distribution_id(env_file)
+    if cf_id:
+        try:
+            collected.observations.extend(collect_cloudfront(cf_id,profile,started_at))
+        except (OSError, ValueError, RuntimeError, TimeoutError) as exc:
+            # Missing CloudFront telemetry must not suppress valid AWS + RIPE signals.
+            collected.errors.append("global:cloudfront:"+type(exc).__name__)
+
     # A remote query can return samples timestamped AFTER collection began.
     # Using started_at as the snapshot cutoff incorrectly drops those valid samples,
     # particularly Virginia queries retrieved later in the collection cycle.
@@ -27,8 +36,13 @@ def cycle(db_path, *, profile="adaptivenet-admin", env_file=None, now=None):
     # Source timestamps remain immutable; do not refresh historical Atlas data.
     # Include only bounded future-skewed AMP samples. The feature builder also
     # checks collected_at and excludes future RIPE probe data.
+    # Last-known CloudFront values are a separate, display-only history.
+    # Live metric freshness and model inputs still use the short event window.
+    cf_history = (store.latest_cloudfront_observations(cf_id, at=evaluated_at)
+                  if cf_id else [])
     snapshot = make_snapshot(store.events_since(evaluated_at - 2100, end=evaluated_at + AMP_CLOCK_SKEW_SEC),
-                             evaluated_at, errors=collected.errors)
+                             evaluated_at, errors=collected.errors, cloudfront_distribution=cf_id,
+                             cloudfront_last_observations=cf_history)
     store.store_snapshot(snapshot)
     store.prune(retain_days=7, now=evaluated_at)
     return snapshot, saved
