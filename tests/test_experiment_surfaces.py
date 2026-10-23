@@ -17,7 +17,8 @@ def test_real_aws_mode_blocks_operator_browser_mutation():
     assert "process.env.ADAPTIVENET_MODE==='aws'" in operator
     assert "status:403" in operator
     page = read("apps/dashboard/app/page.tsx")
-    assert "aws_fault.py" in page and "LOCAL SIMULATOR" in page
+    assert "/api/aws-fault" in page and "LOCAL SIMULATOR" in page
+    assert "function Info(" in page and "window.confirm(" in page
 
 def test_public_website_queries_real_cloudfront_and_both_origins_not_operator():
     route = read("apps/demo-web/app/api/catalog/route.ts")
