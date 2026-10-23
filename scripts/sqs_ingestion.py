@@ -29,7 +29,7 @@ def main(argv=None) -> int:
                                            "consume-once", "consume-watch", "status"))
     parser.add_argument("--profile", default=os.environ.get("AWS_PROFILE") or "adaptivenet-admin")
     parser.add_argument("--queue-url", default=os.environ.get("ADAPTIVENET_SQS_QUEUE_URL"))
-    parser.add_argument("--account-id", default=os.environ.get("ADAPTIVENET_AWS_ACCOUNT_ID", "468354413374"))
+    parser.add_argument("--account-id", default=None, help="Expected AWS account; overrides local environment/default")
     parser.add_argument("--env-file", default=".env")
     parser.add_argument("--db", default="data/adaptivenet-ingestion.db")
     parser.add_argument("--outbox", default="data/sqs-outbox")
@@ -42,7 +42,7 @@ def main(argv=None) -> int:
     # uses its original direct SQLite mode; do not run BOTH ingestion modes.
     settings = read_env_file(args.env_file)
     queue_candidate = args.queue_url or settings.get("ADAPTIVENET_SQS_QUEUE_URL")
-    expected_account = os.environ.get("ADAPTIVENET_AWS_ACCOUNT_ID") or settings.get("ADAPTIVENET_AWS_ACCOUNT_ID") or args.account_id
+    expected_account = args.account_id or os.environ.get("ADAPTIVENET_AWS_ACCOUNT_ID") or settings.get("ADAPTIVENET_AWS_ACCOUNT_ID") or "468354413374"
     client = sqs_client(args.profile)
     queue_url = resolve_queue_url(client, queue_candidate, expected_account)
     outbox = Outbox(args.outbox) if args.command.startswith("publish-") else None
