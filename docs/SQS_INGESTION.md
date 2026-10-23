@@ -78,6 +78,50 @@ Terraform files:
 
 The two IAM policies **are not magically assigned to everybody**. A local `adaptivenet-admin` SSO session needs `GetQueueUrl`, `GetQueueAttributes`, `SendMessage`, `ReceiveMessage` and `DeleteMessage` against this queue. For future EKS deployment, attach the separate policy to its specific workload identity after cluster/IAM integration; never bake AWS access keys into a pod.
 
+## Deploy the missing SQS queue with Terraform (first time only)
+
+If `aws sqs get-queue-url` returns `AWS.SimpleQueueService.NonExistentQueue`, the queue has **not been created in that AWS region/account** (or is inaccessible to that identity). `infra/terraform/environments/dev/main.tf` already defines both SQS queues. **Do not use a broad `terraform apply`** on the dev stack, which also contains S3 resources.
+
+The queue-only bootstrap is a controlled exception to ordinary Terraform workflows: it shares the existing dev remote state at `s3://adaptivenet-468354413374-ap-southeast-1-tfstate/dev/terraform.tfstate`, enables S3 state locking and targets only `aws_sqs_queue.telemetry`, `aws_sqs_queue.dead_letter` and `aws_sqs_queue_redrive_allow_policy.dead_letter`. A saved plan is parsed and changes other than CREATE/NO-OP for these addresses are refused. Terraform does **not** recreate CloudFront, regional EC2, AMP or your EKS resources.
+
+After checking the working tree and pulling this branch:
+
+~~~bash
+cd "$(git rev-parse --show-toplevel)"
+git fetch origin
+git switch feature/sqs-telemetry-ingestion
+git pull --ff-only origin feature/sqs-telemetry-ingestion
+
+export AWS_PROFILE=adaptivenet-admin
+aws sso login --profile adaptivenet-admin
+aws sts get-caller-identity --profile adaptivenet-admin
+terraform version
+
+# Read-only remote state/account checks + Terraform plan; no AWS resources created
+bash scripts/deploy_sqs_terraform.sh --plan
+
+# Create only SQS queue, DLQ and redrive permission AFTER reviewing the plan
+bash scripts/deploy_sqs_terraform.sh --apply
+~~~
+
+The script checks exact AWS account `468354413374`, S3 state-bucket access, previously initialized local/backend state, and existing queues outside Terraform state. It stops instead of overwriting or attempting to import unmanaged resources. If it reports that a queue exists outside this Terraform state, investigate the correct state and import manually rather than running a second create. If it reports a missing/inaccessible S3 state bucket, verify the existing bootstrap state and permissions; do not work around it with a different local state. This command makes AWS writes **only** in `--apply` mode.
+
+Then verify both queues and the main queue's redrive configuration:
+
+~~~bash
+aws sqs get-queue-url --queue-name adaptivenet-dev-telemetry \
+  --region ap-southeast-1 --profile adaptivenet-admin
+aws sqs get-queue-url --queue-name adaptivenet-dev-telemetry-dlq \
+  --region ap-southeast-1 --profile adaptivenet-admin
+python scripts/sqs_ingestion.py publish-once
+python scripts/sqs_ingestion.py consume-once
+python scripts/sqs_ingestion.py status
+~~~
+
+**IAM and alarms:** the Terraform definitions for scoped producer/consumer IAM policies and CloudWatch backlog/DLQ alarms are in `telemetry_iam_and_alarms.tf`. The bootstrap above deliberately **does not deploy or attach those extra resources**: adding/attaching IAM needs deliberate review of the actual producer/consumer identities (SSO now; workload role later). With the current SSO profile, `SendMessage`, `ReceiveMessage`, `DeleteMessage`, `GetQueueUrl` and `GetQueueAttributes` must already be allowed, or the smoke test will report AccessDenied. CloudWatch alarm resources are likewise not yet live solely because Terraform contains them.
+
+The shared dev S3 backend and `-target` are used only for this initial recovery/bootstrap; **do not use targeted plans routinely** or assume a targeted successful plan proves all other dev Terraform resources are drift-free.
+
 ## Start SQS-backed telemetry with ONE command
 
 Stop any old `ingestion.py watch` and `live_monitor.py` processes first, to avoid parallel direct collection. Then:
