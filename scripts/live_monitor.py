@@ -11,7 +11,8 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 
-def command_set(*, profile, interval, traffic, probe_interval, with_ui=False):
+def command_set(*, profile, interval, traffic, probe_interval, with_ui=False,
+                enable_real_fault_ui=False):
     cmds = [
         ([sys.executable, str(ROOT/'scripts'/'ingestion.py'), 'watch', '--profile', profile,
           '--interval', str(interval)], {}),
@@ -30,7 +31,13 @@ def command_set(*, profile, interval, traffic, probe_interval, with_ui=False):
         }
         cmds.extend([
             (['npm', 'run', 'dev:demo'], {'ADAPTIVENET_MODE': 'aws', **demo_vars}),
-            (['npm', 'run', 'dev:dashboard'], {'ADAPTIVENET_MODE': 'aws'}),
+            (['npm', 'run', 'dev:dashboard'], {
+                'ADAPTIVENET_MODE': 'aws',
+                'ENABLE_REAL_AWS_FAULT_UI': 'true' if enable_real_fault_ui else 'false',
+                'ADAPTIVENET_REPO_ROOT': str(ROOT),
+                'ADAPTIVENET_PYTHON': sys.executable,
+                'ADAPTIVENET_EXPECTED_AWS_ACCOUNT': '468354413374',
+            }),
         ])
     return cmds
 
@@ -41,7 +48,11 @@ def main(argv=None):
     parser.add_argument('--probe-interval', type=int, default=60, help='HTTP GET witness interval')
     parser.add_argument('--traffic', action='store_true', help='Opt in to bounded real HTTP GET traffic')
     parser.add_argument('--with-ui', action='store_true', help='Launch separate workload/operator Next.js apps')
+    parser.add_argument('--enable-real-fault-ui', action='store_true',
+                        help='Opt in to localhost-only manually confirmed EC2 application-stop button')
     args = parser.parse_args(argv)
+    if args.enable_real_fault_ui and not args.with_ui:
+        parser.error('--enable-real-fault-ui requires --with-ui')
     if args.interval < 60 or not 60 <= args.probe_interval <= 3600:
         parser.error('polling and probe intervals must be at least 60 seconds')
     if args.with_ui and not (ROOT / 'node_modules').is_dir():
@@ -50,7 +61,8 @@ def main(argv=None):
     processes = []
     try:
         for command, extra in command_set(profile=args.profile, interval=args.interval,
-                traffic=args.traffic, probe_interval=args.probe_interval, with_ui=args.with_ui):
+                traffic=args.traffic, probe_interval=args.probe_interval,
+                with_ui=args.with_ui, enable_real_fault_ui=args.enable_real_fault_ui):
             print('Starting:', ' '.join(command), flush=True)
             processes.append(subprocess.Popen(command, cwd=str(ROOT), env={**env, **extra},
                                             start_new_session=(os.name != 'nt')))
