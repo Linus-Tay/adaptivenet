@@ -94,7 +94,7 @@ curl -fsS http://127.0.0.1:8766/v1/ingestion/status
 curl -fsS http://127.0.0.1:8766/v1/experiments/probes
 ```
 
-**API ≠ queue.** The active collector polls real sources and persists to local SQLite. SQS/DLQ resources are only Terraform definitions at this stage; there is **no** working SQS ingestion consumer/publisher in this research path.
+**Transport update:** the original direct SQLite collector remains supported. The optional `--sqs` mode now runs a source-poll producer, standard SQS queue and separate SQLite detector/feature worker. Both modes produce the **same `adaptivenet.features.v1` / `adaptivenet.model_input.v1` contracts**, so prediction teammates must not rebuild the ingest code. Queue deployment, per-identity IAM access and EKS hosting still require live verification. See [SQS ingestion operations](../SQS_INGESTION.md).
 
 ## 4. Exact model input contract
 
