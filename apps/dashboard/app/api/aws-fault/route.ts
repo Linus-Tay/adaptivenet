@@ -6,72 +6,71 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const exec = promisify(execFile);
-const enabled = () => process.env.ADAPTIVENET_MODE === "aws" &&
-  process.env.ENABLE_REAL_AWS_FAULT_UI === "true";
 
+// The operator is run locally. There is no separate arming flag, login
+// workflow, or confirmation challenge. The actual SSM command still targets
+// only the fixed demo regions with a bounded duration and timed restoration.
 let requestInProgress = false;
-let lastSubmittedAt = 0;
-
-function localOriginOnly(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  const host = request.headers.get("host");
-  const site = request.headers.get("sec-fetch-site");
-  return host === "127.0.0.1:3000" && origin === "http://127.0.0.1:3000" &&
-    (site === "same-origin" || site === "none" || site === null);
-}
-function jsonError(message: string, code: number) {
-  return Response.json({error: message}, {status: code, headers: {"Cache-Control": "no-store"}});
-}
-
-export async function GET() {
-  return Response.json({
-    mode: "aws", enabled: enabled(), duration_options: [10, 20, 30, 45, 60],
-    fault_type: "application_stop", scope: "pre-approved AdaptiveNet demo EC2 only",
-    note: "SSM command acceptance is not execution or recovery confirmation."
-  }, {headers: {"Cache-Control": "no-store"}});
-}
 
 export async function POST(request: Request) {
-  if (!enabled()) return jsonError("Real AWS fault UI disabled. Start live_monitor.py with --enable-real-fault-ui.", 403);
-  if (!localOriginOnly(request)) return jsonError("Only same-origin local operator actions are accepted.", 403);
-  if (!request.headers.get("content-type")?.startsWith("application/json"))
-    return jsonError("JSON required", 415);
+  if (process.env.ADAPTIVENET_MODE !== "aws") {
+    return Response.json({error: "Start the real AWS experiment with scripts/live_monitor.py --with-ui."}, {status: 503});
+  }
+
   let body: unknown;
-  try {body = await request.json();} catch {return jsonError("Invalid JSON", 400);}
-  if (typeof body !== "object" || body === null || Array.isArray(body))
-    return jsonError("Invalid fault request", 400);
-  const item = body as Record<string, unknown>;
-  const region = item.region;
-  const duration = item.duration;
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({error: "Invalid JSON"}, {status: 400});
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return Response.json({error: "Invalid experiment options"}, {status: 400});
+  }
+
+  const {region, duration} = body as Record<string, unknown>;
   if ((region !== "region-a" && region !== "region-b") ||
-      ![10, 20, 30, 45, 60].includes(duration as number) ||
-      item.confirm !== (region === "region-a" ? "STOP-REGION-A" : "STOP-REGION-B"))
-    return jsonError("Invalid region, duration, or explicit confirmation.", 400);
-  if (requestInProgress) return jsonError("Another SSM fault request is running.", 409);
-  if (Date.now() - lastSubmittedAt < 90_000)
-    return jsonError("90-second safety cooldown after the previous request.", 429);
+      ![10, 20, 30, 45, 60].includes(duration as number)) {
+    return Response.json({error: "Choose Singapore or Virginia and a supported duration."}, {status: 400});
+  }
+
+  if (requestInProgress) {
+    return Response.json({error: "An experiment is already being submitted."}, {status: 409});
+  }
 
   const root = process.env.ADAPTIVENET_REPO_ROOT;
   const python = process.env.ADAPTIVENET_PYTHON;
-  const expected = process.env.ADAPTIVENET_EXPECTED_AWS_ACCOUNT;
-  if (!root || !python || !expected || !/^\d{12}$/.test(expected))
-    return jsonError("Server-side Python, repository, or expected AWS account not configured.", 503);
+  const account = process.env.ADAPTIVENET_EXPECTED_AWS_ACCOUNT;
+  if (!root || !python || !account) {
+    return Response.json({error: "Missing local AWS experiment configuration."}, {status: 503});
+  }
+
   requestInProgress = true;
   try {
     const script = resolve(root, "scripts", "aws_fault.py");
-    const args = [script, "--region", region as string, "--duration", String(duration),
-      "--profile", "adaptivenet-admin", "--expected-account", expected,
-      "--execute", "--confirm", item.confirm as string];
-    const {stdout} = await exec(python, args, {cwd: root, timeout: 90_000, maxBuffer: 16384,
-      shell: false, env: {...process.env, AWS_PROFILE: "adaptivenet-admin"}});
-    lastSubmittedAt = Date.now();
-    const id = stdout.match(/SSM accepted request:\s*([a-f0-9-]{36})/i)?.[1] ?? null;
-    return Response.json({submitted: true, region, duration_seconds: duration,
-      command_id: id, status: "submitted_not_verified",
-      note: "Check SSM invocation status and independently verify restoration."},
-      {status: 202, headers: {"Cache-Control": "no-store"}});
+    // CLI flags are internal implementation details. Pressing Inject is the
+    // complete user action; there is no extra dialog or opt-in command.
+    const confirm = region === "region-a" ? "STOP-REGION-A" : "STOP-REGION-B";
+    const args = [
+      script, "--region", region, "--duration", String(duration),
+      "--profile", process.env.AWS_PROFILE || "adaptivenet-admin",
+      "--expected-account", account, "--execute", "--confirm", confirm
+    ];
+    const {stdout} = await exec(python, args, {
+      cwd: root, timeout: 90_000, maxBuffer: 16_384, shell: false,
+      env: process.env
+    });
+    const commandId = stdout.match(/SSM accepted request:\s*([a-f0-9-]{36})/i)?.[1] ?? null;
+    return Response.json({
+      submitted: true,
+      region,
+      duration_seconds: duration,
+      command_id: commandId,
+      status: "submitted"
+    }, {status: 202, headers: {"Cache-Control": "no-store"}});
   } catch {
-    return jsonError("SSM fault not submitted or failed. Check terminal/SSM permissions and instance status.", 502);
+    return Response.json({
+      error: "Could not submit the EC2 fault. Check your AWS SSO session, SSM connectivity and target instance."
+    }, {status: 502});
   } finally {
     requestInProgress = false;
   }
