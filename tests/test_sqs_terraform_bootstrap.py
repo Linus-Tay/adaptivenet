@@ -31,3 +31,16 @@ def test_backend_is_shared_and_terraform_lockfile_retained():
     assert 'backend "s3"' in backend
     assert 'dev/terraform.tfstate' in example
     assert 'use_lockfile = true' in example
+
+
+def test_cross_platform_provider_lock_is_generated_from_official_registry_before_readonly_init():
+    script=SCRIPT.read_text(encoding="utf-8")
+    assert "providers lock" in script
+    assert "-platform=darwin_arm64" in script
+    assert "-platform=linux_amd64" in script
+    assert "registry.terraform.io/hashicorp/aws" in script
+    assert script.index("providers lock") < script.index("init -reconfigure")
+    assert "6\\.12\\.0" in script
+    assert "-lockfile=readonly" in script
+    assert "-upgrade" not in script
+    assert "-lockfile=force" not in script
