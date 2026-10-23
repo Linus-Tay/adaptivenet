@@ -24,7 +24,7 @@ The JSONL dataset records **real snapshot timestamps, the exact source features,
 
 **Data limitations:** RIPE Atlas ICMP samples are relatively sparse and can stay healthy while an application service is stopped; CDN request metrics can stop publishing during quiet traffic; Prometheus `http_p95_ms` may be null if histogram buckets are unavailable. Missingness, delayed publication and source timestamps are scientifically relevant. Do not treat stale as zero or use a future recovery outcome as a predictive input.
 
-**SQS and Kubernetes scope:** Terraform describes an SQS + DLQ dev stack and optional EKS/Helm definitions, but **the active collector currently polls sources directly and persists to local SQLite**. There is no live queue consumer in the ML pipeline and no deployed HPA/scale adapter. A conventional HPA baseline should be implemented before claiming any ML scaling improvement.
+**SQS and Kubernetes scope:** the optional `live_monitor.py --sqs` path now publishes existing source polls through a durable outbox and standard SQS into an independent SQLite feature consumer. Direct SQLite remains a fallback. **This is not yet an EKS-hosted ingestion service** and live SQS permissions/deployment are unverified. Both paths retain the same model-input contract. EKS/HPA and the automatic mitigation adapter remain for the controller/infrastructure team; establish an HPA baseline before comparing ML scaling. See [SQS operations](SQS_INGESTION.md).
 
 ## One-minute diagram
 
