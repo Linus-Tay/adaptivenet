@@ -84,6 +84,8 @@ If `aws sqs get-queue-url` returns `AWS.SimpleQueueService.NonExistentQueue`, th
 
 The queue-only bootstrap is a controlled exception to ordinary Terraform workflows: it shares the existing dev remote state at `s3://adaptivenet-468354413374-ap-southeast-1-tfstate/dev/terraform.tfstate`, enables S3 state locking and targets only `aws_sqs_queue.telemetry`, `aws_sqs_queue.dead_letter` and `aws_sqs_queue_redrive_allow_policy.dead_letter`. A saved plan is parsed and changes other than CREATE/NO-OP for these addresses are refused. Terraform does **not** recreate CloudFront, regional EC2, AMP or your EKS resources.
 
+**Apple Silicon provider-lock troubleshooting:** if Terraform reports `hashicorp/aws v6.12.0 ... cached package ... does not match any of the checksums recorded in the dependency lock file`, the checked-in lock was missing the platform-specific `darwin_arm64` `h1:` hash. The queue bootstrap now runs `terraform providers lock -platform=darwin_arm64 -platform=linux_amd64 registry.terraform.io/hashicorp/aws` using HashiCorp's signed origin registry **before** its read-only `terraform init`. It verifies the selected version stays at 6.12.0; no upgrade is performed. This may update **only** `infra/terraform/environments/dev/.terraform.lock.hcl` in your working tree; review and commit that cross-platform checksum update on your branch once the plan succeeds. Do not delete the lock file or use provider-checksum bypass flags.
+
 After checking the working tree and pulling this branch:
 
 ~~~bash
