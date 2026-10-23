@@ -164,3 +164,16 @@ def test_terraform_uses_existing_queue_and_dlq(tmp_path):
     assert "maxReceiveCount = 5" in cfg
     assert "sqs:SendMessage" in permissions and "sqs:ReceiveMessage" in permissions
     assert "ApproximateNumberOfMessagesVisible" in permissions
+
+def test_queue_references_can_be_loaded_from_env_without_secrets(tmp_path):
+    from adaptivenet.ingestion.config import read_env_file
+    path = tmp_path / ".env"
+    path.write_text(
+        "ADAPTIVENET_SQS_QUEUE_URL=" + QUEUE + "\n" +
+        "ADAPTIVENET_AWS_ACCOUNT_ID=468354413374\n" +
+        "ATLAS_API_KEY=SHOULD_NOT_BE_READ\n"
+    )
+    result = read_env_file(path)
+    assert result["ADAPTIVENET_SQS_QUEUE_URL"] == QUEUE
+    assert result["ADAPTIVENET_AWS_ACCOUNT_ID"] == "468354413374"
+    assert "ATLAS_API_KEY" not in result
