@@ -6,7 +6,7 @@ async function call(url:string,method="GET",body?:unknown){
  try{const r=await fetch(url,{method,headers:{"X-Lab-Token":token,"Content-Type":"application/json"},body:body===undefined?undefined:JSON.stringify(body),cache:"no-store",signal:AbortSignal.timeout(6000)});return Response.json(await r.json(),{status:r.status});}
  catch{return Response.json({error:"Lab backend unreachable"},{status:502});}
 }
-export async function GET(){if(process.env.ADAPTIVENET_MODE==='aws')return Response.json({mode:'aws',scope:'read_only_ui',note:'Real EC2 faults require guarded AWS SSM CLI.'});return call(`${control}/state`);}
+export async function GET(){if(process.env.ADAPTIVENET_MODE==='aws')return Response.json({mode:'aws',scope:'local_operator',fault_ui_enabled:process.env.ENABLE_REAL_AWS_FAULT_UI==='true',note:'Faults only via authenticated AWS SSO and explicitly gated local operator endpoint.'});return call(`${control}/state`);}
 export async function POST(request:Request){
  if(process.env.ADAPTIVENET_MODE==='aws')return Response.json({error:'AWS browser actions disabled. Use guarded SSM CLI.'},{status:403});
  if(!request.headers.get("content-type")?.startsWith("application/json"))return Response.json({error:"JSON required"},{status:415});
