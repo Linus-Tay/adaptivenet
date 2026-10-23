@@ -1,8 +1,8 @@
 # AdaptiveNet — Multi-Region Resilience Laboratory
 
-**Real AWS telemetry + bounded experiments + ML-ready features.** AdaptiveNet monitors two regional EC2 catalogue APIs through AWS Managed Prometheus (AMP), RIPE Atlas, and CloudFront CloudWatch. A local worker normalizes timestamped observations to SQLite; three *separate* interfaces make it possible to see the workload, observe metrics, and control authorized experiments.
+**Real AWS telemetry + bounded experiments + ML-ready features.** AdaptiveNet monitors two regional EC2 catalogue APIs through AWS Managed Prometheus (AMP), RIPE Atlas, and CloudFront CloudWatch. A collector can publish timestamped telemetry polls through SQS to a separate SQLite feature worker (with direct-SQLite fallback); three *separate* interfaces make it possible to see the workload, observe metrics, and control authorized experiments.
 
-> **Current stage (October 2026):** CloudFront is deployed, both regional API origins and AMP/RIPE data have been observed live, and six CloudFront metrics have been collected. This does **not** mean EKS/HPA, SQS workers, a trained model, or automatic Route 53 mitigation are running. See the status table.
+> **Current stage (October 2026):** CloudFront is deployed, both regional API origins and AMP/RIPE data have been observed live, and six CloudFront metrics have been collected. SQS producer/consumer code now exists, but live SQS deployment/access still needs verification. EKS/HPA, trained ML and automatic mitigation are not running. See the status table.
 
 ## 1. What runs and how it works
 
@@ -18,10 +18,12 @@ CloudFront CDN (HTTPS, SG primary → Virginia origin failover)
           └────────────────┬─────────────────┘
         RIPE Atlas ICMP probes + CloudFront global CloudWatch
                            │
-              Local ingestion.py watch
-            (poll every 120s, timestamped)
+     Existing source collector (every 120s)
+                           │
+    SQS mode: local outbox → SQS → detector
                            │
           SQLite WAL: deduplicated events + snapshots
+        (direct SQLite is still a fallback)
                            │
        GET-only observability UI :8766 / JSON APIs
                            │
@@ -41,7 +43,7 @@ PUBLIC WORKLOAD TEST :3001
 | Interface | URL | Purpose |
 |---|---|---|
 | **Network Observatory** | http://127.0.0.1:8766 | Read-only CloudFront, regional Prometheus, RIPE, history, data-quality gates, HTTP witness |
-| **Experiment Operator** | http://127.0.0.1:3000 | Real AWS fault button **only when explicitly armed**; local simulator controls in local mode |
+| **Experiment Operator** | http://127.0.0.1:3000 | Real AWS fault button for the fixed demo instances; local simulator controls in local mode |
 | **Workload Test** | http://127.0.0.1:3001 | CloudFront-served catalogue and direct SG/VA responses, latency, origin and request timeline |
 | **Deployed backend** | https://d2zsecrmlm6eiu.cloudfront.net/api/catalog | CloudFront HTTPS API with SG primary and VA failover |
 
@@ -55,10 +57,10 @@ The CloudFront domain is **not** hosting the Next.js pages. Those are local rese
 | Prometheus | SG/US AMP CPU, memory, app signals previously fresh | Optional catalogue p95 histogram can return `no_series` |
 | RIPE Atlas | Previously 3 SG + 5 VA live ping probes | Confirm current IDs, target and freshness before experiments |
 | CloudFront metrics | Six standard CloudWatch metrics previously observed in `us-east-1` | Quiet traffic means no new per-minute points; live reading expires after 15 min |
-| Ingestion worker | Local Python `watch` → SQLite WAL → feature snapshots | Not an always-on AWS/SQS worker |
+| Ingestion worker | Direct SQLite or SQS-backed source polling → detector → SQLite | Cloud SQS runtime and IAM not verified |
 | Continuous HTTP witness | Implemented, **off unless `--traffic`**; logs real per-endpoint status/latency | Witness data is not the same as RIPE or AMP data |
-| AWS fault injection | Fixed tagged-EC2 SSM service-stop command, 10–60s, restore-timer-first; button requires explicit arming | Live SSM execution and automatic recovery still require verification |
-| SQS + DLQ | Defined in `infra/terraform/environments/dev` Terraform | **No publisher, consumer, deployed worker or verified queue integration** |
+| AWS fault injection | Fixed tagged-EC2 SSM service-stop command, 10–60s, restore-timer-first; button is available in local AWS mode | Live SSM execution and automatic recovery still require verification |
+| SQS + DLQ | SQS/DLQ Terraform, producer, consumer, outbox, tests, IAM policies and alarms | Verify queue and permissions live; EKS hosting later |
 | EKS / Helm | Terraform/Helm scaffolding exists; `enable_eks=false` default | Cluster deployment, HPA, node scaling, ingress and evaluation unfinished |
 | Route 53 | Weighted DNS/health-check Terraform exists, off by default | No model-controlled route-weight adapter |
 | ML / controller | Feature and proposal contracts + rule baseline + shadow safety reviewer | Train/evaluate predictive model and later build audited actuator |
@@ -75,7 +77,7 @@ Fresh clone:
 git clone https://github.com/Linus-Tay/adaptivenet.git
 cd adaptivenet
 git fetch origin
-git switch --track origin/feature/ingestion-ml-handoff
+git switch --track origin/feature/sqs-telemetry-ingestion
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[dev]' awscurl certifi
@@ -88,7 +90,7 @@ npm run build
 npm run typecheck
 ~~~
 
-On an existing feature checkout, just `git switch feature/ingestion-ml-handoff` then `git pull --ff-only`. In each new terminal, activate the virtualenv before invoking `python`. The Python.org macOS CA store can require a certifi bundle: **never disable TLS verification**.
+On an existing checkout, use `git switch feature/sqs-telemetry-ingestion` then `git pull --ff-only` (or main once the PR is merged). In each new terminal, activate the virtualenv before invoking `python`. The Python.org macOS CA store can require a certifi bundle: **never disable TLS verification**.
 
 ### Local config (ignored by Git)
 
@@ -113,26 +115,16 @@ export AWS_PROFILE=adaptivenet-admin
 export SSL_CERT_FILE="$(python -c 'import certifi; print(certifi.where())')"
 python scripts/ripe_measurements.py status
 python scripts/cloudfront_doctor.py --lookback-minutes 180
-python scripts/live_monitor.py --traffic --with-ui
+python scripts/live_monitor.py --sqs --traffic --with-ui
 ~~~
 
-`live_monitor.py` supervises: (1) real AMP/RIPE/CloudWatch polling every 120s; (2) read-only observer on 8766; (3) **explicitly opted-in** one GET/minute to CloudFront + each EC2 origin, saved in `data/probe-events.jsonl`; (4) separate workload page on 3001; and (5) separate operator page on 3000. Ctrl+C stops these children. The `--traffic` flag generates actual chargeable HTTP requests but **never faults**, and may help maintain CloudFront request samples. Without `--traffic`, there is no witness generator; idle CloudFront live samples eventually expire and their last real values are shown amber as **STALE**.
+`live_monitor.py --sqs` supervises: (1) real AMP/RIPE/CloudWatch polling every 120s, a durable SQS producer and an independent SQLite detector consumer; (2) read-only observer on 8766; (3) **explicitly opted-in** one GET/minute to CloudFront + each EC2 origin, saved in `data/probe-events.jsonl`; (4) separate workload page on 3001; and (5) separate operator page on 3000. Ctrl+C stops these children. The `--traffic` flag generates actual chargeable HTTP requests but **never faults**, and may help maintain CloudFront request samples. Without `--traffic`, there is no witness generator; idle CloudFront live samples eventually expire and their last real values are shown amber as **STALE**.
 
 Run `python scripts/live_monitor.py` for **telemetry + observer only**; omit `--with-ui` and `--traffic` if those components are not wanted. If SSO expires, run `aws sso login --profile adaptivenet-admin` again.
 
 ### Real fault injection via the operator button
 
-The button is **disabled by default**. After checking that the applications and observability work, and only for an authorized disposable AWS demo experiment, restart with:
-
-~~~bash
-python scripts/live_monitor.py --traffic --with-ui --enable-real-fault-ui
-~~~
-
-At http://127.0.0.1:3000 choose **Singapore or Virginia** and **10, 20, 30, 45 or 60 seconds**. Hover or keyboard-focus the `ⓘ` icon for details, then press **Inject HTTP service outage** and explicitly confirm in the browser dialog. The request stays on loopback with same-origin checks, hardcoded demo instance allowlist, exact project/account/tags, SSM Online preflight, an independent restoration timer scheduled **before** the service stop, and a 90-second request cooldown. **Submitting an SSM command is not proof it executed or recovered.** Read its invocation status and verify the direct EC2 response returns after recovery.
-
-Real **network latency, packet loss and Kubernetes scale** injection are not implemented and their controls are disabled. Local simulated gateway latency/503 controls do not affect real AWS/RIPE/Prometheus observations. The equivalent explicit SSM CLI is `scripts/aws_fault.py` (preview first, then `--execute --confirm STOP-REGION-A` for the appropriate region).
-
-**Do not expose these local Next.js controls to the internet, attach them to a public domain, or run against a production workload.** CloudFront may temporarily serve Virginia while Singapore is down; RIPE ICMP may stay healthy throughout.
+The existing AWS-mode operator is independent of SQS. No separate UI arming flag is needed. After confirming the origins are responding, open localhost:3000 to choose the fixed demo region and bounded duration; the service-restoration timer is scheduled first. A submitted SSM request is **not proof** of execution or recovery. Real latency/packet-loss injection, EKS scaling and model-driven mitigation remain future team work.
 
 ## 5. Data, freshness and troubleshooting
 
@@ -184,7 +176,7 @@ Read `docs/TEAM_HANDOFF.md`, `docs/DATA_DICTIONARY.md` and `packages/contracts/s
 
 ## 7. Infrastructure still to build
 
-**SQS is not in the current ingestion data path.** The `infra/terraform/environments/dev` stack defines a telemetry SQS queue and DLQ; no publisher, queue consumer, AWS-hosted worker, retry/visibility handling or DLQ alarm is connected. Keep the tested local SQLite collector until a queue migration is implemented and validated end-to-end.
+**SQS is now an optional implemented transport.** `--sqs` replaces the direct polling path with producer → SQS → consumer → the same SQLite feature contract. The old direct collector remains a fallback; do not run both simultaneously. SQS queue existence, IAM attachment, live end-to-end delivery and EKS deployment still require verification. See [SQS ingestion setup](docs/SQS_INGESTION.md).
 
 **EKS/HPA** Terraform/Helm scaffolding exists but cluster deployment is unverified and `enable_eks=false` by default. First implement conventional Kubernetes resource requests, Metrics Server, HPA and node scaling as a **non-ML baseline**. You do not need a trained model to set that up.
 
