@@ -42,6 +42,24 @@ aws s3api head-bucket --bucket "$BUCKET" --profile "$PROFILE" >/dev/null 2>&1 ||
   echo "Remote state bucket $BUCKET is absent or inaccessible. No changes made." >&2; exit 3;
 }
 
+# The checked-in lock has an upstream-signed zip hash set but may lack an
+# h1 checksum for a developer's platform (e.g. Apple Silicon). Refresh only
+# the pinned AWS provider's official hashes for Mac and CI Linux first.
+# Keep init readonly so it cannot silently select another provider version.
+echo "Verifying official hashicorp/aws provider checksums for Mac + CI Linux"
+terraform -chdir="$TF_DIR" providers lock \
+  -platform=darwin_arm64 \
+  -platform=linux_amd64 \
+  registry.terraform.io/hashicorp/aws
+python3 - "$TF_DIR/.terraform.lock.hcl" <<'PY'
+import pathlib, re, sys
+lock = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+if not re.search(r'provider "registry\.terraform\.io/hashicorp/aws"\s*\{[^}]*?version\s*=\s*"6\.12\.0"',lock,re.S):
+    raise SystemExit("Unexpected provider selection: expected hashicorp/aws v6.12.0")
+if len(re.findall(r'"h1:[A-Za-z0-9+/=]+"',lock)) < 2:
+    raise SystemExit("Cross-platform provider checksums missing; stopping before init")
+PY
+
 echo "Initializing locked S3 backend s3://$BUCKET/$STATE_KEY"
 terraform -chdir="$TF_DIR" init -reconfigure -input=false -lockfile=readonly \
   -backend-config="bucket=$BUCKET" -backend-config="key=$STATE_KEY" \
