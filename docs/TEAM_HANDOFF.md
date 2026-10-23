@@ -9,7 +9,7 @@ The data pipeline now fuses **regional AWS Managed Prometheus + external RIPE At
 Three surfaces are intentionally different:
 - `:3001` *workload viewer*: real CloudFront + SG/VA API requests, coffee catalogue, HTTP outcomes and origin evidence; no fault controls.
 - `:8766` *observer*: local read-only feature snapshots, CloudFront/AMP/RIPE and independent HTTP witness journal.
-- `:3000` *operator*: manually authorized fault button targeting allowlisted EC2, only when explicitly armed; does not call a trained model.
+- `:3000` *operator*: manually authorized fault button targeting allowlisted EC2, available in local AWS mode; does not call a trained model.
 
 **Modelling export commands** (from activated Python virtualenv and project root):
 
