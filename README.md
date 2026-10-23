@@ -59,7 +59,7 @@ The CloudFront domain is **not** hosting the Next.js pages. Those are local rese
 | CloudFront metrics | Six standard CloudWatch metrics previously observed in `us-east-1` | Quiet traffic means no new per-minute points; live reading expires after 15 min |
 | Ingestion worker | Direct SQLite or SQS-backed source polling → detector → SQLite | Cloud SQS runtime and IAM not verified |
 | Continuous HTTP witness | Implemented, **off unless `--traffic`**; logs real per-endpoint status/latency | Witness data is not the same as RIPE or AMP data |
-| AWS fault injection | Fixed tagged-EC2 SSM service-stop command, 10–60s, restore-timer-first; button requires explicit arming | Live SSM execution and automatic recovery still require verification |
+| AWS fault injection | Fixed tagged-EC2 SSM service-stop command, 10–60s, restore-timer-first; button is available in local AWS mode | Live SSM execution and automatic recovery still require verification |
 | SQS + DLQ | SQS/DLQ Terraform, producer, consumer, outbox, tests, IAM policies and alarms | Verify queue and permissions live; EKS hosting later |
 | EKS / Helm | Terraform/Helm scaffolding exists; `enable_eks=false` default | Cluster deployment, HPA, node scaling, ingress and evaluation unfinished |
 | Route 53 | Weighted DNS/health-check Terraform exists, off by default | No model-controlled route-weight adapter |
