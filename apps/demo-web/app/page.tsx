@@ -83,15 +83,3 @@ export default function Page(){
     <footer className="workload-footer">Public workload test page · No AWS configuration, routing or scaling actions here</footer>
   </main>;
 }
-+item.price.toFixed(2)):'—'}</strong></article>)}
-      </div>{!rows.cloudfront?.response?.items?.length&&<p>Run a real HTTP check to load the catalogue.</p>}</section>
-    <section className="timeline"><h2>Request timeline</h2>
-      <p>An EC2 application outage may produce an origin failure while CloudFront still returns 200 from Virginia. RIPE ICMP probes test network reachability, not the HTTP application.</p>
-      {events.length===0?<div className="empty">Run a check to record actual HTTP observations.</div>:
-        events.map((e,i)=><div className="event" key={i}><span>{e.checked_at}</span><b>{e.source}</b>
-          <span className={e.status===200?"ok":"err"}>HTTP {e.status}</span><span>{e.elapsed_ms} ms</span>
-          <span>Origin: {e.origin??"—"}</span></div>)}
-    </section>
-    <footer className="workload-footer">Public workload test page · No AWS configuration, routing or scaling actions here</footer>
-  </main>;
-}
