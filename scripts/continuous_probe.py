@@ -2,6 +2,7 @@
 """Real bounded-rate CloudFront + EC2 GET witnesses. Run with --run; Ctrl+C stops."""
 from __future__ import annotations
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import json
 import os
@@ -76,15 +77,15 @@ def probe(scope: str, url: str, *, timeout: float = 8.0, context: ssl.SSLContext
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", default="adaptivenet-admin")
-    parser.add_argument("--interval", type=int, default=60)
+    parser.add_argument("--interval", type=int, default=15)
     parser.add_argument("--count", type=int, default=1)
     parser.add_argument("--cycles", type=int, default=0, help="0 = until Ctrl+C")
     parser.add_argument("--cloudfront-only", action="store_true")
     parser.add_argument("--run", action="store_true", help="Send real HTTP GETs (bounded AWS traffic)")
     parser.add_argument("--out", default=str(ROOT / "data" / "probe-events.jsonl"))
     args = parser.parse_args(argv)
-    if not (60 <= args.interval <= 3600 and 1 <= args.count <= 3 and 0 <= args.cycles <= 10000):
-        parser.error("interval 60-3600; count 1-3; cycles 0-10000")
+    if not (10 <= args.interval <= 3600 and 1 <= args.count <= 3 and 0 <= args.cycles <= 10000):
+        parser.error("interval 10-3600; count 1-3; cycles 0-10000")
     targets = resolve_targets(args.profile, ROOT / ".env", cloudfront_only=args.cloudfront_only)
     for scope, url in targets.items():
         print(scope, url)
@@ -102,9 +103,16 @@ def main(argv=None):
     try:
         while not args.cycles or n < args.cycles:
             started = time.monotonic()
-            for scope, url in targets.items():
-                for _ in range(args.count):
-                    result = probe(scope, url, context=context)
+            # Probe all regions concurrently: sequential 8-second timeouts could
+            # otherwise exceed a 15-second cycle when every endpoint fails.
+            requests = [(scope, url) for scope, url in targets.items()
+                        for _ in range(args.count)]
+            with ThreadPoolExecutor(max_workers=min(9, len(requests))) as pool:
+                futures = [pool.submit(probe, scope, url, context=context)
+                           for scope, url in requests]
+                for future in futures:
+                    result = future.result()
+                    # Journal writes are deliberately serialized.
                     append_probe(args.out, result)
                     print(json.dumps(result), flush=True)
             n += 1
