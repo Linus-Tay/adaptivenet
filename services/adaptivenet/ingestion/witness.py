@@ -21,7 +21,7 @@ def append_probe(path: str | Path, event: dict) -> None:
         stream.write(line)
 
 def recent_probes(path: str | Path, limit: int = 30) -> list[dict]:
-    limit = max(1, min(80, int(limit)))
+    limit = max(1, min(1000, int(limit)))
     file = Path(path)
     if not file.exists():
         return []
