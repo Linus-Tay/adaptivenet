@@ -3,9 +3,12 @@ from __future__ import annotations
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, parse_qs
 import json
+import time
 from pathlib import Path
 from .store import Store
 from .witness import recent_probes
+from .fast_signals import load_fast_signals
+from .handoff import build_model_input
 
 # Bundled, self-contained dashboard: no external JavaScript or CSS dependencies.
 from importlib.resources import files
@@ -35,6 +38,29 @@ def serve(db_path: str, *, port: int = 8766):
                 data = {"mode": "read_only", "source": "explicit_http_witness",
                         "note": "Traffic is generated only if continuous_probe.py --run is active.",
                         "events": recent_probes(Path(db_path).parent / "probe-events.jsonl", limit=40)}
+            elif route == "/v1/fast-signals/latest":
+                data = load_fast_signals(Path(db_path).parent / "probe-events.jsonl")
+            elif route == "/v1/detection/input":
+                latest = store.latest_snapshot()
+                if latest is None:
+                    self.respond(404, b'{"error":"no snapshot yet"}'); return
+                now = time.time()
+                slow = build_model_input(latest, mode="combined", now=now)
+                fast = load_fast_signals(Path(db_path).parent / "probe-events.jsonl", now=now)
+                data = {
+                    "contract_version": "adaptivenet.detection_input.v1",
+                    "generated_at_unix": now,
+                    "slow": slow,
+                    "fast": fast,
+                    "ready_for_shadow_assessment":
+                        slow["ready_for_inference"] and fast["ready_for_fast_assessment"],
+                    "automatic_actions_enabled": False,
+                    "notes": [
+                        "Fast HTTP evidence has one network vantage; independent witnesses are still required.",
+                        "RIPE results retain their original measurement timestamps.",
+                        "No trained ML model or mitigation is executed by this endpoint.",
+                    ],
+                }
             elif route == "/v1/ingestion/status":
                 data = {"latest_run":store.latest_run(),"latest_snapshot": (store.latest_snapshot() or {}).get("snapshot_id"),"automation_enabled":False}
             else:
