@@ -19,8 +19,8 @@ x-common: &common
     ADAPTIVENET_AWS_ACCOUNT_ID: "468354413374"
     CLOUDFRONT_DISTRIBUTION_ID: "${CLOUDFRONT_DISTRIBUTION_ID:-}"
     ATLAS_MEASUREMENTS: "${ATLAS_MEASUREMENTS:-}"
-    AMP_SG_WORKSPACE_ID: "${AMP_SG_WORKSPACE_ID:-}"
-    AMP_US_WORKSPACE_ID: "${AMP_US_WORKSPACE_ID:-}"
+    AMP_SG_WORKSPACE_ID: "${AMP_SG_WORKSPACE_ID:-ws-12cfc829-fd81-440a-8c13-38cd28123fef}"
+    AMP_US_WORKSPACE_ID: "${AMP_US_WORKSPACE_ID:-ws-cc3d9d44-3a8e-49db-b275-0e8989ab47de}"
   volumes:
     - "${HOME:?HOME is required}/.aws:/home/telemetry/.aws:ro"
     - "./data:/app/data"
