@@ -1,7 +1,7 @@
 # Optional Docker runtime for REAL SQS telemetry. Not the isolated fault lab.
 # Required: export ADAPTIVENET_UID="$(id -u)" ADAPTIVENET_GID="$(id -g)".
 # Required: authenticate AWS SSO on the Mac; its cache is mounted read-only.
-# DO NOT simultaneously launch native live_monitor.py --sqs.
+# DO NOT simultaneously launch native live_monitor.py --sqs.\n# Compose reads nonsecret values from local .env for interpolation; does NOT mount it.
 name: adaptivenet-telemetry
 x-common: &common
   build:
@@ -16,9 +16,13 @@ x-common: &common
     AWS_CONFIG_FILE: /home/telemetry/.aws/config
     AWS_SHARED_CREDENTIALS_FILE: /home/telemetry/.aws/credentials
     HOME: /home/telemetry
+    ADAPTIVENET_AWS_ACCOUNT_ID: "468354413374"
+    CLOUDFRONT_DISTRIBUTION_ID: "${CLOUDFRONT_DISTRIBUTION_ID:-}"
+    ATLAS_MEASUREMENTS: "${ATLAS_MEASUREMENTS:-}"
+    AMP_SG_WORKSPACE_ID: "${AMP_SG_WORKSPACE_ID:-}"
+    AMP_US_WORKSPACE_ID: "${AMP_US_WORKSPACE_ID:-}"
   volumes:
     - "${HOME:?HOME is required}/.aws:/home/telemetry/.aws:ro"
-    - "./.env:/app/.env:ro"
     - "./data:/app/data"
   read_only: true
   tmpfs:
