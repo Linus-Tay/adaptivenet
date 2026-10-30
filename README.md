@@ -1,8 +1,8 @@
 # AdaptiveNet — Multi-Region Resilience Laboratory
 
-**Real AWS telemetry + bounded experiments + ML-ready features.** AdaptiveNet monitors two regional EC2 catalogue APIs through AWS Managed Prometheus (AMP), RIPE Atlas, and CloudFront CloudWatch. A collector can publish timestamped telemetry polls through SQS to a separate SQLite feature worker (with direct-SQLite fallback); three *separate* interfaces make it possible to see the workload, observe metrics, and control authorized experiments.
+**Real AWS telemetry + bounded experiments + ML-ready features.**\n\n**Canonical three-layer architecture and exact Docker-vs-native runtime:** [Architecture and ML 2026](docs/ARCHITECTURE_AND_ML_2026.md). The 15-second HTTP fast-signal endpoint is independent from the 60-second AWS/RIPE/CloudWatch poll. AdaptiveNet monitors two regional EC2 catalogue APIs through AWS Managed Prometheus (AMP), RIPE Atlas, and CloudFront CloudWatch. A collector can publish timestamped telemetry polls through SQS to a separate SQLite feature worker (with direct-SQLite fallback); three *separate* interfaces make it possible to see the workload, observe metrics, and control authorized experiments.
 
-> **Current stage (October 2026):** CloudFront is deployed, both regional API origins and AMP/RIPE data have been observed live, and six CloudFront metrics have been collected. SQS producer/consumer code now exists, but live SQS deployment/access still needs verification. EKS/HPA, trained ML and automatic mitigation are not running. See the status table.
+> **Current stage (October 2026):** CloudFront is deployed, both regional API origins and AMP/RIPE data have been observed live, and six CloudFront metrics have been collected. The SQS queue/DLQ and a live publish→consume→SQLite cycle have been verified previously; this new 15s fast-signal/Docker variant awaits CI and Mac validation. EKS/HPA, trained ML and automatic mitigation are not running. See the status table.
 
 ## 1. What runs and how it works
 
@@ -18,7 +18,7 @@ CloudFront CDN (HTTPS, SG primary → Virginia origin failover)
           └────────────────┬─────────────────┘
         RIPE Atlas ICMP probes + CloudFront global CloudWatch
                            │
-     Existing source collector (every 120s)
+     Existing source collector (60s default fetch interval)
                            │
     SQS mode: local outbox → SQS → detector
                            │
@@ -27,7 +27,7 @@ CloudFront CDN (HTTPS, SG primary → Virginia origin failover)
                            │
        GET-only observability UI :8766 / JSON APIs
                            │
-         model_input.v1 → future trained model
+         model_input.v1 + 15s HTTP fast signals → future trained model
                            │
        proposal.v1 → independent shadow reviewer
                            │
