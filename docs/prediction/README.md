@@ -1,9 +1,9 @@
 # AdaptiveNet — Prediction & Machine Learning Handoff
 
 **Audience:** teammates building the predictive/fault-detection model, offline evaluation, and shadow-mode inference.  
-**Canonical handoff:** this file; **do not use the repository root README as an ML specification**.  
+**Canonical handoff:** this file, plus [three-layer architecture and multi-rate detection](../ARCHITECTURE_AND_ML_2026.md); **do not use the repository root README as an ML specification**.  
 **Source branch:** `feature/ingestion-ml-handoff`. **Owner of the infrastructure and collector:** AdaptiveNet telemetry team.  
-**Status:** feature extraction, persistence, export, proposal contract and shadow review exist. **No trained predictive model or live ML-based mitigation has been delivered.**
+**Status:** feature extraction, persistence, export, proposal contract, multi-rate read-only detection input and shadow review exist. **No trained predictive model or live ML-based mitigation has been delivered.**
 
 > **The handoff is ready for model development; the training data are not yet a complete, independently labeled incident dataset.** Do not claim fault prediction accuracy until enough real, verified experiments have been collected.
 
@@ -29,7 +29,7 @@ SG and VA EC2 application / host exporters
 External RIPE Atlas probes: ICMP RTT and packet loss (regional measurement IDs)
 AWS CloudFront / CloudWatch: global CDN requests, errors and transfer metrics
         ↓
-Python ingestion watch — polls AWS/RIPE/CloudWatch; preserves source UTC timestamps
+Python ingestion watch — polls AWS/RIPE/CloudWatch (60s default); preserves source UTC timestamps
         ↓
 SQLite WAL observations (SHA256 IDs, repeat-poll deduplication)
         ↓
@@ -53,7 +53,7 @@ Existing separate user interfaces:
 | `3001` | Actual workload test UI | Observe CloudFront and both direct origins, HTTP status/latency and response origin |
 | CloudFront domain | Deployed CDN API | SG primary + VA fallback; **global** viewer metrics |
 
-The `/v1/experiments/probes` endpoint contains **independent, opt-in HTTP witness journal events**. These are useful *evidence* for incident verification; they are **not merged into the current regional model feature columns**.
+The `/v1/experiments/probes` endpoint contains **opt-in HTTP witness journal events**. **Independent from internal AWS telemetry does not mean independent network vantage**: the default collector sends HTTP probes from one Mac/network. New `/v1/fast-signals/latest` summarizes real 60/300/900-second rolling witness windows, and `/v1/detection/input` combines these windows with the unchanged slow `model_input.v1` for shadow ML. Witnesses remain outside the 17 regional feature columns and are not validated multi-network outage labels.
 
 ## 3. Setup and obtain data
 
@@ -94,7 +94,7 @@ curl -fsS http://127.0.0.1:8766/v1/ingestion/status
 curl -fsS http://127.0.0.1:8766/v1/experiments/probes
 ```
 
-**Transport update:** the original direct SQLite collector remains supported. The optional `--sqs` mode now runs a source-poll producer, standard SQS queue and separate SQLite detector/feature worker. Both modes produce the **same `adaptivenet.features.v1` / `adaptivenet.model_input.v1` contracts**, so prediction teammates must not rebuild the ingest code. Queue deployment, per-identity IAM access and EKS hosting still require live verification. See [SQS ingestion operations](../SQS_INGESTION.md).
+**Fast-path update (30 Oct 2026):** 15-second concurrent HTTP witnesses and 60-second slow source fetches are separate clocks. No trained prediction loop has been started. Fetching RIPE results every 60 seconds does not overcome a configured ~15-minute probe measurement interval or API caching. Do not claim sub-minute gray-failure detection without fresh independent network evidence.\n\n**Transport update:** the original direct SQLite collector remains supported. The optional `--sqs` mode now runs a source-poll producer, standard SQS queue and separate SQLite detector/feature worker. Both modes produce the **same `adaptivenet.features.v1` / `adaptivenet.model_input.v1` contracts**, so prediction teammates must not rebuild the ingest code. Queue deployment, per-identity IAM access and EKS hosting still require live verification. See [SQS ingestion operations](../SQS_INGESTION.md).
 
 ## 4. Exact model input contract
 
