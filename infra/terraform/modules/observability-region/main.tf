@@ -82,7 +82,7 @@ resource "aws_eks_cluster" "main" {
     subnet_ids              = aws_subnet.public[*].id
     endpoint_private_access = true
     endpoint_public_access  = true
-    public_access_cidrs     = ["0.0.0.0/0"] # DEMO ONLY: IAM protected; restrict to your IP for real deployments.
+    public_access_cidrs     = ["219.74.62.94/32"]
   }
   access_config {
     authentication_mode                         = "API"
