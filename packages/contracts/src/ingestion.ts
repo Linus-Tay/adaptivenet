@@ -87,6 +87,7 @@ export interface ModelProposalV1 {
   snapshot_id: string;
   action: RecommendedAction;
   confidence: number; // [0,1]
+  affected_region?: Region; // required for scale_out; resolved through the controller allowlist
   target_region_a_percent?: number; // int [0,100], only meaningful for shift_traffic
   evidence?: string[];
 }

@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 # Works both in the overlay source tree and after being installed into AdaptiveNet.
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT / "services"))
@@ -51,7 +53,6 @@ def test_observation_is_immutable_and_event_key_idempotent():
 
 
 def test_reject_nan_and_future():
-    import pytest
     with pytest.raises(ValueError): o("region-a","aws_amp","app_up",math.nan)
     with pytest.raises(ValueError): o("region-a","aws_amp","app_up",1,NOW+600)
 
@@ -135,6 +136,41 @@ def test_decision_is_never_executable_and_stale_snapshot_denied():
         proposal['target_region_a_percent']=0
         big=review_proposal(snap,proposal,current_region_a_percent=50)
     assert 'route_delta_above_25_percent_safety_limit' in big['rejection_reasons']
+
+
+@pytest.mark.parametrize(("current_weight", "metric", "value", "reason"), [
+    ("50", "memory_available_pct", 80, "invalid_current_route_weight"),
+    (True, "memory_available_pct", 80, "invalid_current_route_weight"),
+    (50, "memory_available_pct", math.nan, "destination_low_or_unknown_memory"),
+    (50, "memory_available_pct", math.inf, "destination_low_or_unknown_memory"),
+    (50, "memory_available_pct", "80", "destination_low_or_unknown_memory"),
+    (50, "cpu_busy_pct", math.nan, "destination_high_or_unknown_cpu"),
+    (50, "cpu_busy_pct", False, "destination_high_or_unknown_cpu"),
+    (50, "cpu_busy_pct", -1, "destination_high_or_unknown_cpu"),
+    (50, "cpu_busy_pct", 85, "destination_high_or_unknown_cpu"),
+])
+def test_decision_rejects_invalid_route_weight_or_unsafe_destination_capacity(
+    current_weight, metric, value, reason,
+):
+    snapshot = make_snapshot(region_events("region-a") + region_events("region-b"), NOW)
+    snapshot["regions"]["region-b"]["features"][metric] = value
+    proposal = {
+        "contract_version": "adaptivenet.proposal.v1",
+        "snapshot_id": snapshot["snapshot_id"],
+        "action": "shift_traffic",
+        "confidence": 0.99,
+        "target_region_a_percent": 40,
+        "evidence": ["region-a:rtt_p95"],
+    }
+    with patch("adaptivenet.ingestion.decisions.time.time", return_value=NOW + 30):
+        review = review_proposal(snapshot, proposal, current_region_a_percent=current_weight)
+
+    assert review["rejection_reasons"] == [reason]
+    assert review["policy_valid"] is False
+    assert review["eligible_for_operator_review"] is False
+    assert review["approved_for_execution"] is False
+    assert review["executed"] is False
+    assert review["effective_action"] == "hold"
 
 
 def test_feature_snapshot_persistence_and_retention(tmp_path):
