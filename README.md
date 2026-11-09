@@ -31,7 +31,8 @@ CloudFront CDN (HTTPS, SG primary → Virginia origin failover)
                            │
        proposal.v1 → independent shadow reviewer
                            │
-            live mitigator NOT IMPLEMENTED
+  mitigation/ (gates → actuate → verify → rollback)
+   shadow by default; local gateway + optional k8s scaling
 
 SEPARATE OPERATOR :3000 (localhost only)
     └─ manually confirmed EC2 service-stop fault via
@@ -63,7 +64,7 @@ The CloudFront domain is **not** hosting the Next.js pages. Those are local rese
 | SQS + DLQ | SQS/DLQ Terraform, producer, consumer, outbox, tests, IAM policies and alarms | Verify queue and permissions live; EKS hosting later |
 | EKS / Helm | Terraform/Helm scaffolding exists; `enable_eks=false` default | Cluster deployment, HPA, node scaling, ingress and evaluation unfinished |
 | Route 53 | Weighted DNS/health-check Terraform exists, off by default | No model-controlled route-weight adapter |
-| ML / controller | Feature and proposal contracts + rule baseline + shadow safety reviewer | Train/evaluate predictive model and later build audited actuator |
+| ML / controller | Feature/proposal contracts, rule baseline, safety reviewer, **closed-loop `mitigation/` (route shift + k8s scale, recovery verification, rollback, JSONL audit; `scripts/mitigate.py`, shadow default)** — unit-tested with fakes only | Train/evaluate model; run against live gateway/EKS; Route 53 adapter; automatic failback |
 
 **CloudFront, RIPE and AMP are independent.** CloudFront viewer metrics are *global*; AMP is per-region; RIPE measures ICMP network reachability (an HTTP service failure can leave RIPE ping healthy). This difference should be recorded as experimental evidence, not treated as a broken sensor.
 

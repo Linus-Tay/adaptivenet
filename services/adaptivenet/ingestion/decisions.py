@@ -5,12 +5,17 @@ import time
 
 ALLOWED_ACTIONS = ("hold", "investigate", "shift_traffic", "scale_out")
 
-def review_proposal(snapshot: dict, proposal: dict, *, current_region_a_percent: int = 50) -> dict:
+def review_proposal(snapshot: dict, proposal: dict, *, current_region_a_percent: int = 50,
+                    scale_adapter_available: bool = False, current_replicas: dict | None = None,
+                    max_replicas: int = 6, max_scale_step: int = 2, input_mode: str = "combined") -> dict:
     """Model -> controller handoff. Proposed actions require future actuator gates.
 
     Model output is untrusted input, even from a model hosted locally. No side effects.
     """
     reasons = []
+    if not isinstance(proposal, dict):
+        reasons.append("proposal_not_an_object")
+        proposal = {}
     if proposal.get("contract_version") != "adaptivenet.proposal.v1":
         reasons.append("proposal_contract_mismatch")
     if proposal.get("snapshot_id") != snapshot.get("snapshot_id"):
@@ -30,10 +35,28 @@ def review_proposal(snapshot: dict, proposal: dict, *, current_region_a_percent:
         if (not isinstance(computed_at, (float, int)) or isinstance(computed_at, bool)
             or not math.isfinite(computed_at) or not 0 <= time.time()-computed_at <= 180):
             reasons.append("feature_snapshot_expired_or_invalid")
-    if not snapshot.get("ready_for_model") and action not in ("hold", "investigate"):
+    ready_flag = "ready_for_internal_only_model" if input_mode == "internal_only" else "ready_for_model"
+    if not snapshot.get(ready_flag) and action not in ("hold", "investigate"):
         reasons.append("telemetry_quality_gate_failed")
     if action == "scale_out":
-        reasons.append("kubernetes_scale_adapter_not_implemented")
+        if not scale_adapter_available:
+            reasons.append("kubernetes_scale_adapter_not_implemented")
+        else:
+            region, target = proposal.get("region"), proposal.get("target_replicas")
+            current = (current_replicas or {}).get(region) if isinstance(region, str) else None
+            if region not in ("region-a", "region-b"):
+                reasons.append("invalid_scale_region")
+            if isinstance(target, bool) or not isinstance(target, int) or not 1 <= target <= max_replicas:
+                reasons.append("invalid_target_replicas")
+            elif isinstance(current, int) and not isinstance(current, bool):
+                if target <= current:
+                    reasons.append("scale_out_must_increase_replicas")
+                elif target - current > max_scale_step:
+                    reasons.append("scale_step_above_safety_limit")
+            else:
+                reasons.append("current_replicas_unknown")
+            if not isinstance(proposal.get("evidence"), list) or not proposal["evidence"]:
+                reasons.append("missing_model_evidence")
     if action == "shift_traffic":
         target = proposal.get("target_region_a_percent")
         if isinstance(target, bool) or not isinstance(target, int) or not 0<=target<=100:
@@ -57,7 +80,7 @@ def review_proposal(snapshot: dict, proposal: dict, *, current_region_a_percent:
                     reasons.append("destination_high_or_unknown_cpu")
         if proposal.get("evidence") is None or not isinstance(proposal.get("evidence"), list) or not proposal["evidence"]:
             reasons.append("missing_model_evidence")
-    eligible = not reasons and action == "shift_traffic"
+    eligible = not reasons and (action == "shift_traffic" or (action == "scale_out" and scale_adapter_available))
     return {"review_version": "adaptivenet.decision_review.v1",
             "snapshot_id": snapshot.get("snapshot_id"), "requested_action": action,
             "policy_valid": not reasons, "eligible_for_operator_review": eligible,
