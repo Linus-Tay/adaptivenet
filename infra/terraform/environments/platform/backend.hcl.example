@@ -1,0 +1,5 @@
+bucket       = "adaptivenet-468354413374-ap-southeast-1-tfstate"
+key          = "platform/terraform.tfstate"
+region       = "ap-southeast-1"
+encrypt      = true
+use_lockfile = true

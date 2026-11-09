@@ -1,5 +1,13 @@
 image:
   repository: adaptivenet
   tag: dev
+
 region: region-a
 replicas: 2
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 60
+  scaleDownStabilizationSeconds: 300
