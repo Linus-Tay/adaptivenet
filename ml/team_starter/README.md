@@ -56,3 +56,8 @@ Independent safety boundary: services/adaptivenet/ingestion/decisions.py always 
 Read ARCHITECTURE.md, EPISODE_LABELS.md, FRIEND_PROMPT.md, docs/prediction/README.md and docs/ARCHITECTURE_AND_ML_2026.md.
 
 Acceptance: tests green; no fake training samples, no RIPE leakage into AWS-only, no future information in features, no automatic routing/scale actions; compare AWS-only / AWS+RIPE / AWS+RIPE+HTTP on identical held-out episode groups and report false alarms/day, F1, delay, misses and abstentions.
+
+
+## Completed offline foundation (7 November 2026)
+
+See [ML_FOUNDATION.md](ML_FOUNDATION.md) for continuous archiving, reviewed labels, as-of joining, train/evaluation commands and shadow-only model integration. The starter README above describes the original 4 November handoff; it is retained unchanged for historical context.
