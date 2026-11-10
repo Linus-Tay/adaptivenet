@@ -26,3 +26,15 @@ def test_recovery_does_not_automatically_failback():
 def test_bad_alternative_no_shift():
     e=Controller()
     for _ in range(5): assert e.evaluate(BAD, BAD, 50)['action']=='hold'
+
+def test_null_p95_is_unknown_and_does_not_raise():
+    e=Controller()
+    gap={**GOOD,'p95_ms':None}
+    for i in range(5):
+        r=e.evaluate(gap, GOOD, 50, now=i)
+        assert r['region_a']=='unknown' and r['action']=='hold'
+
+def test_all_errors_with_null_p95_is_degraded():
+    e=Controller()
+    dead={**GOOD,'error_ratio':1,'p95_ms':None}
+    assert e.evaluate(dead, GOOD, 50, now=1)['region_a']=='degraded'

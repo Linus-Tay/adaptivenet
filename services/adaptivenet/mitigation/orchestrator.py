@@ -26,9 +26,11 @@ def _json_safe(value):
 def classify_health(s: dict | None, p: "Policy") -> str:
     if not s or s.get("status") != "ok" or s.get("age_seconds", 10**9) > p.max_probe_age_s or s.get("samples", 0) < 3:
         return "unknown"
-    if s.get("p95_ms") is None or s.get("error_ratio", 1) >= p.degraded_error_ratio or s["p95_ms"] >= p.degraded_latency_ms:
+    if s.get("error_ratio", 1) >= p.degraded_error_ratio:
         return "degraded"
-    return "healthy"
+    if s.get("p95_ms") is None:  # latency not measured: unknown, so a telemetry gap can't trigger a rollback
+        return "unknown"
+    return "degraded" if s["p95_ms"] >= p.degraded_latency_ms else "healthy"
 
 @dataclass
 class Policy:
@@ -41,6 +43,8 @@ class Policy:
     degraded_latency_ms: float = 800
     degraded_error_ratio: float = .20
     max_probe_age_s: float = 90
+    actuator_settle_s: float = 0         # time a route change takes to reach clients (0 for the local gateway;
+                                         # for weighted DNS use at least the record TTL plus resolver caching)
     verify_timeout_s: float = 90
     verify_interval_s: float = 5
     verify_consecutive: int = 3          # consecutive healthy probes required to call it recovered
@@ -71,7 +75,8 @@ class Mitigator:
     def _history_gates(self, key: str, now: float) -> str | None:
         p = self.policy
         recent = self.audit.actions_since(now - 3600)
-        if recent and now - max(r["ts"] for r in recent) < p.cooldown_s:
+        # Acting again before the last change has reached clients is how a slow actuator oscillates.
+        if recent and now - max(r["ts"] for r in recent) < max(p.cooldown_s, p.actuator_settle_s):
             return "cooldown"
         if len(recent) >= p.max_actions_per_hour:
             return "rate_limit"
@@ -208,7 +213,10 @@ class Mitigator:
             return "unknown"
 
     def _verify(self, step) -> tuple[str, list[str]]:
-        p, region, deadline, streak, hist = self.policy, self._watched(step), self.clock() + self.policy.verify_timeout_s, 0, []
+        p, region, streak, hist = self.policy, self._watched(step), 0, []
+        if step["kind"] == "shift_traffic" and p.actuator_settle_s > 0:
+            self.sleep(p.actuator_settle_s)  # health seen before the change has propagated says nothing about it
+        deadline = self.clock() + p.verify_timeout_s
         while True:
             state = self._observe(step, region)
             hist.append(state)

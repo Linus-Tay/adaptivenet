@@ -27,6 +27,8 @@ def main(argv=None) -> int:
     ap.add_argument("--mode", choices=("shadow", "dry_run", "enforce"), default="shadow")
     ap.add_argument("--input-mode", choices=("internal_only", "combined"), default="internal_only")
     ap.add_argument("--k8s-targets", help="JSON {region: {namespace, deployment, hpa?}}")
+    ap.add_argument("--settle-seconds", type=float, default=0,
+                    help="how long a route change takes to reach clients (0 for the local gateway; DNS TTL for weighted DNS)")
     ap.add_argument("--proposal", help="use this proposal JSON instead of ml.predictor.predict")
     args = ap.parse_args(argv)
     if args.mode == "enforce" and not all(os.getenv(name) for name in TARGETS.values()):
@@ -41,7 +43,8 @@ def main(argv=None) -> int:
         from ml.predictor import predict
         proposal = predict(model_input)
     scaler = KubernetesActuator(json.loads(Path(args.k8s_targets).read_text())) if args.k8s_targets else None
-    policy = Policy(mode=args.mode, kill_switch_file=str(ROOT / "data/mitigation.disabled"), input_mode=args.input_mode)
+    policy = Policy(mode=args.mode, kill_switch_file=str(ROOT / "data/mitigation.disabled"), input_mode=args.input_mode,
+                    actuator_settle_s=args.settle_seconds)
     m = Mitigator(GatewayActuator(scaler=scaler), lambda: asyncio.run(collect()), AuditLog(args.audit), policy)
     print(json.dumps(m.run_cycle(snapshot, proposal), indent=2))
     return 0

@@ -237,3 +237,31 @@ def test_scale_out_below_running_count_is_rejected(tmp_path):
     p = {**SHIFT, "action": "scale_out", "region": "region-a", "target_replicas": 3}
     r = make(tmp_path, a, healthy()).run_cycle(snap(), p)
     assert r["status"] == "rejected" and "scale_out_must_increase_replicas" in r["reasons"]
+
+def test_null_p95_is_unknown_not_degraded(tmp_path):
+    # A latency gap on the destination must wait for data, not roll back as "destination_degraded".
+    gap = {**GOOD, "p95_ms": None}
+    a = FakeActuator(); m = make(tmp_path, a, [{"region-b": gap}] * 3 + [{"region-b": GOOD}] * 5)  # first sample is the pre-change baseline
+    r = m.run_cycle(snap(), SHIFT)
+    assert r["status"] == "recovered" and a.route == 25
+    assert r["steps"][0]["verification"]["samples"][:2] == ["unknown", "unknown"]
+
+def test_all_requests_failing_is_degraded_even_without_p95(tmp_path):
+    dead = {**GOOD, "error_ratio": 1, "p95_ms": None}
+    a = FakeActuator(); m = make(tmp_path, a, [{"region-b": dead}] * 3)
+    assert m.run_cycle(snap(), SHIFT)["status"] == "rolled_back" and a.route == 50
+
+def test_settle_time_delays_verification(tmp_path):
+    # Slow actuator (weighted DNS): don't judge the change before it has reached clients.
+    a = FakeActuator(); m = make(tmp_path, a, healthy(), actuator_settle_s=600)
+    start = m.clock()
+    assert m.run_cycle(snap(), SHIFT)["status"] == "recovered"
+    assert m.clock() - start >= 600
+
+def test_settle_time_extends_cooldown_across_restart(tmp_path):
+    # A change applied by an earlier process is still propagating: cooldown_s alone would allow a second move.
+    a = FakeActuator(); m = make(tmp_path, a, healthy(), actuator_settle_s=600, cooldown_s=60)
+    m.audit.append("step_applied", cycle_id="earlier", idempotency_key="k", step={"kind": "shift_traffic"})
+    m.sleep(120)
+    r = m.run_cycle(snap(), SHIFT)
+    assert r["status"] == "blocked" and r["reason"] == "cooldown" and a.writes == []

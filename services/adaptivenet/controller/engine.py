@@ -23,9 +23,11 @@ class Controller:
                 return 'unknown'
             if s.get('samples', 0) < 3:
                 return 'unknown'
-            if s.get('error_ratio', 1) >= self.degraded_error_ratio or s.get('p95_ms', float('inf')) >= self.degraded_latency_ms:
+            if s.get('error_ratio', 1) >= self.degraded_error_ratio:
                 return 'degraded'
-            return 'healthy'
+            if s.get('p95_ms') is None:  # latency not measured: unknown, never "slow" and never a crash
+                return 'unknown'
+            return 'degraded' if s['p95_ms'] >= self.degraded_latency_ms else 'healthy'
         x, y = classify(a), classify(b)
         self.consecutive_a = self.consecutive_a + 1 if x == 'degraded' and y == 'healthy' else 0
         self.consecutive_b = self.consecutive_b + 1 if y == 'degraded' and x == 'healthy' else 0
