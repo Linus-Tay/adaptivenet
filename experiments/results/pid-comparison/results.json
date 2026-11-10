@@ -1,0 +1,737 @@
+{
+  "seeds": 20,
+  "advisor": {
+    "available": true,
+    "train_rows_used": 500,
+    "heldout_rows_scored": 640,
+    "heldout_accuracy": 0.975,
+    "model": "k-NN (k=7), uncalibrated"
+  },
+  "scenarios": {
+    "local_latency_30s": {
+      "note": "experiments/scenarios/local-latency.json: region-a +1500 ms for 30 s",
+      "controllers": {
+        "no_action": {
+          "bad_request_pct": 10.0,
+          "mean_latency_ms": 201.86,
+          "p95_latency_ms": 1547.78,
+          "weight_changes": 0.0,
+          "travel_pp": 0.0,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 100.0,
+          "runs_that_moved": 0
+        },
+        "threshold": {
+          "bad_request_pct": 8.74,
+          "mean_latency_ms": 175.58,
+          "p95_latency_ms": 1504.48,
+          "weight_changes": 1.0,
+          "travel_pp": 25.0,
+          "reversals": 0.0,
+          "first_move_s": 10.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 75.0,
+          "runs_that_moved": 20
+        },
+        "pid": {
+          "bad_request_pct": 9.61,
+          "mean_latency_ms": 190.96,
+          "p95_latency_ms": 1534.27,
+          "weight_changes": 4.0,
+          "travel_pp": 23.9,
+          "reversals": 1.0,
+          "first_move_s": 15.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 84.0,
+          "runs_that_moved": 20
+        },
+        "ml_pid": {
+          "bad_request_pct": 9.24,
+          "mean_latency_ms": 183.33,
+          "p95_latency_ms": 1521.74,
+          "weight_changes": 3.9,
+          "travel_pp": 29.0,
+          "reversals": 1.0,
+          "first_move_s": 15.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 75.0,
+          "runs_that_moved": 20
+        }
+      }
+    },
+    "sustained_latency": {
+      "note": "same fault held for 300 s (longer than the gateway's 120 s cap)",
+      "controllers": {
+        "no_action": {
+          "bad_request_pct": 50.0,
+          "mean_latency_ms": 808.95,
+          "p95_latency_ms": 1879.0,
+          "weight_changes": 0.0,
+          "travel_pp": 0.0,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 100.0,
+          "runs_that_moved": 0
+        },
+        "threshold": {
+          "bad_request_pct": 29.38,
+          "mean_latency_ms": 487.06,
+          "p95_latency_ms": 1777.2,
+          "weight_changes": 3.0,
+          "travel_pp": 75.0,
+          "reversals": 0.0,
+          "first_move_s": 10.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 25.0,
+          "runs_that_moved": 20
+        },
+        "pid": {
+          "bad_request_pct": 17.24,
+          "mean_latency_ms": 308.16,
+          "p95_latency_ms": 1672.68,
+          "weight_changes": 14.9,
+          "travel_pp": 103.3,
+          "reversals": 1.0,
+          "first_move_s": 15.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 3.0,
+          "runs_that_moved": 20
+        },
+        "ml_pid": {
+          "bad_request_pct": 9.04,
+          "mean_latency_ms": 185.88,
+          "p95_latency_ms": 1511.04,
+          "weight_changes": 8.15,
+          "travel_pp": 101.9,
+          "reversals": 1.0,
+          "first_move_s": 15.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 2.0,
+          "runs_that_moved": 20
+        }
+      }
+    },
+    "capacity_loss": {
+      "note": "region-a keeps 40% of its capacity; neither region can carry everything",
+      "controllers": {
+        "no_action": {
+          "bad_request_pct": 56.04,
+          "mean_latency_ms": 1262.19,
+          "p95_latency_ms": 3000.0,
+          "weight_changes": 0.0,
+          "travel_pp": 0.0,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 60.0,
+          "runs_that_moved": 0
+        },
+        "threshold": {
+          "bad_request_pct": 54.61,
+          "mean_latency_ms": 1282.81,
+          "p95_latency_ms": 3000.0,
+          "weight_changes": 7.0,
+          "travel_pp": 175.0,
+          "reversals": 5.0,
+          "first_move_s": 10.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 35.0,
+          "runs_that_moved": 20
+        },
+        "pid": {
+          "bad_request_pct": 2.77,
+          "mean_latency_ms": 195.73,
+          "p95_latency_ms": 198.81,
+          "weight_changes": 6.0,
+          "travel_pp": 40.65,
+          "reversals": 1.0,
+          "first_move_s": 15.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 29.0,
+          "runs_that_moved": 20
+        },
+        "ml_pid": {
+          "bad_request_pct": 2.72,
+          "mean_latency_ms": 197.39,
+          "p95_latency_ms": 211.72,
+          "weight_changes": 5.25,
+          "travel_pp": 39.1,
+          "reversals": 1.0,
+          "first_move_s": 15.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 28.0,
+          "runs_that_moved": 20
+        }
+      }
+    },
+    "telemetry_gap": {
+      "note": "sustained fault, region-a telemetry stale from 120 s to 210 s",
+      "controllers": {
+        "no_action": {
+          "bad_request_pct": 50.0,
+          "mean_latency_ms": 808.95,
+          "p95_latency_ms": 1879.0,
+          "weight_changes": 0.0,
+          "travel_pp": 0.0,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 100.0,
+          "runs_that_moved": 0
+        },
+        "threshold": {
+          "bad_request_pct": 31.86,
+          "mean_latency_ms": 524.74,
+          "p95_latency_ms": 1792.5,
+          "weight_changes": 3.0,
+          "travel_pp": 75.0,
+          "reversals": 0.0,
+          "first_move_s": 10.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 25.0,
+          "runs_that_moved": 20
+        },
+        "pid": {
+          "bad_request_pct": 26.57,
+          "mean_latency_ms": 448.82,
+          "p95_latency_ms": 1761.42,
+          "weight_changes": 13.9,
+          "travel_pp": 103.25,
+          "reversals": 1.0,
+          "first_move_s": 15.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 3.0,
+          "runs_that_moved": 20
+        },
+        "ml_pid": {
+          "bad_request_pct": 15.37,
+          "mean_latency_ms": 280.11,
+          "p95_latency_ms": 1646.84,
+          "weight_changes": 7.7,
+          "travel_pp": 101.9,
+          "reversals": 1.0,
+          "first_move_s": 15.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 2.0,
+          "runs_that_moved": 20
+        }
+      }
+    },
+    "null_p95": {
+      "note": "healthy system, region-a p95 null for 200 s (histogram buckets unavailable)",
+      "controllers": {
+        "no_action": {
+          "bad_request_pct": 0.0,
+          "mean_latency_ms": 37.91,
+          "p95_latency_ms": 47.93,
+          "weight_changes": 0.0,
+          "travel_pp": 0.0,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 50.0,
+          "runs_that_moved": 0
+        },
+        "threshold": {
+          "bad_request_pct": 0.0,
+          "mean_latency_ms": 37.91,
+          "p95_latency_ms": 47.93,
+          "weight_changes": 0.0,
+          "travel_pp": 0.0,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 40.0,
+          "final_weight_a_median": 50.0,
+          "runs_that_moved": 0
+        },
+        "pid": {
+          "bad_request_pct": 0.0,
+          "mean_latency_ms": 37.91,
+          "p95_latency_ms": 47.93,
+          "weight_changes": 0.0,
+          "travel_pp": 0.0,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 50.0,
+          "runs_that_moved": 0
+        },
+        "ml_pid": {
+          "bad_request_pct": 0.0,
+          "mean_latency_ms": 37.91,
+          "p95_latency_ms": 47.93,
+          "weight_changes": 0.0,
+          "travel_pp": 0.0,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 50.0,
+          "runs_that_moved": 0
+        }
+      }
+    },
+    "noisy_healthy": {
+      "note": "no fault; 8% of ticks contain one slow probe per region",
+      "controllers": {
+        "no_action": {
+          "bad_request_pct": 0.0,
+          "mean_latency_ms": 37.91,
+          "p95_latency_ms": 47.93,
+          "weight_changes": 0.0,
+          "travel_pp": 0.0,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 50.0,
+          "runs_that_moved": 0
+        },
+        "threshold": {
+          "bad_request_pct": 0.0,
+          "mean_latency_ms": 38.14,
+          "p95_latency_ms": 48.46,
+          "weight_changes": 0.15,
+          "travel_pp": 3.75,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 50.0,
+          "runs_that_moved": 3
+        },
+        "pid": {
+          "bad_request_pct": 0.0,
+          "mean_latency_ms": 37.91,
+          "p95_latency_ms": 47.97,
+          "weight_changes": 4.3,
+          "travel_pp": 9.05,
+          "reversals": 2.75,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 50.0,
+          "runs_that_moved": 18
+        },
+        "ml_pid": {
+          "bad_request_pct": 0.0,
+          "mean_latency_ms": 38.03,
+          "p95_latency_ms": 48.26,
+          "weight_changes": 3.65,
+          "travel_pp": 12.25,
+          "reversals": 2.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 50.0,
+          "runs_that_moved": 18
+        }
+      }
+    },
+    "both_degraded": {
+      "note": "both regions +1500 ms service delay for 180 s",
+      "controllers": {
+        "no_action": {
+          "bad_request_pct": 45.0,
+          "mean_latency_ms": 720.46,
+          "p95_latency_ms": 1846.7,
+          "weight_changes": 0.0,
+          "travel_pp": 0.0,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 50.0,
+          "runs_that_moved": 0
+        },
+        "threshold": {
+          "bad_request_pct": 45.0,
+          "mean_latency_ms": 720.46,
+          "p95_latency_ms": 1846.7,
+          "weight_changes": 0.0,
+          "travel_pp": 0.0,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 50.0,
+          "runs_that_moved": 0
+        },
+        "pid": {
+          "bad_request_pct": 45.0,
+          "mean_latency_ms": 720.47,
+          "p95_latency_ms": 1846.75,
+          "weight_changes": 0.2,
+          "travel_pp": 0.6,
+          "reversals": 0.1,
+          "first_move_s": 15.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 50.0,
+          "runs_that_moved": 2
+        },
+        "ml_pid": {
+          "bad_request_pct": 45.0,
+          "mean_latency_ms": 720.46,
+          "p95_latency_ms": 1846.7,
+          "weight_changes": 0.0,
+          "travel_pp": 0.0,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 50.0,
+          "runs_that_moved": 0
+        }
+      }
+    },
+    "flapping": {
+      "note": "region-a +1500 ms, 20 s on / 40 s off, for 8 minutes",
+      "controllers": {
+        "no_action": {
+          "bad_request_pct": 26.67,
+          "mean_latency_ms": 454.86,
+          "p95_latency_ms": 1769.91,
+          "weight_changes": 0.0,
+          "travel_pp": 0.0,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 100.0,
+          "runs_that_moved": 0
+        },
+        "threshold": {
+          "bad_request_pct": 12.48,
+          "mean_latency_ms": 233.49,
+          "p95_latency_ms": 1600.54,
+          "weight_changes": 4.0,
+          "travel_pp": 100.0,
+          "reversals": 0.0,
+          "first_move_s": 10.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 0.0,
+          "runs_that_moved": 20
+        },
+        "pid": {
+          "bad_request_pct": 20.11,
+          "mean_latency_ms": 346.58,
+          "p95_latency_ms": 1708.72,
+          "weight_changes": 18.85,
+          "travel_pp": 134.05,
+          "reversals": 15.0,
+          "first_move_s": 15.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 43.0,
+          "runs_that_moved": 20
+        },
+        "ml_pid": {
+          "bad_request_pct": 9.98,
+          "mean_latency_ms": 197.32,
+          "p95_latency_ms": 1539.32,
+          "weight_changes": 18.15,
+          "travel_pp": 135.65,
+          "reversals": 15.0,
+          "first_move_s": 15.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 2.0,
+          "runs_that_moved": 20
+        }
+      }
+    },
+    "drain_blind_spot": {
+      "note": "sustained fault; a region is only observable through the traffic it receives",
+      "controllers": {
+        "no_action": {
+          "bad_request_pct": 25.03,
+          "mean_latency_ms": 417.88,
+          "p95_latency_ms": 1745.77,
+          "weight_changes": 0.0,
+          "travel_pp": 0.0,
+          "reversals": 0.0,
+          "first_move_s": null,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 50.0,
+          "runs_that_moved": 0
+        },
+        "threshold": {
+          "bad_request_pct": 9.71,
+          "mean_latency_ms": 192.51,
+          "p95_latency_ms": 1507.89,
+          "weight_changes": 1.85,
+          "travel_pp": 46.25,
+          "reversals": 0.0,
+          "first_move_s": 13.0,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 0.0,
+          "runs_that_moved": 20
+        },
+        "pid": {
+          "bad_request_pct": 5.26,
+          "mean_latency_ms": 126.91,
+          "p95_latency_ms": 803.47,
+          "weight_changes": 4.75,
+          "travel_pp": 49.65,
+          "reversals": 0.1,
+          "first_move_s": 11.5,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 0.0,
+          "runs_that_moved": 20
+        },
+        "ml_pid": {
+          "bad_request_pct": 3.62,
+          "mean_latency_ms": 102.38,
+          "p95_latency_ms": 285.0,
+          "weight_changes": 2.75,
+          "travel_pp": 49.05,
+          "reversals": 0.25,
+          "first_move_s": 11.5,
+          "moves_while_unknown": 0.0,
+          "controller_errors": 0.0,
+          "final_weight_a_median": 0.0,
+          "runs_that_moved": 20
+        }
+      }
+    }
+  },
+  "gain_sweep": {
+    "kp,ki x0.25": {
+      "bad_request_pct": 10.67,
+      "mean_latency_ms": 389.47,
+      "p95_latency_ms": 2879.12,
+      "weight_changes": 16.75,
+      "travel_pp": 30.75,
+      "reversals": 2.75,
+      "first_move_s": 15.0,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 32.0,
+      "runs_that_moved": 20
+    },
+    "kp,ki x0.5": {
+      "bad_request_pct": 5.14,
+      "mean_latency_ms": 262.16,
+      "p95_latency_ms": 362.2,
+      "weight_changes": 8.0,
+      "travel_pp": 30.0,
+      "reversals": 1.0,
+      "first_move_s": 15.0,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 32.0,
+      "runs_that_moved": 20
+    },
+    "kp,ki x1": {
+      "bad_request_pct": 2.77,
+      "mean_latency_ms": 195.73,
+      "p95_latency_ms": 198.81,
+      "weight_changes": 6.0,
+      "travel_pp": 40.65,
+      "reversals": 1.0,
+      "first_move_s": 15.0,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 29.0,
+      "runs_that_moved": 20
+    },
+    "kp,ki x2": {
+      "bad_request_pct": 1.91,
+      "mean_latency_ms": 172.26,
+      "p95_latency_ms": 206.94,
+      "weight_changes": 4.0,
+      "travel_pp": 47.65,
+      "reversals": 1.0,
+      "first_move_s": 15.0,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 28.0,
+      "runs_that_moved": 20
+    },
+    "kp,ki x4": {
+      "bad_request_pct": 57.93,
+      "mean_latency_ms": 1508.63,
+      "p95_latency_ms": 3000.0,
+      "weight_changes": 55.0,
+      "travel_pp": 1373.85,
+      "reversals": 53.0,
+      "first_move_s": 15.0,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 36.0,
+      "runs_that_moved": 20
+    },
+    "kp,ki x8": {
+      "bad_request_pct": 57.47,
+      "mean_latency_ms": 1396.0,
+      "p95_latency_ms": 3000.0,
+      "weight_changes": 55.0,
+      "travel_pp": 1374.75,
+      "reversals": 53.0,
+      "first_move_s": 15.0,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 35.0,
+      "runs_that_moved": 20
+    },
+    "I only (kp=0)": {
+      "bad_request_pct": 3.61,
+      "mean_latency_ms": 264.54,
+      "p95_latency_ms": 321.75,
+      "weight_changes": 6.0,
+      "travel_pp": 39.0,
+      "reversals": 0.0,
+      "first_move_s": 15.0,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 21.0,
+      "runs_that_moved": 20
+    },
+    "with D (kd=20)": {
+      "bad_request_pct": 2.73,
+      "mean_latency_ms": 195.36,
+      "p95_latency_ms": 198.12,
+      "weight_changes": 6.0,
+      "travel_pp": 42.9,
+      "reversals": 2.0,
+      "first_move_s": 15.0,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 29.0,
+      "runs_that_moved": 20
+    }
+  },
+  "variants": {
+    "flapping / pid": {
+      "bad_request_pct": 20.11,
+      "mean_latency_ms": 346.58,
+      "p95_latency_ms": 1708.72,
+      "weight_changes": 18.85,
+      "travel_pp": 134.05,
+      "reversals": 15.0,
+      "first_move_s": 15.0,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 43.0,
+      "runs_that_moved": 20
+    },
+    "flapping / I only (kp=0)": {
+      "bad_request_pct": 20.1,
+      "mean_latency_ms": 346.62,
+      "p95_latency_ms": 1708.67,
+      "weight_changes": 11.75,
+      "travel_pp": 56.6,
+      "reversals": 0.0,
+      "first_move_s": 15.0,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 43.0,
+      "runs_that_moved": 20
+    },
+    "noisy_healthy / I only (kp=0)": {
+      "bad_request_pct": 0.0,
+      "mean_latency_ms": 37.95,
+      "p95_latency_ms": 48.05,
+      "weight_changes": 2.2,
+      "travel_pp": 3.85,
+      "reversals": 0.75,
+      "first_move_s": null,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 50.0,
+      "runs_that_moved": 18
+    },
+    "sustained_latency / failback 0.2 pp/s to 100": {
+      "bad_request_pct": 17.24,
+      "mean_latency_ms": 307.56,
+      "p95_latency_ms": 1672.68,
+      "weight_changes": 20.9,
+      "travel_pp": 121.3,
+      "reversals": 1.0,
+      "first_move_s": 15.0,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 21.0,
+      "runs_that_moved": 20
+    },
+    "sustained_latency / canary floor 5%": {
+      "bad_request_pct": 18.08,
+      "mean_latency_ms": 319.65,
+      "p95_latency_ms": 1682.54,
+      "weight_changes": 14.2,
+      "travel_pp": 98.25,
+      "reversals": 1.0,
+      "first_move_s": 15.0,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 8.0,
+      "runs_that_moved": 20
+    },
+    "sustained_latency / 60 s sample interval": {
+      "bad_request_pct": 25.89,
+      "mean_latency_ms": 439.61,
+      "p95_latency_ms": 1756.19,
+      "weight_changes": 5.0,
+      "travel_pp": 102.05,
+      "reversals": 1.0,
+      "first_move_s": 60.0,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 2.0,
+      "runs_that_moved": 20
+    },
+    "drain_blind_spot / failback 0.2 pp/s to 50": {
+      "bad_request_pct": 5.26,
+      "mean_latency_ms": 126.91,
+      "p95_latency_ms": 803.47,
+      "weight_changes": 4.75,
+      "travel_pp": 49.65,
+      "reversals": 0.1,
+      "first_move_s": 11.5,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 0.0,
+      "runs_that_moved": 20
+    },
+    "drain_blind_spot / failback + canary floor 30%": {
+      "bad_request_pct": 15.78,
+      "mean_latency_ms": 278.57,
+      "p95_latency_ms": 1647.83,
+      "weight_changes": 3.85,
+      "travel_pp": 25.25,
+      "reversals": 1.0,
+      "first_move_s": 11.5,
+      "moves_while_unknown": 0.0,
+      "controller_errors": 0.0,
+      "final_weight_a_median": 35.5,
+      "runs_that_moved": 20
+    }
+  }
+}
