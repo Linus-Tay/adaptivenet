@@ -22,42 +22,31 @@ These were two single local runs. The static run checked that the fault was acti
 
 The logs are stored under the workspace's ignored `data/` directory. Keep them with the evaluation bundle when sharing the report.
 
-## Scaling and shadow mode
+## Controller operation
 
-The emulated HPA exercises a request from two to three replicas, pending readiness, client verification, cooldown, failures, and timeouts. The routing and scaling paths share one pending-action journal slot. The scaling client measurements are synthetic.
+The controller supports `local` execution and a `disabled` stop mode. Callers must
+explicitly choose a mode when constructing `SafetyController`; there is no default
+and no shadow mode. Local execution retains proposal validation, three distinct
+qualifying observations, bounded changes, a pending-action journal, cooldown and
+client recovery verification.
 
-The shadow workflow reads a current `adaptivenet.features.v1` snapshot, builds `model_input.v1`, validates `proposal.v1`, and returns an advisory result with `executed=false`. It reads Kubernetes only for a valid scale proposal. The older `decision_review.v1` result remains separately available in the output. A shift review requires the observed route weight.
+The standalone shadow assessment module and `model_handoff.py shadow` command
+have been removed. The existing `input`, `demo` and `review` commands remain model
+handoff utilities; policy review alone does not execute an action.
 
-```powershell
-python scripts/model_handoff.py shadow --db data/adaptivenet-ingestion.db --mode combined
-python scripts/model_handoff.py shadow --snapshot data/features.json --proposal data/proposal.json --hpa-config data/hpa-shadow.json --mode combined --out data/shadow-review.json
-```
+Local routing changes the local gateway. Scaling currently uses an emulated HPA
+and synthetic client measurements. `KubernetesHpaReader` in `kubernetes_hpa.py`
+reads real workload state for capacity checks; it has no write operations. Live
+EKS scaling and trained-model-to-action integration are not implemented by this
+removal. Missing execution support must not be presented as a successful action.
 
-For the second command, use a fresh feature snapshot and a proposal carrying its exact snapshot ID. Add `--current-a-percent` for a shift proposal. The first command uses the bundled `ml.predictor.predict()` entry point, which currently calls the conservative rule baseline. An ML teammate can supply a proposal JSON or update that entry point.
+The emulated HPA exercises two-to-three replicas, pending readiness, client
+verification, cooldown, failures and timeouts. Routing and scaling share one
+pending-action journal slot.
 
-The optional HPA configuration maps each region to a confirmed cluster, namespace, Deployment, and HPA. For each cluster, supply its HTTPS API origin, CA bundle, and a file containing a current read-only bearer token. File paths are relative to the configuration file.
+## Historical EKS read-access validation
 
-```json
-{
-  "workloads": {
-    "region-a": {
-      "cluster": "confirmed-sg-cluster",
-      "namespace": "confirmed-namespace",
-      "deployment": "confirmed-deployment",
-      "hpa": "confirmed-hpa"
-    }
-  },
-  "clusters": {
-    "confirmed-sg-cluster": {
-      "server": "https://api.example.invalid",
-      "ca_file": "sg-ca.pem",
-      "token_file": "sg-read-only-token"
-    }
-  }
-}
-```
-
-## EKS read access and shadow replay
+These results were collected before shadow mode was removed; the old runner is no longer supported.
 
 On 9 November 2026, the team read the HPA, Deployment, pods, and pod metrics from both clusters using kubectl in their respective CloudShell VPC environments. The controller replayed each capture offline using its capture timestamp, a fixture feature snapshot, and a fixture scale-out proposal.
 

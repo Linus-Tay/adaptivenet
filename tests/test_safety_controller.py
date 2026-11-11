@@ -83,7 +83,6 @@ def test_local_shift_waits_for_three_distinct_samples_and_keeps_action_pending(s
 
 
 @pytest.mark.parametrize(("mode", "state"), [
-    ("shadow", "shadow_qualified"),
     ("disabled", "disabled"),
 ])
 def test_modes_without_execution_never_reserve_or_write_route(scenario, mode, state):
@@ -293,3 +292,13 @@ def test_verification_write_failure_leaves_action_pending(verification, monkeypa
     result = controller.verify(window)
     assert (result.state, result.reasons) == ("blocked", ("verification_journal_failed",))
     assert gateway.journal.pending().action_id == window.action_id
+
+
+def test_controller_requires_explicit_mode_and_rejects_removed_shadow_mode(scenario):
+    journal, gateway, _, _ = scenario
+    with pytest.raises(TypeError, match="mode"):
+        SafetyController(journal, gateway)
+    with pytest.raises(ValueError, match="invalid controller mode"):
+        SafetyController(journal, gateway, mode="shadow")
+    assert journal.pending() is None
+    assert gateway.calls == 0

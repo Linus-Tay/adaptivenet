@@ -20,7 +20,7 @@ from .recovery import (
 from .reconcile import reconcile_route
 from .scaling import HPA_MAX_AGE_SEC
 
-Mode = Literal["disabled", "shadow", "local"]
+Mode = Literal["disabled", "local"]
 COOLDOWN_SEC = 120
 
 
@@ -44,9 +44,9 @@ class ControllerResult:
 class SafetyController:
     def __init__(
         self, journal: ActionJournal, route: LocalRoute, *,
-        mode: Mode = "shadow", emulated_hpa: EmulatedHpa | None = None,
+        mode: Mode, emulated_hpa: EmulatedHpa | None = None,
     ):
-        if mode not in ("disabled", "shadow", "local"):
+        if mode not in ("disabled", "local"):
             raise ValueError("invalid controller mode")
         self.mode = mode
         self._journal = journal
@@ -125,8 +125,6 @@ class SafetyController:
         count = self._evidence.observe(observed_at=observed_at, qualified_intent=intent)
         if count < self._evidence.required:
             return ControllerResult(self.mode, "qualifying", qualifying_count=count)
-        if self.mode == "shadow":
-            return ControllerResult(self.mode, "shadow_qualified", qualifying_count=count)
 
         pending = self._reserve(
             intent, before={"region_a_percent": original}, expected={"region_a_percent": target},
@@ -192,8 +190,6 @@ class SafetyController:
         count = self._scale_evidence.observe(observed_at=observed_at, qualified_intent=intent)
         if count < self._scale_evidence.required:
             return ControllerResult(self.mode, "qualifying", qualifying_count=count)
-        if self.mode == "shadow":
-            return ControllerResult(self.mode, "shadow_qualified", qualifying_count=count)
 
         pending = self._reserve(
             intent,
@@ -212,8 +208,6 @@ class SafetyController:
         """Check post-readiness client evidence for the pending emulated scale action."""
         if self.mode == "disabled":
             return ControllerResult(self.mode, "disabled")
-        if self.mode != "local":
-            return ControllerResult(self.mode, "observing", ("emulated_client_verification_requires_local_mode",))
         try:
             previous = self._journal.outcome(window.action_id)
             pending = self._journal.pending()

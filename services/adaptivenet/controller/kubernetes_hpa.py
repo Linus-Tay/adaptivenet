@@ -1,4 +1,4 @@
-"""Read allowlisted Kubernetes workload state for scale recommendations in shadow mode."""
+"""Read allowlisted Kubernetes workload state for capacity safety checks."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,7 +15,7 @@ from .scaling import CapacityRecommendation, HpaObservation, WorkloadTarget, rec
 
 
 @dataclass(frozen=True)
-class ShadowHpaResult:
+class HpaAssessment:
     recommendation: CapacityRecommendation
     observation: HpaObservation | None = None
 
@@ -28,7 +28,7 @@ class KubernetesReader(Protocol):
     def __call__(self, path: str, *, selector: str | None = None) -> dict: ...
 
 
-class KubernetesShadowHpa:
+class KubernetesHpaReader:
     """Use a caller-supplied, authenticated client for each configured cluster."""
 
     def __init__(
@@ -40,13 +40,13 @@ class KubernetesShadowHpa:
         self._readers = {cluster: partial(_get, client) for cluster, client in (clients or {}).items()}
         self._readers.update(readers or {})
 
-    def assess(self, affected_region: str | None) -> ShadowHpaResult:
+    def assess(self, affected_region: str | None) -> HpaAssessment:
         target = self._allowlist.get(affected_region) if isinstance(affected_region, str) else None
         if target is None:
-            return ShadowHpaResult(CapacityRecommendation("blocked", "unknown_affected_region"))
+            return HpaAssessment(CapacityRecommendation("blocked", "unknown_affected_region"))
         read = self._readers.get(target.cluster)
         if read is None:
-            return ShadowHpaResult(CapacityRecommendation("blocked", "missing_kubernetes_context"))
+            return HpaAssessment(CapacityRecommendation("blocked", "missing_kubernetes_context"))
         try:
             observation = _read_hpa(read, target)
         except KubernetesReadError as exc:
@@ -54,13 +54,13 @@ class KubernetesShadowHpa:
         except (KeyError, TypeError, ValueError, AttributeError):
             reason = "invalid_or_mismatched_kubernetes_state"
         else:
-            return ShadowHpaResult(
+            return HpaAssessment(
                 recommend_capacity(
                     affected_region, allowlist=self._allowlist, observation=observation, now=time.time(),
                 ),
                 observation,
             )
-        return ShadowHpaResult(CapacityRecommendation("blocked", reason))
+        return HpaAssessment(CapacityRecommendation("blocked", reason))
 
 
 def _get(client: httpx.Client, path: str, *, selector: str | None = None) -> dict:

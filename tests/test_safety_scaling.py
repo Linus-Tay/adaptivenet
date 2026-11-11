@@ -201,15 +201,15 @@ def test_scale_proposal_is_journaled_before_emulator_changes_desired_capacity(co
     assert journal.outcome(requested.action_id) is None
 
 
-def test_scaling_shadow_mode_qualifies_without_mutating_hpa_or_journal(controller_inputs):
+def test_disabled_scaling_does_not_mutate_hpa_or_journal(controller_inputs):
     _, journal, hpa, snapshot, proposal = controller_inputs
-    controller = SafetyController(journal, UnusedRoute(), emulated_hpa=hpa)
-    assert qualify_scale(controller, controller_inputs)[-1].state == "shadow_qualified"
+    controller = SafetyController(journal, UnusedRoute(), mode="disabled", emulated_hpa=hpa)
+    assert qualify_scale(controller, controller_inputs)[-1].state == "disabled"
     assert journal.pending() is None
     assert hpa.observe().desired == 2
-    shadow_review = review_proposal(snapshot, proposal)
-    assert shadow_review["executed"] is False
-    assert shadow_review["rejection_reasons"] == ["kubernetes_scale_adapter_not_implemented"]
+    policy_review = review_proposal(snapshot, proposal)
+    assert policy_review["executed"] is False
+    assert policy_review["rejection_reasons"] == ["kubernetes_scale_adapter_not_implemented"]
 
 
 @pytest.mark.parametrize(("changes", "reason"), [
