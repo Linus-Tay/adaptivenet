@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 from urllib.parse import urlencode
 import urllib.request
@@ -49,7 +50,10 @@ def export(region: str, start: float, end: float, step: int, profile: str) -> li
             if len(series) > 1:
                 raise RuntimeError(f"AMP returned multiple series for {metric}")
             for ts, val in (series[0]["values"] if series else []):
-                by_ts.setdefault(float(ts), {"ts": float(ts), "region": region})[metric] = float(val)
+                v = float(val)
+                if not math.isfinite(v):
+                    continue  # NaN (e.g. p95 with no requests) is missing, never zero
+                by_ts.setdefault(float(ts), {"ts": float(ts), "region": region})[metric] = v
             t = e
     rows = sorted(by_ts.values(), key=lambda r: r["ts"])
     for r in rows:  # same derived column as the collector

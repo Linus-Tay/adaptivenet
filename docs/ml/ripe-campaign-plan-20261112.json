@@ -1,0 +1,269 @@
+{
+  "schema": "adaptivenet.ripe_trial_campaign_plan.v1",
+  "seed": 3104,
+  "created_utc": "2026-11-12T08:17:55.616245+00:00",
+  "slots": [
+    {
+      "slot": 0,
+      "region": "region-b",
+      "control_region": "region-a",
+      "planned_start_utc": "2026-11-12T08:42:06+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 35,
+      "control_window_utc": [
+        "2026-11-12T08:46:06+00:00",
+        "2026-11-12T08:58:06+00:00"
+      ],
+      "ripe_measurement_id": 236682051
+    },
+    {
+      "slot": 1,
+      "region": "region-a",
+      "control_region": "region-b",
+      "planned_start_utc": "2026-11-12T09:06:34+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 25,
+      "control_window_utc": [
+        "2026-11-12T09:10:34+00:00",
+        "2026-11-12T09:22:34+00:00"
+      ],
+      "ripe_measurement_id": 236682050
+    },
+    {
+      "slot": 2,
+      "region": "region-b",
+      "control_region": "region-a",
+      "planned_start_utc": "2026-11-12T09:31:15+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 30,
+      "control_window_utc": [
+        "2026-11-12T09:35:15+00:00",
+        "2026-11-12T09:47:15+00:00"
+      ],
+      "ripe_measurement_id": 236682051
+    },
+    {
+      "slot": 3,
+      "region": "region-a",
+      "control_region": "region-b",
+      "planned_start_utc": "2026-11-12T09:57:47+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 35,
+      "control_window_utc": [
+        "2026-11-12T10:01:47+00:00",
+        "2026-11-12T10:13:47+00:00"
+      ],
+      "ripe_measurement_id": 236682050
+    },
+    {
+      "slot": 4,
+      "region": "region-a",
+      "control_region": "region-b",
+      "planned_start_utc": "2026-11-12T10:21:08+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 20,
+      "control_window_utc": [
+        "2026-11-12T10:25:08+00:00",
+        "2026-11-12T10:37:08+00:00"
+      ],
+      "ripe_measurement_id": 236682050
+    },
+    {
+      "slot": 5,
+      "region": "region-b",
+      "control_region": "region-a",
+      "planned_start_utc": "2026-11-12T10:45:34+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 15,
+      "control_window_utc": [
+        "2026-11-12T10:49:34+00:00",
+        "2026-11-12T11:01:34+00:00"
+      ],
+      "ripe_measurement_id": 236682051
+    },
+    {
+      "slot": 6,
+      "region": "region-a",
+      "control_region": "region-b",
+      "planned_start_utc": "2026-11-12T11:12:00+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 15,
+      "control_window_utc": [
+        "2026-11-12T11:16:00+00:00",
+        "2026-11-12T11:28:00+00:00"
+      ],
+      "ripe_measurement_id": 236682050
+    },
+    {
+      "slot": 7,
+      "region": "region-b",
+      "control_region": "region-a",
+      "planned_start_utc": "2026-11-12T11:37:11+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 35,
+      "control_window_utc": [
+        "2026-11-12T11:41:11+00:00",
+        "2026-11-12T11:53:11+00:00"
+      ],
+      "ripe_measurement_id": 236682051
+    },
+    {
+      "slot": 8,
+      "region": "region-a",
+      "control_region": "region-b",
+      "planned_start_utc": "2026-11-12T12:02:24+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 25,
+      "control_window_utc": [
+        "2026-11-12T12:06:24+00:00",
+        "2026-11-12T12:18:24+00:00"
+      ],
+      "ripe_measurement_id": 236682050
+    },
+    {
+      "slot": 9,
+      "region": "region-b",
+      "control_region": "region-a",
+      "planned_start_utc": "2026-11-12T12:26:07+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 30,
+      "control_window_utc": [
+        "2026-11-12T12:30:07+00:00",
+        "2026-11-12T12:42:07+00:00"
+      ],
+      "ripe_measurement_id": 236682051
+    },
+    {
+      "slot": 10,
+      "region": "region-b",
+      "control_region": "region-a",
+      "planned_start_utc": "2026-11-12T12:52:27+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 10,
+      "control_window_utc": [
+        "2026-11-12T12:56:27+00:00",
+        "2026-11-12T13:08:27+00:00"
+      ],
+      "ripe_measurement_id": 236682051
+    },
+    {
+      "slot": 11,
+      "region": "region-a",
+      "control_region": "region-b",
+      "planned_start_utc": "2026-11-12T13:15:05+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 35,
+      "control_window_utc": [
+        "2026-11-12T13:19:05+00:00",
+        "2026-11-12T13:31:05+00:00"
+      ],
+      "ripe_measurement_id": 236682050
+    },
+    {
+      "slot": 12,
+      "region": "region-b",
+      "control_region": "region-a",
+      "planned_start_utc": "2026-11-12T13:41:58+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 25,
+      "control_window_utc": [
+        "2026-11-12T13:45:58+00:00",
+        "2026-11-12T13:57:58+00:00"
+      ],
+      "ripe_measurement_id": 236682051
+    },
+    {
+      "slot": 13,
+      "region": "region-a",
+      "control_region": "region-b",
+      "planned_start_utc": "2026-11-12T14:05:46+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 10,
+      "control_window_utc": [
+        "2026-11-12T14:09:46+00:00",
+        "2026-11-12T14:21:46+00:00"
+      ],
+      "ripe_measurement_id": 236682050
+    },
+    {
+      "slot": 14,
+      "region": "region-a",
+      "control_region": "region-b",
+      "planned_start_utc": "2026-11-12T14:31:49+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 10,
+      "control_window_utc": [
+        "2026-11-12T14:35:49+00:00",
+        "2026-11-12T14:47:49+00:00"
+      ],
+      "ripe_measurement_id": 236682050
+    },
+    {
+      "slot": 15,
+      "region": "region-b",
+      "control_region": "region-a",
+      "planned_start_utc": "2026-11-12T14:56:43+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 25,
+      "control_window_utc": [
+        "2026-11-12T15:00:43+00:00",
+        "2026-11-12T15:12:43+00:00"
+      ],
+      "ripe_measurement_id": 236682051
+    },
+    {
+      "slot": 16,
+      "region": "region-b",
+      "control_region": "region-a",
+      "planned_start_utc": "2026-11-12T15:20:51+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 15,
+      "control_window_utc": [
+        "2026-11-12T15:24:51+00:00",
+        "2026-11-12T15:36:51+00:00"
+      ],
+      "ripe_measurement_id": 236682051
+    },
+    {
+      "slot": 17,
+      "region": "region-a",
+      "control_region": "region-b",
+      "planned_start_utc": "2026-11-12T15:47:14+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 35,
+      "control_window_utc": [
+        "2026-11-12T15:51:14+00:00",
+        "2026-11-12T16:03:14+00:00"
+      ],
+      "ripe_measurement_id": 236682050
+    },
+    {
+      "slot": 18,
+      "region": "region-a",
+      "control_region": "region-b",
+      "planned_start_utc": "2026-11-12T16:12:43+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 35,
+      "control_window_utc": [
+        "2026-11-12T16:16:43+00:00",
+        "2026-11-12T16:28:43+00:00"
+      ],
+      "ripe_measurement_id": 236682050
+    },
+    {
+      "slot": 19,
+      "region": "region-b",
+      "control_region": "region-a",
+      "planned_start_utc": "2026-11-12T16:36:04+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 20,
+      "control_window_utc": [
+        "2026-11-12T16:40:04+00:00",
+        "2026-11-12T16:52:04+00:00"
+      ],
+      "ripe_measurement_id": 236682051
+    }
+  ],
+  "frozen_analysis": "docs/ml/RIPE_TRIALS_PROTOCOL.md",
+  "stop_file": "/Users/my/Project/adaptivenet-ripe-campaign/STOP"
+}
