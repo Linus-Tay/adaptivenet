@@ -92,3 +92,8 @@ body{background:#0b1423;color:#e6edf7;font-family:Arial,sans-serif;margin:0}main
 .rt-line-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.rt-line-head small{color:#94a6bd;flex:1}
 .rt-line p{font-size:14px!important;line-height:1.55;margin:6px 0 0!important;color:#dbe6f3}
 @media(max-width:900px){.rt-regions{grid-template-columns:1fr}}
+.an-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0 0;padding:0;list-style:none;counter-reset:s}
+.an-steps li{counter-increment:s;background:#111f32;border:1px solid #2d4562;border-radius:14px;padding:12px 14px 12px 46px;position:relative;font-size:13px;color:#b9c8da;line-height:1.5}
+.an-steps li::before{content:counter(s);position:absolute;left:14px;top:12px;width:22px;height:22px;border-radius:22px;background:#235c9b;color:#fff;font-weight:700;display:grid;place-items:center;font-size:12px}
+.an-steps b{color:#e6edf7}
+@media(max-width:900px){.an-steps{grid-template-columns:1fr}}

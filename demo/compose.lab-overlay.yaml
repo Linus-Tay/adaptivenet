@@ -48,6 +48,12 @@ services:
       LAB_VIEW_URL: http://lab-view:8000
       LAB_ML_URL: http://lab-ml:8000
 
+  # Customer view (:3001): "behind the scenes" checks ask each lab region directly.
+  demo-web:
+    environment:
+      DEMO_REGION_A_URL: http://demo-a:8000
+      DEMO_REGION_B_URL: http://demo-b:8000
+
   lab-users:
     <<: *demo-image
     command: ["python", "-m", "demo.lab.traffic"]

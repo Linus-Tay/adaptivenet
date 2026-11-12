@@ -43,3 +43,23 @@ body{background:#0b1423;color:#e6edf7;font-family:Arial,sans-serif;margin:0}main
 .workload .catalogue-items article{padding:16px;background:#0d1a2a;border:1px solid #31435a;border-radius:12px;display:flex;justify-content:space-between;gap:12px}
 .workload .catalogue-items strong{color:#80e2c4}
 @media(max-width:650px){.workload .catalogue-items{grid-template-columns:1fr}}
+
+/* Customer view: one big verdict, last-minute bars, behind-the-scenes checks. */
+.shop .hero{display:flex;gap:24px;align-items:center;border-radius:20px;padding:24px 28px;margin:10px 0 18px;border:1px solid #2c415c;background:#121f32}
+.shop .hero .big{font-size:44px;font-weight:800;min-width:170px;letter-spacing:-.03em}
+.shop .hero.fast{border-color:#24644e;background:#122c25}.shop .hero.fast .big{color:#70e1be}
+.shop .hero.slow{border-color:#806a2c;background:#2c2410}.shop .hero.slow .big{color:#f2c25c}
+.shop .hero.failed{border-color:#84505a;background:#3b1f27}.shop .hero.failed .big{color:#ff8f9d}
+.shop .hero.waiting .big{color:#94a6bd}
+.shop .story{font-size:20px;color:#e6edf7;margin:0;line-height:1.45}
+.shop .hint{font-size:14px;color:#ffe2a3;margin:10px 0 0}
+.shop .bars{display:flex;align-items:flex-end;gap:4px;height:130px;padding:8px;background:#0c192b;border-radius:12px;border:1px solid #2c435e}
+.shop .bars i{flex:0 0 calc(2.5% - 4px);min-width:4px;border-radius:3px 3px 0 0;background:#3fb8a0}
+.shop .bars i.us{background:#6aa7ff}.shop .bars i.fail{background:#ff7b7b}
+.shop .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#b7c6d9;margin-top:10px;align-items:center}
+.shop .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:#3fb8a0}
+.shop .legend i.us{background:#6aa7ff}.shop .legend i.fail{background:#ff7b7b}.shop .legend b{margin-left:auto;color:#e6edf7}
+.shop .behind{font-size:20px;margin:30px 0 4px}
+.shop .workload-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.shop .workload-card .card-head h2{margin:0}
+@media(max-width:700px){.shop .hero{flex-direction:column;align-items:flex-start}.shop .workload-grid.two{grid-template-columns:1fr}}

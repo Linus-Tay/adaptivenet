@@ -32,6 +32,18 @@ const LABEL:Record<string,string>={healthy:"Healthy",unknown:"Not enough data",n
 const REASON:Record<string,string>={app_down:"app down",app_errors:"HTTP 5xx",app_slow:"slow responses (internal)",
   compute_saturated:"CPU saturated",path_loss:"packet loss",path_latency:"high RTT",http_failures:"HTTP failures (witness)",
   http_slow:"slow HTTP (witness)"};
+const ACTION:Record<string,string>={hold:"Do nothing",investigate:"Look into it",shift_traffic:"Move 25% of traffic",scale_out:"Add a server"};
+const DECIDED:Record<string,string>={"no-op":"No action",failover:"Approved: move traffic",scale:"Approved: add server (plan only)"};
+const CTRL:Record<string,string>={idle:"Idle",observing:"Watching",qualifying:"Confirming",verifying:"Checking customers",
+  continue_candidate:"Better, next step",recovered:"Customers recovered",blocked:"Stopped by a safety rule",cooldown:"Cooling down",
+  action_pending:"Applying",disabled:"Off"};
+const WHY:Record<string,string>={no_action_requested:"nothing wrong",degradation_evidence_missing_or_stale:"not confirmed by its own check yet",
+  reviewer_eligible_shift:"passed every safety check",source_still_missing_deadline:"some customers still slow",
+  client_window_met_deadline:"all customer requests fast",telemetry_quality_gate_failed:"data too incomplete to act",
+  destination_not_confirmed_healthy:"other region not confirmed healthy",route_already_at_limit:"no traffic left to move",
+  recent_recovery:"waiting 2 min after the last fix",target_observed:"route change confirmed",insufficient_recovery_evidence:"collecting customer requests",
+  route_changed_since_verification:"someone changed the route by hand (press Reset demo)",fresh_destination_probe_required:"checking the other region first"};
+const why=(r?:string)=>r?(WHY[r]??r.replaceAll("_"," ")):undefined;
 const tone=(c?:string)=>!c?"muted":c==="healthy"?"ok":c==="unknown"?"muted":c==="network_degradation"||c==="compute_saturation"?"warn":"bad";
 const fmt=(v:number|null|undefined,d=0)=>v===null||v===undefined?"—":v.toFixed(d);
 const clock=(t:number)=>new Date(t*1000).toLocaleTimeString();
@@ -96,15 +108,15 @@ export default function Page(){
 
   const ex=latest?.executed_locally;const step=ex?.verify??ex?.step;
   const stage:{k:string;v:string;c?:string;sub?:string}[]=[
-    {k:"Telemetry",v:ad.assessment?`snapshot ${fmt(ad.assessment.snapshot_age_seconds)} s old`:"waiting",c:ad.assessment?.ready_for_shadow_assessment?"healthy":"unknown"},
-    {k:"ML (AWS+RIPE+HTTP)",v:LABEL[dets.aws_ripe_http?.condition??""]??"—",c:dets.aws_ripe_http?.condition,
+    {k:"Data in",v:ad.assessment?`${fmt(ad.assessment.snapshot_age_seconds)} s old`:"waiting",c:ad.assessment?.ready_for_shadow_assessment?"healthy":"unknown"},
+    {k:"ML sees (all signals)",v:LABEL[dets.aws_ripe_http?.condition??""]??"—",c:dets.aws_ripe_http?.condition,
       sub:dets.aws_ripe_http?.affected_region?REGION_NAME[dets.aws_ripe_http.affected_region]:undefined},
-    {k:"Proposal",v:latest?.proposal?.action??"—",c:latest?.proposal?.action==="hold"?"healthy":latest?.proposal?.action?"network_degradation":undefined,
+    {k:"ML suggests",v:ACTION[latest?.proposal?.action??""]??"—",c:latest?.proposal?.action==="hold"?"healthy":latest?.proposal?.action?"network_degradation":undefined,
       sub:latest?.proposal?.target_region_a_percent!==undefined?`→ ${latest.proposal.target_region_a_percent}% Singapore`:undefined},
-    {k:"Safety review",v:latest?.decision==="no-op"?"hold":latest?.decision??"—",c:latest?.decision==="no-op"?"healthy":latest?.decision?"network_degradation":undefined,
-      sub:latest?.decision==="no-op"?(latest.reasons??[])[0]:latest?.decision==="scale"?"plan only (not executed)":undefined},
-    {k:"Controller",v:step?.state??ex?.state??"idle",c:step?.state==="recovered"?"healthy":step?.state==="blocked"?"application_failure":step?.state?"network_degradation":"healthy",
-      sub:step?.state==="qualifying"?`${step.qualifying_count}/3 fresh checks`:(step?.reasons??[])[0]},
+    {k:"Safety review",v:DECIDED[latest?.decision??""]??"—",c:latest?.decision==="no-op"?"healthy":latest?.decision?"network_degradation":undefined,
+      sub:latest?.decision==="no-op"?why((latest.reasons??[])[0]):latest?.decision==="scale"?"shown as a plan, never executed here":why((latest?.reasons??[])[0])},
+    {k:"Controller",v:CTRL[step?.state??ex?.state??"idle"]??(step?.state??"idle"),c:step?.state==="recovered"?"healthy":step?.state==="blocked"?"application_failure":step?.state?"network_degradation":"healthy",
+      sub:step?.state==="qualifying"?`${step.qualifying_count} of 3 checks agree`:why((step?.reasons??[])[0])},
   ];
   const snap=ad.snapshot;const win=(s:string)=>ad.fast?.scopes?.[s]?.windows?.["60s"];
   const rows=(items:[string,string,number][])=>items.map(([l,k,d])=>
@@ -120,13 +132,16 @@ export default function Page(){
     <h1>{tab==="lab"?<>Can AWS-only monitoring <span>see this failure?</span></>:<>What is happening <span>in Singapore and Virginia?</span></>}</h1>
     {tab==="real"?<RealTelemetry/>:<>
     <span className="operator-badge">LOCAL SIMULATOR · NO AWS EFFECTS</span>
+    <ol className="an-steps"><li><b>Break something.</b> Pick a region and inject a fault below.</li>
+      <li><b>Compare the three views.</b> Does monitoring that only sees AWS notice? Do the internet probes?</li>
+      <li><b>Watch the response.</b> Traffic moves away step by step, and the <a href="http://127.0.0.1:3001" target="_blank" rel="noreferrer">customer view</a> recovers.</li></ol>
 
     <section className="an-top">
       <div className="an-route">
-        <div className="an-route-head"><b>Traffic split</b><span>{weight===undefined?"?":`${weight}% Singapore · ${100-weight}% Virginia`}</span></div>
+        <div className="an-route-head"><b>Where customers are sent</b><span>{weight===undefined?"?":`${weight}% Singapore · ${100-weight}% Virginia`}</span></div>
         <div className="an-bar"><i style={{width:`${weight??100}%`}}/></div>
         <div className="an-fault">{active?<><Pill c="application_failure">FAULT ACTIVE</Pill> {REGION_NAME[active.region]} · {active.error_rate>0?`HTTP ${Math.round(active.error_rate*100)}% errors`:`+${active.latency_ms} ms latency`} · {Math.round(active.remaining_seconds)} s left</>
-          :<><Pill c="healthy">NO FAULT</Pill> lab gateway is clean</>}</div>
+          :<><Pill c="healthy">NO FAULT</Pill> everything normal</>}</div>
       </div>
       <div className="an-controls">
         <div className="an-row">
@@ -142,7 +157,7 @@ export default function Page(){
           <button className="ghost" disabled={busy} onClick={()=>void act("/api/lab",{action:"route-a"},"All traffic to Singapore")}>Route → Singapore</button>
           <button className="ghost" disabled={busy} onClick={()=>void act("/api/adaptive",{action:"reset-demo"},"Demo reset: faults cleared, 100% Singapore, fresh controller journal")}>Reset demo</button>
         </div>
-        <p className="an-msg" role="status">{message||"Faults change only the local lab gateway. The safety controller is the only automatic actor."}</p>
+        <p className="an-msg" role="status">{message||"Faults only affect this local lab. Latency = slow network path; HTTP 503 = requests fail."}</p>
       </div>
     </section>
 
@@ -161,34 +176,34 @@ export default function Page(){
     </section>
 
     <section className="operator-panel">
-      <div className="operator-panel-head"><h2>From telemetry to action</h2>
+      <div className="operator-panel-head"><h2>What AdaptiveNet is doing about it</h2>
         <span className="operator-badge">{fw?`last fault: ${REGION_NAME[fw.region]} ${fw.kind} at ${clock(fw.start)}${seen.shift!==undefined?` · first traffic shift after ${Math.round(seen.shift)} s`:""}`:"no fault yet"}</span></div>
       <div className="an-flow">{stage.map((s,i)=><div key={s.k} className="an-stage">
         <small>{i+1}. {s.k}</small><Pill c={s.c}>{s.v}</Pill>{s.sub&&<span>{s.sub}</span>}</div>)}</div>
-      <p className="muted">Proposals come from the AWS+RIPE+HTTP detector and pass the independent safety reviewer. Failover moves the local gateway in 25-point steps after three fresh checks, then verifies real client requests. Scale decisions are shown as plans only; live EKS writes need a separate approval.</p>
+      <p className="muted">The ML only suggests. An independent safety reviewer must approve, then the controller confirms the problem with three of its own checks before moving 25% of traffic, and checks real customer requests before moving more. Adding servers on EKS is shown as a plan only.</p>
     </section>
 
     <section className="an-two">
-      <div className="operator-panel"><h2>Signals by source</h2>
+      <div className="operator-panel"><h2>The raw numbers</h2>
         <table className="an-table"><thead><tr><th/><th>Singapore</th><th>Virginia</th></tr></thead><tbody>
-          <tr className="sec"><td colSpan={3}>AWS internal</td></tr>
+          <tr className="sec"><td colSpan={3}>Inside AWS (what AWS-only sees)</td></tr>
           {rows([["App up","app_up",0],["CPU %","cpu_busy_pct",1],["HTTP p95 ms","http_p95_ms",1],["5xx ratio","http_error_ratio",2]])}
-          <tr className="sec"><td colSpan={3}>RIPE-style external probes</td></tr>
+          <tr className="sec"><td colSpan={3}>From the internet (RIPE-style probes)</td></tr>
           {rows([["RTT p50 ms","network_rtt_p50_ms",0],["Packet loss %","packet_loss_pct",0],["Probes","ripe_probes_reporting",0]])}
-          <tr className="sec"><td colSpan={3}>HTTP witness (last 60 s)</td></tr>
+          <tr className="sec"><td colSpan={3}>Real requests (last 60 s)</td></tr>
           <tr><td>Failure ratio</td>{["region-a","region-b"].map(r=><td key={r}>{fmt(win(r)?.failure_ratio,2)}</td>)}</tr>
           <tr><td>p95 ms</td>{["region-a","region-b"].map(r=><td key={r}>{fmt(win(r)?.http_latency_p95_ms)}</td>)}</tr>
         </tbody></table>
         <p className="muted">Lab stand-ins measured from local containers, not real AWS or RIPE data. “—” means missing, never zero.</p>
       </div>
-      <div className="operator-panel"><h2>Decision log</h2>
+      <div className="operator-panel"><h2>What happened, step by step</h2>
         <div className="an-log">{decisions.filter(d=>d.decision||d.state==="demo_reset").slice(0,14).map(d=>{const s=d.executed_locally?.verify??d.executed_locally?.step;
           return <div key={d.at} className="an-logrow"><time>{clock(d.at)}</time>
             {d.state==="demo_reset"?<b>demo reset</b>:<>
             <span className="an-mini">{GROUPS.map(g=><i key={g.id} className={tone(d.all_groups?.[g.id])} title={`${g.title}: ${d.all_groups?.[g.id]}`}/>)}</span>
-            <Pill c={d.decision==="no-op"?"healthy":"network_degradation"}>{d.decision}</Pill>
-            <span>{d.region_a_percent}% SG{s?.state?` · ${s.state}${s.state==="qualifying"?` ${s.qualifying_count}/3`:""}`:""}</span></>}</div>;})}</div>
-        <p className="muted">Dots: AWS-only · +RIPE · +RIPE+HTTP (green healthy, amber/red degraded).</p>
+            <Pill c={d.decision==="no-op"?"healthy":"network_degradation"}>{DECIDED[d.decision??""]??d.decision}</Pill>
+            <span>{d.region_a_percent}% to Singapore{s?.state?` · ${CTRL[s.state]??s.state}${s.state==="qualifying"?` (${s.qualifying_count}/3)`:""}`:""}</span></>}</div>;})}</div>
+        <p className="muted">The three dots are AWS only · AWS + RIPE · AWS + RIPE + HTTP at that moment (green fine, amber/red problem).</p>
       </div>
     </section>
 
