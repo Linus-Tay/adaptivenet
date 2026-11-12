@@ -190,14 +190,29 @@ def path_features(index: ProbeIndex, region: str, at: float) -> dict:
             "ripe_result_age_s": at - latest_ts}
 
 
-def ripe_path_alert(feat: dict) -> bool | None:
-    """Fixed, pre-declared external rule. None = no usable external evidence."""
+RIPE_VARIANTS = ("primary", "loss_only", "loss_or_rtt2")
+
+
+def ripe_path_alert(feat: dict, variant: str = "primary") -> bool | None:
+    """Fixed, pre-declared external rule. None = no usable external evidence.
+
+    primary      : loss quorum OR >=1 inflated path (frozen before the campaign)
+    loss_only    : loss quorum only                  (secondary, declared before trial data)
+    loss_or_rtt2 : loss quorum OR >=2 inflated paths (secondary, declared before trial data)
+    """
     if feat.get("ripe_reachable_probes") in (None, 0):
         return None
     loss = feat.get("ripe_window_loss_pct")
     quorum = (loss is not None and loss >= LOSS_QUORUM_PCT
               and (feat.get("ripe_window_probes_with_loss") or 0) >= LOSS_QUORUM_PROBES)
-    return bool((feat.get("ripe_paths_inflated") or 0) >= 1 or quorum)
+    inflated = feat.get("ripe_paths_inflated") or 0
+    if variant == "loss_only":
+        return bool(quorum)
+    if variant == "loss_or_rtt2":
+        return bool(quorum or inflated >= 2)
+    if variant != "primary":
+        raise ValueError(variant)
+    return bool(inflated >= 1 or quorum)
 
 
 # -------------------------------------------------------------- candidate events
@@ -475,7 +490,8 @@ def trial_request_delays(trials: list[dict], index: ProbeIndex) -> list[dict]:
 
 
 # ------------------------------------------------------- pre-registered campaign
-def campaign_eval(slots: list[dict], amp_rows: dict[str, list[dict]], index: ProbeIndex) -> dict:
+def campaign_eval(slots: list[dict], amp_rows: dict[str, list[dict]], index: ProbeIndex,
+                  variant: str = "primary") -> dict:
     """Evaluate the pre-registered campaign (docs/ml/RIPE_TRIALS_PROTOCOL.md).
 
     `slots`: one dict per executed slot with region, control_region, request_unix,
@@ -501,7 +517,7 @@ def campaign_eval(slots: list[dict], amp_rows: dict[str, list[dict]], index: Pro
 
     def ripe_first(region: str, a: float, b: float):
         stamps = sorted({s["ts"] for p in index.probes(region) for s in index.series[(region, p)] if a <= s["ts"] <= b})
-        return next((t for t in stamps if ripe_path_alert(path_features(index, region, t))), None), len(stamps)
+        return next((t for t in stamps if ripe_path_alert(path_features(index, region, t), variant)), None), len(stamps)
 
     impaired = defaultdict(list)
     for s in slots:
@@ -530,7 +546,8 @@ def campaign_eval(slots: list[dict], amp_rows: dict[str, list[dict]], index: Pro
             by_loss[e["loss_percent"]][0] += 1
             by_loss[e["loss_percent"]][1] += e["aws_only_detected"]
             by_loss[e["loss_percent"]][2] += e["aws_ripe_detected"]
-    return {"report_version": "adaptivenet.ripe_campaign_eval.v1", "positives": pos, "controls": neg,
+    return {"report_version": "adaptivenet.ripe_campaign_eval.v1", "ripe_variant": variant,
+            "positives": pos, "controls": neg,
             "paired_positives": paired_summary(pos),
             "controls_false_alarms": {"evaluable": len(ev_neg),
                                       "aws_only": sum(e["aws_only_detected"] for e in ev_neg),
@@ -700,6 +717,7 @@ def main(argv=None) -> int:
         amp = {r: _read_jsonl(args.campaign_dir / f"amp-{r}.jsonl") for r in REGIONS
                if (args.campaign_dir / f"amp-{r}.jsonl").exists()}
         report["campaign"] = campaign_eval(slots, amp, index)
+        report["campaign_secondary"] = {v: campaign_eval(slots, amp, index, v) for v in RIPE_VARIANTS[1:]}
         report["status"] = "campaign_evaluated"
         print("campaign", json.dumps(report["campaign"]["paired_positives"]),
               json.dumps(report["campaign"]["controls_false_alarms"]))

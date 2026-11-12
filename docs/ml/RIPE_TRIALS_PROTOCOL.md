@@ -39,6 +39,23 @@ trials that weren't used to design the detectors?
   ≥ 50 ms and ≥ 1.3× its own trailing 6 h median. Persistently unreachable probes
   (12 consecutive rounds with no replies) are excluded.
 
+### Secondary RIPE variants (added 2026-11-12 ~08:25 UTC, before trial 1 at 08:42)
+The primary rule was scored on the user-approved healthy window
+`passive-healthy-20261110T134500Z` (Nov 10 13:45–17:55 UTC, both regions). That
+window was **not** used to change the primary rule, which stays frozen. Results:
+
+| Detector | Singapore | Virginia |
+|---|---|---|
+| AWS-only (fair) | 0 alarm onsets | 0 alarm onsets |
+| Primary | 3 onsets (all single-path RTT, probe 13106; alerting 130/247 rounds) | 2 onsets (1 loss quorum, 1 RTT) |
+
+That's about 14 alarm onsets a day, so the primary rule has poor specificity on
+paths with recurring congestion. The two variants below were declared **before
+any campaign data existed** and are reported alongside the primary rule:
+* `loss_only`: the loss quorum alone. On the same window it gives 0 onsets in
+  Singapore and 1 in Virginia.
+* `loss_or_rtt2`: the loss quorum, OR RTT inflation on ≥ 2 paths at once.
+
 ## Endpoints
 1. **Primary:** episode-level detection in impaired windows, AWS-only vs AWS+RIPE,
    tested with an exact two-sided McNemar test on discordant slots.

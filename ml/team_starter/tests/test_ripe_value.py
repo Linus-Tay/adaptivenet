@@ -216,3 +216,14 @@ class CampaignFixtureTest(unittest.TestCase):
         self.assertEqual(sum(s["region"] == "region-a" for s in p1["slots"]), 10)
         ts = [datetime.fromisoformat(s["planned_start_utc"]).timestamp() for s in p1["slots"]]
         self.assertTrue(all(b - a >= 960 + 300 for a, b in zip(ts, ts[1:])))
+
+
+class VariantTest(unittest.TestCase):
+    def test_variants(self):
+        f = {"ripe_reachable_probes": 3, "ripe_paths_inflated": 1, "ripe_window_loss_pct": 0.0,
+             "ripe_window_probes_with_loss": 0}
+        self.assertTrue(ripe_path_alert(f))
+        self.assertFalse(ripe_path_alert(f, "loss_only"))
+        self.assertFalse(ripe_path_alert(f, "loss_or_rtt2"))
+        f.update(ripe_window_loss_pct=20.0, ripe_window_probes_with_loss=2)
+        self.assertTrue(ripe_path_alert(f, "loss_only"))
