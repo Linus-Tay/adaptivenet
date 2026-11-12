@@ -24,7 +24,7 @@ import json
 import math
 from pathlib import Path
 
-from .evaluation import split_episodes
+from .evaluation import split_by
 from .verified_labels import LABELS, validate_manifest
 
 CONTRACT = "adaptivenet.class_coverage_audit.v1"
@@ -112,11 +112,11 @@ def _alarm_transitions(rows: list[dict], preds: dict[tuple[str, str], str | None
 
 
 def audit(manifest: dict, dataset: dict | None = None, predictions: dict | None = None,
-          *, embargo_seconds: float = 900) -> dict:
+          *, embargo_seconds: float = 900, split_strategy: str = "chronological") -> dict:
     episodes = validate_manifest(manifest)
     blockers: list[str] = []
     try:
-        parts = split_episodes(episodes, embargo_seconds=embargo_seconds)
+        parts = split_by(split_strategy, episodes, embargo_seconds=embargo_seconds)
     except ValueError as exc:
         parts = None
         blockers.append(f"chronological_split_impossible: {exc}")
@@ -190,7 +190,7 @@ def audit(manifest: dict, dataset: dict | None = None, predictions: dict | None 
     if not six_class_ready:
         blockers.append("six_class_model_not_supported: " + ", ".join(
             l for l, c in classes.items() if not c["trainable_and_scorable"]))
-    return {"contract_version": CONTRACT, "episode_count": len(episodes),
+    return {"contract_version": CONTRACT, "split_strategy": split_strategy, "episode_count": len(episodes),
             "experiment_runs": len({e["experiment_run_id"] for e in episodes}),
             "legacy_episodes_without_run_id": sum(not e["experiment_run_id_explicit"] for e in episodes),
             "split": parts, "classes": classes,
@@ -206,11 +206,12 @@ def main(argv=None) -> int:
     parser.add_argument("--dataset", type=Path)
     parser.add_argument("--predictions", type=Path)
     parser.add_argument("--embargo-seconds", type=float, default=900)
+    parser.add_argument("--split", choices=("chronological", "class_stratified"), default="chronological")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args(argv)
     load = lambda p: json.loads(p.read_text(encoding="utf-8")) if p else None
     result = audit(load(args.labels), load(args.dataset), load(args.predictions),
-                   embargo_seconds=args.embargo_seconds)
+                   embargo_seconds=args.embargo_seconds, split_strategy=args.split)
     text = json.dumps(result, indent=2, sort_keys=True, allow_nan=False) + "\n"
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)

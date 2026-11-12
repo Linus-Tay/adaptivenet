@@ -36,6 +36,10 @@ least 2 independent runs in train and 1 in test.
 * With no healthy episode in the test block, the status is `not_estimable`. No
   number is produced.
 
+## Native results
+
+See [docs/ml/SIX_CLASS_AND_FALSE_ALARM_STUDY.md](../../docs/ml/SIX_CLASS_AND_FALSE_ALARM_STUDY.md) for the three-class study, the class-stratified split and the date confound.
+
 ## Evidence still required (as of 2026-11-12)
 
 The current native study (10 episodes: 6 network degradation, 4 healthy) has no

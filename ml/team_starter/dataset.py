@@ -96,8 +96,7 @@ def _asof_snapshot(snapshot: dict) -> tuple[dict, list[str]]:
     return slow, notes
 
 
-def make_dataset(snapshots: list[dict], witnesses: list[dict], manifest: dict) -> dict:
-    episodes = validate_manifest(manifest)
+def _clean_witness(witnesses: list[dict]) -> list[tuple[float, dict]]:
     clean_witness = []
     for event in witnesses:
         if not isinstance(event, dict) or event.get("scope") not in ("region-a", "region-b", "cloudfront"):
@@ -110,6 +109,57 @@ def make_dataset(snapshots: list[dict], witnesses: list[dict], manifest: dict) -
         # completion must never enter an earlier feature window.
         clean_witness.append((stamp, event))
     clean_witness.sort(key=lambda e: e[0])
+    return clean_witness
+
+
+def _views(slow: dict, stamp: float, clean_witness: list[tuple[float, dict]]) -> dict:
+    """Per-group as-of feature views for one snapshot (no label involved)."""
+    witness_asof = [e for ts, e in clean_witness if stamp - 900 <= ts <= stamp]
+    fast = build_fast_signals(witness_asof, now=stamp)
+    detection = {"contract_version": "adaptivenet.detection_input.v1", "slow": slow, "fast": fast}
+    views = {}
+    for group in GROUPS:
+        view = project(detection if group == "aws_ripe_http" else slow, group)
+        # Group-specific readiness: the upstream combined mode incorrectly
+        # rejects AWS-only even when its internal source is valid.
+        qualities = slow.get("quality", {})
+        required = ("app_up", "memory_available_bytes", "memory_total_bytes")
+        internal_ok = all((qualities.get(r) or {}).get("internal") == "fresh"
+                          and all(slow["features"][r].get(c) is not None for c in required)
+                          for r in REGIONS)
+        external_ok = external_sensor_ready(qualities, slow["features"], slow.get("provenance", {}), stamp)
+        view["ready_for_shadow_assessment"] = (internal_ok and (group == "aws_only" or external_ok)
+                                               and (group != "aws_ripe_http" or fast["ready_for_fast_assessment"]))
+        view.pop("limitations", None)  # metadata is not a predictor feature
+        views[group] = view
+    return views
+
+
+def unlabeled_window_rows(snapshots: list[dict], witnesses: list[dict], start_unix: float,
+                          end_unix: float) -> list[dict]:
+    """As-of views for snapshots in [start, end) WITHOUT any label.
+
+    For replaying a model over a window that has not been reviewed yet. Rows
+    carry ``label: None`` and must never be scored or used for training.
+    """
+    clean_witness = _clean_witness(witnesses)
+    out, seen = [], set()
+    for snap in sorted(snapshots, key=lambda r: (unix(r.get("computed_at_unix")), str(r.get("snapshot_id")))):
+        stamp = unix(snap.get("computed_at_unix"))
+        if not start_unix <= stamp < end_unix:
+            continue
+        slow, notes = _asof_snapshot(snap)
+        if slow["snapshot_id"] in seen:
+            continue
+        seen.add(slow["snapshot_id"])
+        out.append({"snapshot_id": slow["snapshot_id"], "at_unix": stamp, "label": None,
+                    "unreviewed": True, "notes": notes, "views": _views(slow, stamp, clean_witness)})
+    return out
+
+
+def make_dataset(snapshots: list[dict], witnesses: list[dict], manifest: dict) -> dict:
+    episodes = validate_manifest(manifest)
+    clean_witness = _clean_witness(witnesses)
     seen = set()
     result = []
     skipped_unlabeled = 0
@@ -125,24 +175,7 @@ def make_dataset(snapshots: list[dict], witnesses: list[dict], manifest: dict) -
             continue
         # At most one verified episode per region at a given moment; a time
         # point may have a region-a and a region-b episode concurrently.
-        witness_asof = [e for ts, e in clean_witness if stamp - 900 <= ts <= stamp]
-        fast = build_fast_signals(witness_asof, now=stamp)
-        detection = {"contract_version": "adaptivenet.detection_input.v1", "slow": slow, "fast": fast}
-        views = {}
-        for group in GROUPS:
-            view = project(detection if group == "aws_ripe_http" else slow, group)
-            # Group-specific readiness: the upstream combined mode incorrectly
-            # rejects AWS-only even when its internal source is valid.
-            qualities = slow.get("quality", {})
-            required = ("app_up", "memory_available_bytes", "memory_total_bytes")
-            internal_ok = all((qualities.get(r) or {}).get("internal") == "fresh"
-                              and all(slow["features"][r].get(c) is not None for c in required)
-                              for r in REGIONS)
-            external_ok = external_sensor_ready(qualities, slow["features"], slow.get("provenance", {}), stamp)
-            view["ready_for_shadow_assessment"] = (internal_ok and (group == "aws_only" or external_ok)
-                                                   and (group != "aws_ripe_http" or fast["ready_for_fast_assessment"]))
-            view.pop("limitations", None)  # metadata is not a predictor feature
-            views[group] = view
+        views = _views(slow, stamp, clean_witness)
         for ep in matches:
             result.append({"snapshot_id": ident, "at_unix": stamp,
                            "episode_id": ep["episode_id"], "experiment_run_id": ep["experiment_run_id"], "label": ep["label"],
