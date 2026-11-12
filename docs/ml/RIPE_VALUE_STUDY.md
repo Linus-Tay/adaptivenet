@@ -108,6 +108,23 @@ other Singapore probes stayed flat. These are gray failures for users behind tho
 networks, but nobody has reviewed them. For an alerting deployment, the RTT rule
 needs a quorum of ≥2 paths, or time-of-day baselines, before it should page anyone.
 
+**Post-trial quiet window (Nov 10 13:45–17:55 UTC, unreviewed).** In this window
+all HTTP checks returned 200 and `app_up=1` in both regions. The ML thread found the
+trained AWS-only model labels 190 of 249 snapshots here as network degradation,
+which is the memory-drift confound from section 3.2. The fixed rules here behave
+as follows:
+* Virginia: RIPE alerts on 8 of 236 rounds, one onset at 16:27. Four of those rounds
+  are a loss quorum (20.8% across 2 probes) and the rest are RTT inflation. The fair
+  AWS-only rule raises nothing.
+* Singapore: RIPE alerts on 130 of 247 rounds, but only through RTT inflation on
+  probe 13106 (14:16–16:11, about 185 to about 290 ms). Nobody has reviewed whether
+  that is a real path event or a false alarm. The loss quorum never fires, because
+  the dead probe 1010367 is excluded.
+If this window is reviewed as healthy, it becomes the healthy control on the same
+day as the trials. That would turn the Virginia loss-quorum result into a measured
+false-alarm count, and it would confirm that the trained AWS-only "recall" is
+spurious.
+
 ## 5. Claims
 
 **Supported:** On the team's reviewed packet-loss experiments, RIPE Atlas detected
