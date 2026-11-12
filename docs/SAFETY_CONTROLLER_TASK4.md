@@ -24,7 +24,7 @@ The logs are stored under the workspace's ignored `data/` directory. Keep them w
 
 ## Controller operation
 
-The controller supports `local` execution and a `disabled` stop mode. Callers must
+The controller supports `local` execution, `eks` scaling and a `disabled` stop mode. Callers must
 explicitly choose a mode when constructing `SafetyController`; there is no default
 and no shadow mode. Local execution retains proposal validation, three distinct
 qualifying observations, bounded changes, a pending-action journal, cooldown and
@@ -36,9 +36,8 @@ handoff utilities; policy review alone does not execute an action.
 
 Local routing changes the local gateway. Scaling currently uses an emulated HPA
 and synthetic client measurements. `KubernetesHpaReader` in `kubernetes_hpa.py`
-reads real workload state for capacity checks; it has no write operations. Live
-EKS scaling and trained-model-to-action integration are not implemented by this
-removal. Missing execution support must not be presented as a successful action.
+reads real workload state for capacity checks; it has no write operations. Live EKS scaling is now available through the separately configured `LiveHpa` adapter.
+Trained-model-to-action integration remains pending. Missing execution support must not be presented as a successful action.
 
 The emulated HPA exercises two-to-three replicas, pending readiness, client
 verification, cooldown, failures and timeouts. Routing and scaling share one
@@ -64,3 +63,96 @@ To evaluate real scaling, collect the conventional HPA run and the AdaptiveNet r
 ## Regression checks
 
 The final repository run passed 242 tests with one existing Bash invocation test deselected. That test passed a Windows path directly to Bash and failed to locate the script. The script passed a separate `bash -n` check with LF-normalized input. The TypeScript handoff contracts also type-checked.
+
+## EKS connection check
+
+The first connection step uses `scripts/eks_controller.py status --site sg
+--kubeconfig ~/adaptivenet-sg.kubeconfig` (or `us` with the US kubeconfig).
+Run it in the corresponding existing CloudShell VPC environment. It requires
+Python 3 and authenticated kubectl. The connection pins the account, region,
+cluster and workload, verifies an HTTPS EKS endpoint, and exposes only four
+allowlisted GET paths. No cloud resources are changed by this command.
+
+A successful read returns `connected: true` with HPA and readiness observations.
+A blocked capacity recommendation can coexist with a successful connection.
+This check does not establish live scaling execution. HPA writes require the separate `scale` command described below. The generated workspace-only pasteable commands
+are `data/eks-connection-check/check-sg.txt` and `check-us.txt`.
+
+## EKS scaling adapter (local tests passed; live write not yet verified)
+
+`LiveHpa` connects `SafetyController(mode="eks")` to the pinned EKS workload.
+It raises only `HPA.spec.minReplicas` by one, within the existing 2..6 bounds.
+It does not patch Deployment replicas or increase maxReplicas. An atomic JSON
+patch checks resourceVersion, target and replica bounds. The action journal is
+committed first; a matching HPA annotation supports readback after restart.
+An uncertain write blocks subsequent actions instead of blindly retrying.
+
+Run from a checkout in the authenticated CloudShell VPC environment:
+
+```bash
+python3 scripts/eks_controller.py scale --site sg \
+  --kubeconfig ~/adaptivenet-sg.kubeconfig \
+  --snapshot features.json --proposal proposal.json \
+  --journal ~/adaptivenet-eks-actions.db
+```
+
+This command can change real capacity. It requires a fresh matching proposal,
+three distinct fresh metric timestamps, supporting CPU load, and all existing
+capacity checks. Current idle readings (2% CPU) do not qualify. The command polls
+at most 12 times at five-second intervals; incomplete evidence returns exit 2.
+The current conservative ScalingLimited check is retained, including its block
+at the HPA minimum. This implementation does not bypass it for a demonstration.
+
+Replica readiness returns `verifying`, not a recovery claim. Client HTTP
+observations must still be submitted through `SafetyController.verify_scale`.
+EKS routing is unavailable. Model artifacts and prediction-to-action mapping
+remain separate integration work.
+
+Raising the HPA minimum persists until explicitly restored. The pre-action
+journal and HPA annotation retain the original minimum. No automatic rollback
+is implemented; an operator must inspect an uncertain/failed action and restore
+the original minimum if appropriate. This can affect Helm drift and idle cost.
+CloudShell VPC home storage is ephemeral: preserve the journal outside the
+session before relying on restart/recovery across environments. A live mutation
+and recovery experiment has not yet been performed.
+
+## Bounded EKS load-to-readiness test
+
+`scripts/eks_load_test.py` is an operator-started experiment for Singapore only.
+It checks for the original 2 ready replicas and 2..6 bounds, reuses the deployed
+trusted ECR image, and creates a uniquely named Job against the internal demo
+catalogue. Eight workers offer at most 120 requests/second for 90 seconds; the
+Job has a 120-second deadline, no retries, resource limits and TTL cleanup.
+
+The actual safety controller observes EKS metrics while processing explicitly
+labelled fixture snapshots/proposals. It does not relax CPU, timestamp, evidence,
+HPA-limit or readiness gates. Native HPA scaling is distinct from an annotated
+controller action. Failure to qualify an action is reported as such. This test
+may drive the native HPA up to the existing maximum of six replicas.
+
+The runner deletes its load Job on exit and conditionally restores only its own
+HPA minimum using annotation ownership and resource-version tests. Concurrent
+changes are not overwritten; cleanup errors require operator inspection.
+A readiness result is not client performance recovery. The action journal stays
+blocked after test cleanup, preserving the evidence rather than allowing reuse.
+Raw observations, load manifest and summary are saved to the chosen evidence
+directory. VPC CloudShell storage is ephemeral; export required evidence before
+the session ends. Keep the terminal open during the experiment; a lost process
+can prevent HPA-floor cleanup, even though the Job deadline bounds the load.
+
+Build a dependency-free pasteable bundle locally with
+`python -m scripts.package_eks_load_test`. The generated command is
+`data/eks-controller-load-test/run-sg.txt`. Successful execution against live EKS
+has not yet been verified. Existing ML code has not been changed for this test.
+
+## Branch checkpoint: 12 November 2026
+
+Focused controller/EKS validation passed 115 tests before this checkpoint.
+The separately rerun ML regression
+`test_shadow_masks_future_ripe_even_when_old_quality_flag_is_fresh` still fails:
+inference proceeds where the test expects abstention after masking future RIPE
+observations. This existing ML issue is intentionally unchanged and assigned to
+the ML owner. The branch is a progress checkpoint, not production acceptance.
+Manual Singapore HPA scaling from two to three ready replicas and restoration
+to two were verified by the operator. Controller-driven live scaling and client
+recovery remain unverified.

@@ -19,8 +19,9 @@ from .recovery import (
 )
 from .reconcile import reconcile_route
 from .scaling import HPA_MAX_AGE_SEC
+from .kubernetes_hpa import KubernetesReadError
 
-Mode = Literal["disabled", "local"]
+Mode = Literal["disabled", "local", "eks"]
 COOLDOWN_SEC = 120
 
 
@@ -44,15 +45,17 @@ class ControllerResult:
 class SafetyController:
     def __init__(
         self, journal: ActionJournal, route: LocalRoute, *,
-        mode: Mode, emulated_hpa: EmulatedHpa | None = None,
+        mode: Mode, emulated_hpa: EmulatedHpa | None = None, live_hpa=None,
     ):
-        if mode not in ("disabled", "local"):
+        if mode not in ("disabled", "local", "eks"):
             raise ValueError("invalid controller mode")
+        if (mode == "eks") != (live_hpa is not None) or (live_hpa is not None and emulated_hpa is not None):
+            raise ValueError("EKS mode requires only a live HPA adapter")
         self.mode = mode
         self._journal = journal
         self._route = route
         self._evidence = EvidenceStreak()
-        self._hpa = emulated_hpa
+        self._hpa = live_hpa if mode == "eks" else emulated_hpa
         self._scale_evidence = EvidenceStreak()
 
     def step(
@@ -68,6 +71,8 @@ class SafetyController:
         """
         if self.mode == "disabled":
             return ControllerResult(self.mode, "disabled")
+        if self.mode == "eks":
+            return ControllerResult(self.mode, "blocked", ("eks_routing_not_implemented",))
         try:
             pending = self._journal.pending()
             previous = self._journal.outcome(pending.action_id if pending else None)
@@ -154,7 +159,7 @@ class SafetyController:
 
         now = time.time()
         if pending is not None:
-            if pending.intent.startswith("scale:") and self.mode == "local":
+            if pending.intent.startswith("scale:") and self.mode in ("local", "eks"):
                 return self._reconcile_scale(pending, now)
             return ControllerResult(self.mode, "blocked", ("action_pending",), pending.action_id)
         if previous is not None and previous.state == "continue_candidate":
@@ -165,7 +170,11 @@ class SafetyController:
         if self._hpa is None:
             return ControllerResult(self.mode, "blocked", ("emulated_hpa_unavailable",))
 
-        observation = self._hpa.observe()
+        try:
+            observation = self._hpa.observe()
+        except (ValueError, KubernetesReadError):
+            return ControllerResult(self.mode, "blocked", ("hpa_observation_failed",))
+        now = time.time()
         at = observation.metrics_observed_at
         observed_at = (
             at if type(at) in (int, float) and now - HPA_MAX_AGE_SEC <= at <= now and at > evidence_after
@@ -177,7 +186,19 @@ class SafetyController:
             return ControllerResult(self.mode, "observing", tuple(reasons))
 
         region = proposal.get("affected_region")
-        recommendation = self._hpa.assess(region, now=now)
+        if self.mode == "eks":
+            cpu, target_cpu = observation.cpu_current_pct, observation.cpu_target_pct
+            if (compute_overloaded is not True or observed_at is None
+                    or type(cpu) is not int or type(target_cpu) is not int or cpu < target_cpu):
+                self._scale_evidence.observe(observed_at=observed_at, qualified_intent=None)
+                return ControllerResult(self.mode, "observing", ("compute_evidence_missing_or_stale",))
+        try:
+            recommendation = (
+                self._hpa.assess(region, now=now, observation=observation) if self.mode == "eks"
+                else self._hpa.assess(region, now=now)
+            )
+        except (ValueError, KubernetesReadError):
+            return ControllerResult(self.mode, "blocked", ("hpa_assessment_failed",))
         replicas = recommendation.requested_replicas
         if replicas is None:
             self._scale_evidence.observe(observed_at=observed_at, qualified_intent=None)
@@ -199,10 +220,10 @@ class SafetyController:
         if isinstance(pending, ControllerResult):
             return pending
         try:
-            self._hpa.request_capacity(pending.action_id, replicas=replicas, now=now)
+            self._hpa.request_capacity(pending.action_id, replicas=replicas, now=time.time())
         except ValueError:
             return self._block_scale(pending, "emulated_scale_request_failed")
-        return ControllerResult(self.mode, "action_pending", ("emulated_capacity_requested",), pending.action_id)
+        return ControllerResult(self.mode, "action_pending", ("eks_capacity_requested" if self.mode == "eks" else "emulated_capacity_requested",), pending.action_id)
 
     def verify_scale(self, window: ClientWindow) -> ControllerResult:
         """Check post-readiness client evidence for the pending emulated scale action."""
@@ -229,7 +250,10 @@ class SafetyController:
         except ValueError:
             return self._block_scale(pending, "emulated_scale_outcome_unknown")
         expected = pending.expected or {}
-        observation = self._hpa.observe()
+        try:
+            observation = self._hpa.observe()
+        except (ValueError, KubernetesReadError):
+            return self._block_scale(pending, "hpa_observation_failed")
         if (
             action is None
             or expected.get("target") != asdict(observation.target)
@@ -255,9 +279,9 @@ class SafetyController:
                 state, reason = evaluate_scale_recovery(window, region=region, ready_at=ready_at, now=now)
                 return self._record_verification(pending, state, reason)
             return ControllerResult(
-                self.mode, "verifying", ("emulated_replicas_ready_client_check_required",), pending.action_id,
+                self.mode, "verifying", ("eks_replicas_ready_client_check_required" if self.mode == "eks" else "emulated_replicas_ready_client_check_required",), pending.action_id,
             )
-        return ControllerResult(self.mode, "action_pending", (f"emulated_scale_{action.state}",), pending.action_id)
+        return ControllerResult(self.mode, "action_pending", (f"{'eks' if self.mode == 'eks' else 'emulated'}_scale_{action.state}",), pending.action_id)
 
     def _block_scale(self, pending: PendingAction, reason: str) -> ControllerResult:
         return self._record_verification(pending, "blocked", reason)
@@ -302,12 +326,14 @@ class SafetyController:
         return self._record_verification(pending, state, reason)
 
     def _record_verification(self, pending: PendingAction, state: str, reason: str) -> ControllerResult:
-        if state != "verifying" and self.mode == "local":
+        if state != "verifying" and self.mode in ("local", "eks"):
             try:
                 if not self._journal.resolve(pending.action_id, state=state, reason=reason):
                     return ControllerResult(self.mode, "blocked", ("verification_outcome_conflict",), pending.action_id)
             except (OSError, sqlite3.Error, ValueError):
                 return ControllerResult(self.mode, "blocked", ("verification_journal_failed",), pending.action_id)
+        if self.mode == "eks":
+            reason = reason.replace("emulated_", "eks_")
         return ControllerResult(self.mode, state, (reason,), pending.action_id)
 
     def _reconcile(
