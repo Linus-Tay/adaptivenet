@@ -218,3 +218,20 @@ def test_stale_ripe_or_mean_only_loss_is_not_trusted():
 def test_high_rtt_counts_as_network_degradation():
     snap = ripe(ripe(snapshot(), "region-a"), "region-b", network_rtt_p50_ms=900.0)
     assert affected_region(snap) == ("region-b", "network_only_degradation_other_healthy")
+
+
+@pytest.mark.parametrize("affected, current, target, executor_region", [
+    ("region-a", 100, 75, "region-b"),  # Singapore primary, SSM stops its service
+    ("region-b", 50, 75, "region-a"),   # Virginia interruption (9 Nov test)
+])
+def test_ssm_service_stop_shape_maps_to_failover_not_scale(affected, current, target, executor_region):
+    # Recorded SSM experiments: app target scrapes fail (app_up=0) while node exporter,
+    # CPU and memory stay normal; the other region stays healthy.
+    snap = snapshot(**{affected.replace("-", "_"): {"app_up": 0, "cpu_busy_pct": 3.0}})
+    result = decide(snap, model("application_failure"), current_region_a_percent=current, now=NOW,
+                    hpa_observations={executor_region: hpa(executor_region)})
+    assert result["decision"] == "failover"
+    assert result["proposal"]["action"] == "shift_traffic"
+    assert result["plan"]["to_region"] == executor_region
+    assert result["plan"]["region_a_percent"] == {"from": current, "to": target}
+    assert result["plan"]["live_executor"] is None
