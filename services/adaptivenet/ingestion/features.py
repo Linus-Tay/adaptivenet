@@ -113,6 +113,10 @@ def make_snapshot(events: list[Observation], now: float, *, errors: list[str] | 
         metrics["network_rtt_p50_ms"] = round(statistics.median(rtts), 3) if rtts else None
         metrics["network_rtt_p95_ms"] = round(percentile(rtts, .95), 3) if rtts else None
         metrics["packet_loss_pct"] = round(statistics.mean(losses), 3) if losses else None
+        # A probe that never replies drags the mean (one of four dead probes = 25%).
+        # The median and the dead-probe count let consumers tell path loss from a bad probe.
+        metrics["packet_loss_median_pct"] = round(statistics.median(losses), 3) if losses else None
+        metrics["ripe_probes_full_loss"] = sum(1 for value in losses if value >= 100)
         last_atlas = max((o.observed_at for o in latest_loss.values()), default=None)
         if last_atlas is not None:
             provenance["ripe_atlas"] = {"source": "ripe_atlas", "latest_observed_at": iso(last_atlas),

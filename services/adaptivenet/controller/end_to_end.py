@@ -39,6 +39,9 @@ FAILOVER_STEP_PERCENT = 25  # the reviewer's per-step safety limit
 DEGRADED_ERROR_RATIO = 0.20
 DEGRADED_P95_MS = 800
 COMPUTE_BOUND_CPU_PCT = 80
+NETWORK_LOSS_PCT = 20       # median per-probe loss
+NETWORK_RTT_P50_MS = 400
+MIN_RIPE_PROBES = 3
 NETWORK_CONDITIONS = ("network_degradation", "partial_outage")
 APPLICATION_CONDITIONS = ("application_failure",)
 QUIET_CONDITIONS = ("healthy", "normal", "recovery", "transient")
@@ -50,8 +53,8 @@ def _number(value) -> float | None:
     return float(value)
 
 
-def region_health(snapshot: dict, region: str) -> str:
-    """Classify one region from the features snapshot: healthy, degraded or unknown."""
+def internal_health(snapshot: dict, region: str) -> str:
+    """AWS-internal view of one region: healthy, degraded or unknown."""
     bundle = (snapshot.get("regions") or {}).get(region) or {}
     features = bundle.get("features") or {}
     quality = bundle.get("quality") or {}
@@ -69,18 +72,68 @@ def region_health(snapshot: dict, region: str) -> str:
     return "healthy"
 
 
+def network_health(snapshot: dict, region: str) -> tuple[str, list[str]]:
+    """RIPE Atlas view of one region, used only when external quality is fresh.
+
+    The mean ``packet_loss_pct`` is not trusted: one permanently unreachable
+    probe out of four pins it at 25%. Loss is judged on the per-probe median,
+    and probes at 100% loss are flagged unless every probe agrees.
+    """
+    bundle = (snapshot.get("regions") or {}).get(region) or {}
+    features = bundle.get("features") or {}
+    if (bundle.get("quality") or {}).get("external") != "fresh":
+        return "unknown", ["ripe_not_fresh"]
+    probes, full = features.get("ripe_probes_reporting"), features.get("ripe_probes_full_loss")
+    if type(probes) is not int or probes < MIN_RIPE_PROBES:
+        return "unknown", ["too_few_ripe_probes"]
+    flags = []
+    if type(full) is int and 0 < full < probes:
+        flags.append(f"ignored_unreachable_ripe_probes:{full}")
+    if type(full) is int and full == probes:
+        return "degraded", ["all_ripe_probes_unreachable"]
+    loss = _number(features.get("packet_loss_median_pct"))
+    rtt = _number(features.get("network_rtt_p50_ms"))
+    if loss is None and rtt is None:
+        return "unknown", [*flags, "no_robust_ripe_loss_or_rtt"]
+    if loss is not None and loss >= NETWORK_LOSS_PCT:
+        return "degraded", [*flags, f"ripe_median_loss_pct:{loss:g}"]
+    if rtt is not None and rtt >= NETWORK_RTT_P50_MS:
+        return "degraded", [*flags, f"ripe_rtt_p50_ms:{rtt:g}"]
+    return "healthy", flags
+
+
+def region_health(snapshot: dict, region: str) -> str:
+    """Combine internal and network views; network-only degradation is a gray failure."""
+    internal = internal_health(snapshot, region)
+    if internal != "healthy":
+        return internal
+    return "degraded" if network_health(snapshot, region)[0] == "degraded" else "healthy"
+
+
 def affected_region(snapshot: dict) -> tuple[str | None, str]:
     """Return the single degraded region when the other one is confirmed healthy."""
     health = {region: region_health(snapshot, region) for region in REGIONS}
     degraded = [r for r, h in health.items() if h == "degraded"]
     healthy = [r for r, h in health.items() if h == "healthy"]
     if len(degraded) == 1 and len(healthy) == 1:
-        return degraded[0], "one_region_degraded_other_healthy"
+        region = degraded[0]
+        if internal_health(snapshot, region) == "healthy":
+            return region, "network_only_degradation_other_healthy"
+        return region, "one_region_degraded_other_healthy"
     if not degraded:
         return None, "no_region_degraded"
     if len(degraded) == 2:
         return None, "both_regions_degraded"
     return None, "other_region_health_unknown"
+
+
+def signals(snapshot: dict) -> dict:
+    """Per-region evidence behind the affected-region choice (for the decision record)."""
+    out = {}
+    for region in REGIONS:
+        state, flags = network_health(snapshot, region)
+        out[region] = {"internal": internal_health(snapshot, region), "network": state, "network_flags": flags}
+    return out
 
 
 def _condition(proposal: dict) -> str | None:
@@ -112,7 +165,7 @@ def map_model_output(snapshot: dict, model_proposal: dict, *, current_region_a_p
     if condition not in NETWORK_CONDITIONS + APPLICATION_CONDITIONS:
         return dict(model_proposal), {**note, "mapping": "unmapped_condition"}
     region, why = affected_region(snapshot)
-    note.update(affected_region=region, affected_region_reason=why)
+    note.update(affected_region=region, affected_region_reason=why, signals=signals(snapshot))
     if region is None:
         return dict(model_proposal), {**note, "mapping": "affected_region_unclear"}
 

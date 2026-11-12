@@ -184,3 +184,13 @@ def test_feature_snapshot_persistence_and_retention(tmp_path):
     st.prune(retain_days=1,now=NOW+86400*2)
     assert st.latest_snapshot() is None
     assert not st.events_since(NOW-3600,end=NOW+86400*2)
+
+
+def test_one_unreachable_probe_is_flagged_and_median_loss_stays_clean():
+    events = [e for e in region_events("region-a") + region_events("region-b")
+              if not (e.region == "region-a" and e.source_id == "123/5")]
+    events.append(o("region-a", "ripe_atlas", "packet_loss_pct", 100, NOW, "123/5"))
+    features = make_snapshot(events, NOW)["regions"]["region-a"]["features"]
+    assert features["packet_loss_pct"] == 20.0
+    assert features["packet_loss_median_pct"] == 0.0
+    assert features["ripe_probes_full_loss"] == 1

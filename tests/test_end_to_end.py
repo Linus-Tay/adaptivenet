@@ -170,3 +170,51 @@ def test_cli_execute_refuses_failover(tmp_path):
             "--proposal", _write(tmp_path, "p.json", model("network_degradation")),
             "--approve-live-write", "sg"]
     assert main(args) == 1
+
+
+def ripe(snap, region, **features):
+    snap["regions"][region]["quality"]["external"] = "fresh"
+    base = {"ripe_probes_reporting": 4, "ripe_probes_full_loss": 0,
+            "packet_loss_pct": 0.0, "packet_loss_median_pct": 0.0, "network_rtt_p50_ms": 60.0}
+    snap["regions"][region]["features"].update({**base, **features})
+    return snap
+
+
+def test_gray_network_failure_with_healthy_internals_becomes_failover():
+    snap = ripe(ripe(snapshot(), "region-b"), "region-a",
+                packet_loss_pct=45.0, packet_loss_median_pct=40.0)
+    assert affected_region(snap) == ("region-a", "network_only_degradation_other_healthy")
+    result = decide(snap, model("network_degradation"), now=NOW)
+    assert result["decision"] == "failover" and result["proposal"]["target_region_a_percent"] == 25
+    assert result["mapping"]["signals"]["region-a"]["network"] == "degraded"
+
+
+def test_single_unreachable_probe_does_not_trigger_failover():
+    # One of four Singapore probes is always dead: mean 25%, median 0%.
+    snap = ripe(ripe(snapshot(), "region-b"), "region-a",
+                ripe_probes_full_loss=1, packet_loss_pct=25.0, packet_loss_median_pct=0.0)
+    assert affected_region(snap) == (None, "no_region_degraded")
+    result = decide(snap, model("network_degradation"), now=NOW)
+    assert result["decision"] == "no-op"
+    from adaptivenet.controller.end_to_end import network_health
+    assert network_health(snap, "region-a") == ("healthy", ["ignored_unreachable_ripe_probes:1"])
+
+
+def test_all_probes_unreachable_counts_as_degraded():
+    snap = ripe(ripe(snapshot(), "region-b"), "region-a", ripe_probes_full_loss=4,
+                packet_loss_pct=100.0, packet_loss_median_pct=100.0, network_rtt_p50_ms=None)
+    assert affected_region(snap)[0] == "region-a"
+
+
+def test_stale_ripe_or_mean_only_loss_is_not_trusted():
+    snap = ripe(ripe(snapshot(), "region-b"), "region-a", packet_loss_pct=60.0,
+                packet_loss_median_pct=None, network_rtt_p50_ms=None)
+    assert affected_region(snap) == (None, "no_region_degraded")
+    snap = ripe(ripe(snapshot(), "region-b"), "region-a", packet_loss_median_pct=60.0)
+    snap["regions"]["region-a"]["quality"]["external"] = "insufficient_or_stale"
+    assert affected_region(snap) == (None, "no_region_degraded")
+
+
+def test_high_rtt_counts_as_network_degradation():
+    snap = ripe(ripe(snapshot(), "region-a"), "region-b", network_rtt_p50_ms=900.0)
+    assert affected_region(snap) == ("region-b", "network_only_degradation_other_healthy")

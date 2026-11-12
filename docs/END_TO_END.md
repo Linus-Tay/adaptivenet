@@ -31,8 +31,14 @@ existing read-only allowlisted kubectl paths. `decide` never writes.
 | `healthy`, `normal`, `recovery`, `transient`, abstain | no-op |
 
 A region counts as degraded when internal quality is fresh and `app_up == 0`, the error ratio
-is >= 0.20 or p95 is >= 800 ms. If both or neither region is degraded, or the other region is
-unknown, the decision is no-op.
+is >= 0.20 or p95 is >= 800 ms. It also counts as degraded with healthy internals (a gray,
+network-only failure) when external RIPE quality is fresh, at least 3 probes report, and the
+per-probe **median** loss is >= 20%, p50 RTT is >= 400 ms, or every probe is unreachable.
+The mean `packet_loss_pct` is not used: one permanently unreachable probe out of four pins it
+at 25%. Snapshots now carry `packet_loss_median_pct` and `ripe_probes_full_loss`; a partly
+unreachable probe set is flagged as `ignored_unreachable_ripe_probes:<n>` in
+`mapping.signals`. If both or neither region is degraded, or the other region is unknown,
+the decision is no-op.
 
 ## Decisions
 
