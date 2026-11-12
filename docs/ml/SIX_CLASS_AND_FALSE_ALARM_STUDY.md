@@ -82,6 +82,8 @@ as healthy, it:
 2. gives the latest healthy run, so the chronological and class-stratified splits both test on it; and
 3. lets the paired comparison show that AWS-only network "detection" is spurious, while the HTTP arm is far less affected.
 
+The RIPE value study (PR #23) independently confirms the confound: AWS-only retrained without host columns raises 0 alerts here. It also finds a Virginia RIPE rule alert on 8 of 236 rounds (one onset at 16:27 UTC) and Singapore RTT inflation on probe 13106. The review must therefore rest on "no fault injected", not on external quietness. If the window is approved, those alerts count as false alarms. If the 16:20–16:40 external path is judged genuinely degraded, that sub-window is excluded rather than labelled healthy.
+
 The review request, with the checks the reviewer must make, is kept with the private evidence at
 `adaptivenet-evidence/reviews/healthy-control-nov10-pm-REVIEW-REQUEST.json`.
 
