@@ -31,7 +31,8 @@ import httpx
 from adaptivenet.controller.end_to_end import ALLOWLIST, decide
 from adaptivenet.controller.journal import ActionJournal
 from adaptivenet.controller.local_gateway import GatewayRoute
-from adaptivenet.controller.recovery import HttpMeasurement, RecoveryWindow, DEADLINE_SEC
+from adaptivenet.controller.recovery import HttpMeasurement, RecoveryWindow, DEADLINE_SEC, evaluate_recovery
+from adaptivenet.ingestion.decisions import review_proposal
 from adaptivenet.controller.safety import SafetyController
 from adaptivenet.controller.scaling import HpaObservation
 
@@ -42,6 +43,10 @@ REGIONS = ("region-a", "region-b")
 FAILOVER_STEP = 25
 SHIFT_CONDITIONS = ("network_degradation", "application_failure", "region_down")
 MAX_LOG_BYTES = 2 * 1024 * 1024
+# Failback: return traffic to the primary (Singapore) only after it has looked
+# healthy on all signals for this long, one 25-point step at a time.
+FAILBACK_HEALTHY_SEC = float(os.environ.get("FAILBACK_HEALTHY_SEC", "120"))
+FAILBACK_CHECKS = 3
 
 
 def build_proposal(assessment: dict, group: str, current_region_a_percent: int) -> dict:
@@ -107,9 +112,20 @@ class DemoLoop:
             self._new_controller()
         # Review mode has no gateway to read; assume an even split unless told otherwise.
         self.weight_fallback = int(os.environ.get("DEMO_REVIEW_REGION_A_PERCENT", "50"))
+        self.healthy_since: float | None = None
+        self.failback_checks = 0
+        self.failback_started = False
 
-    def _new_controller(self) -> None:
-        journal = ActionJournal(self.data_dir / "controller-journal.db")
+    def _new_controller(self, *, archive: bool = False) -> None:
+        path = self.data_dir / "controller-journal.db"
+        if archive and path.exists():
+            # Keep the finished incident's journal for audit; start a fresh one.
+            stamp = time.strftime("%Y%m%dT%H%M%S")
+            for suffix in ("", "-wal", "-shm"):
+                old = self.data_dir / f"controller-journal.db{suffix}"
+                if old.exists():
+                    os.replace(old, self.data_dir / f"controller-journal-{stamp}.db{suffix}")
+        journal = ActionJournal(path)
         self.safety = SafetyController(journal, self.route, mode="local")
 
     def maybe_reset(self) -> bool:
@@ -177,7 +193,79 @@ class DemoLoop:
         elif decision["decision"] == "scale":
             record["executed_locally"] = {"state": "not_executed",
                                           "reason": "eks_scale_requires_approve_live_write"}
+        failback = self.failback(snapshot, assessment, weight, decision["decision"], now)
+        if failback is not None:
+            record.update(failback)
         return record
+
+    def failback(self, snapshot: dict, assessment: dict, weight: int, decided: str, now: float) -> dict | None:
+        """Gated, stepped return of traffic to Singapore (region-a) once it is healthy again.
+
+        Gates: every region healthy on the selected feature group for
+        FAILBACK_HEALTHY_SEC; the independent safety reviewer approves a
+        25-point shift towards Singapore; three consecutive controller probes of
+        Singapore meet the client deadline; then real client requests are checked
+        and the step is rolled back if Singapore does not serve them in time.
+        """
+        if self.safety is None or self.route is None:
+            return None
+        healthy = assessment["detectors"][self.group].get("condition") == "healthy" and decided == "no-op"
+        if weight >= 100 or not healthy:
+            self.healthy_since, self.failback_checks = None, 0
+            if weight >= 100:
+                self.failback_started = False
+            return None
+        if self.healthy_since is None:
+            self.healthy_since = now
+        waited = now - self.healthy_since
+        target = min(100, weight + 25)
+        base = {"decision": "failback", "proposal": {"action": "shift_traffic", "target_region_a_percent": target,
+                                                      "affected_region": "region-b", "failback": True}}
+        if waited < FAILBACK_HEALTHY_SEC:
+            return {**base, "reasons": ["primary_must_stay_healthy"],
+                    "executed_locally": {"step": {"state": "waiting_healthy",
+                                                  "reasons": [f"{int(waited)}/{int(FAILBACK_HEALTHY_SEC)} s healthy"]}}}
+        proposal = {"contract_version": "adaptivenet.proposal.v1", "snapshot_id": snapshot.get("snapshot_id"),
+                    "action": "shift_traffic", "target_region_a_percent": target, "confidence": 0.9,
+                    "model_id": f"failback:{self.group}", "affected_region": "region-b",
+                    "evidence": [f"primary_healthy_for_{int(waited)}s", f"feature_group:{self.group}"]}
+        review = review_proposal(snapshot, proposal, current_region_a_percent=weight)
+        if not review["eligible_for_operator_review"]:
+            self.failback_checks = 0
+            return {**base, "reasons": review["rejection_reasons"],
+                    "executed_locally": {"step": {"state": "blocked", "reasons": review["rejection_reasons"]}}}
+        sample = self.probe("region-a")
+        self.failback_checks = self.failback_checks + 1 if sample.met_deadline() and sample.region == "region-a" else 0
+        if self.failback_checks < FAILBACK_CHECKS:
+            return {**base, "reasons": ["reviewer_eligible_shift"],
+                    "executed_locally": {"step": {"state": "qualifying", "qualifying_count": self.failback_checks}}}
+        if not self.failback_started:
+            # The failover incident is over; its journal is archived so the next
+            # incident starts clean and manual history is never overwritten.
+            self._new_controller(archive=True)
+            self.failback_started = True
+        self.failback_checks = 0
+        try:
+            self.route.request_weight(original=weight, target=target)
+            if self.route.read_weight() != target:
+                raise OSError("route read-back mismatch")
+        except OSError as exc:
+            return {**base, "reasons": ["route_request_failed"],
+                    "executed_locally": {"step": {"state": "blocked", "reasons": [str(exc)]}}}
+        recorded = time.time()
+        window = self.recovery_window(uuid.uuid4().hex, "region-a")
+        state, reason = evaluate_recovery(window, original_weight=weight, target_weight=target,
+                                          recorded_at=recorded, now=time.time(), timeout_sec=30)
+        if state == "blocked":
+            try:
+                self.route.request_weight(original=target, target=weight)
+            except OSError:
+                reason += "; rollback_failed"
+            self.healthy_since = None
+            return {**base, "reasons": [reason],
+                    "executed_locally": {"verify": {"state": "rolled_back", "reasons": [reason]}}}
+        return {**base, "reasons": ["reviewer_eligible_shift"], "region_a_percent": target,
+                "executed_locally": {"verify": {"state": "failback_step_ok", "reasons": [reason]}}}
 
     def execute_failover(self, snapshot: dict, proposal: dict, plan: dict) -> dict:
         source, destination = plan["from_region"], plan["to_region"]

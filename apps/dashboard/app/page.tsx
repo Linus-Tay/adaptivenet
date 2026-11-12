@@ -33,11 +33,12 @@ const REASON:Record<string,string>={app_down:"app down",app_errors:"HTTP 5xx",ap
   compute_saturated:"CPU saturated",path_loss:"packet loss",path_latency:"high RTT",http_failures:"HTTP failures (witness)",
   http_slow:"slow HTTP (witness)"};
 const ACTION:Record<string,string>={hold:"Do nothing",investigate:"Look into it",shift_traffic:"Move 25% of traffic",scale_out:"Add a server"};
-const DECIDED:Record<string,string>={"no-op":"No action",failover:"Approved: move traffic",scale:"Approved: add server (plan only)"};
+const DECIDED:Record<string,string>={"no-op":"No action",failback:"Move traffic back to Singapore",failover:"Approved: move traffic",scale:"Approved: add server (plan only)"};
 const CTRL:Record<string,string>={idle:"Idle",observing:"Watching",qualifying:"Confirming",verifying:"Checking customers",
   continue_candidate:"Better, next step",recovered:"Customers recovered",blocked:"Stopped by a safety rule",cooldown:"Cooling down",
-  action_pending:"Applying",disabled:"Off"};
-const WHY:Record<string,string>={no_action_requested:"nothing wrong",degradation_evidence_missing_or_stale:"not confirmed by its own check yet",
+  action_pending:"Applying",disabled:"Off",waiting_healthy:"Waiting: Singapore must stay healthy",
+  failback_step_ok:"Moved back, customers fine",rolled_back:"Undone: Singapore not ready"};
+const WHY:Record<string,string>={primary_must_stay_healthy:"Singapore looks healthy; waiting to be sure",no_action_requested:"nothing wrong",degradation_evidence_missing_or_stale:"not confirmed by its own check yet",
   reviewer_eligible_shift:"passed every safety check",source_still_missing_deadline:"some customers still slow",
   client_window_met_deadline:"all customer requests fast",telemetry_quality_gate_failed:"data too incomplete to act",
   destination_not_confirmed_healthy:"other region not confirmed healthy",route_already_at_limit:"no traffic left to move",
@@ -134,7 +135,7 @@ export default function Page(){
     <span className="operator-badge">LOCAL SIMULATOR · NO AWS EFFECTS</span>
     <ol className="an-steps"><li><b>Break something.</b> Pick a region and inject a fault below.</li>
       <li><b>Compare the three views.</b> Does monitoring that only sees AWS notice? Do the internet probes?</li>
-      <li><b>Watch the response.</b> Traffic moves away step by step, and the <a href="http://127.0.0.1:3001" target="_blank" rel="noreferrer">customer view</a> recovers.</li></ol>
+      <li><b>Watch the response.</b> Traffic moves away step by step, the <a href="http://127.0.0.1:3001" target="_blank" rel="noreferrer">customer view</a> recovers, and once Singapore is healthy again traffic returns to it.</li></ol>
 
     <section className="an-top">
       <div className="an-route">

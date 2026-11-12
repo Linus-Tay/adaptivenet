@@ -102,6 +102,7 @@ services:
       GATEWAY_URL: http://127.0.0.1:8000
       DEMO_CONTROLLER_MODE: "${DEMO_CONTROLLER_MODE:-local}"
       DEMO_DECISION_GROUP: "${DEMO_DECISION_GROUP:-aws_ripe_http}"
+      FAILBACK_HEALTHY_SEC: "${FAILBACK_HEALTHY_SEC:-60}"
     volumes: *demo-data
     depends_on: [gateway, lab-ml]
   lab-view:
