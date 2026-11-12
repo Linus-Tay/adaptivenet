@@ -12,9 +12,9 @@ export async function POST(request:Request){
  if(!request.headers.get("content-type")?.startsWith("application/json"))return Response.json({error:"JSON required"},{status:415});
  const origin=request.headers.get("origin");
  if(origin && new URL(origin).host!==request.headers.get("host"))return Response.json({error:"Invalid origin"},{status:403});
- let action:string;try{action=(await request.json()).action;}catch{return Response.json({error:"Invalid JSON"},{status:400});}
+ let action:string;let duration=30;let region="region-a";try{const body=await request.json();action=body.action;if(body.region==="region-b")region="region-b";if([30,60,120].includes(body.duration))duration=body.duration;}catch{return Response.json({error:"Invalid JSON"},{status:400});}
  if(action==="route-a"||action==="route-b")return call(`${control}/routes`,"PUT",{region_a_percent:action==="route-a"?100:0});
  if(action==="reset")return call(`${runner}/experiments`,"DELETE");
- if(action==="latency"||action==="failure")return call(`${runner}/experiments`,"POST",{region:"region-a",latency_ms:action==="latency"?1500:0,error_rate:action==="failure"?1:0,duration_seconds:30});
+ if(action==="latency"||action==="failure")return call(`${runner}/experiments`,"POST",{region,latency_ms:action==="latency"?1500:0,error_rate:action==="failure"?1:0,duration_seconds:duration});
  return Response.json({error:"Unknown action"},{status:400});
 }

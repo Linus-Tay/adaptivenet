@@ -5,7 +5,10 @@ import json
 import os
 from pathlib import Path
 
-from fastapi import FastAPI
+import secrets
+import time
+
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse
 import httpx
 
@@ -76,3 +79,13 @@ def state():
         "active_faults": faults,
         "pipeline": {"queue": queue, "outbox_pending": outbox},
     }
+
+
+@app.post("/api/reset")
+def reset(x_lab_token: str | None = Header(default=None)):
+    """Ask the lab controller to start a fresh journal (lab gateway only)."""
+    expected = os.environ.get("LAB_TOKEN", "")
+    if not expected or not secrets.compare_digest(x_lab_token or "", expected):
+        raise HTTPException(401, "Lab token required")
+    (data_dir() / "reset-request").write_text(str(time.time()))
+    return {"status": "requested"}

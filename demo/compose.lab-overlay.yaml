@@ -42,6 +42,11 @@ services:
     command: ["uvicorn", "demo.lab.origin:app", "--host", "0.0.0.0", "--port", "8000"]
     environment: {REGION: region-b, LAB_TOKEN: "${LAB_TOKEN}"}
 
+  # The group's dashboard (:3000) reads the decision service through its own API route.
+  dashboard:
+    environment:
+      LAB_VIEW_URL: http://lab-view:8000
+
   lab-users:
     <<: *demo-image
     command: ["python", "-m", "demo.lab.traffic"]

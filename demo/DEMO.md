@@ -28,14 +28,14 @@ demo/run.sh lab-up
 
 | Open | What it is |
 | --- | --- |
-| http://127.0.0.1:3000 | Group dashboard: fault buttons (latency 1500 ms / HTTP failure on region-a, 30 s), route buttons |
+| http://127.0.0.1:3000 | **Main demo page.** The group dashboard, rebuilt: fault controls (latency / HTTP 503, Singapore or Virginia, 30–120 s), traffic split, AWS-only vs AWS+RIPE vs AWS+RIPE+HTTP side by side with detection times, the telemetry → ML → proposal → safety review → controller pipeline, signals by source, and the decision log. The real-AWS SSM panel is unchanged when the dashboard runs in AWS mode. |
 | http://127.0.0.1:3001 | Group demo site (catalogue through the gateway) |
-| http://127.0.0.1:8190 | New: ML feature-group comparison, proposals, safety review, scale/failover decisions |
+| http://127.0.0.1:8190 | Raw decision-service view (debugging; the dashboard reads the same data) |
 | http://127.0.0.1:8766 | Real AWS telemetry dashboard (only when the real ingestion API is running; not part of this lab) |
 
 The overlay adds `lab-collector`, `lab-feature-worker`, `lab-ml`, `lab-controller`, `lab-view` and `lab-users`. It also runs `demo-a` / `demo-b` from the demo image, which serves the same catalogue plus `/lab/metrics` so the internal view has measured CPU and memory values. External observers go through the group's gateway (`PATH_MODE=gateway`), so the dashboard's fault buttons are exactly what they see. In this mode, the RIPE stand-in measures gateway-path reachability: an HTTP error counts as a lost probe, which real ICMP loss would not.
 
-Press **latency** on the dashboard. Within about 10 s, AWS+RIPE+HTTP reports `network_degradation` in region-a while AWS-only stays healthy. About 20 s after the press, the controller moves the gateway from 100% to 75% region-a after three fresh checks. The dashboard's faults last only 30 s, so for longer runs use:
+Press **Reset demo**, then **Inject +1.5 s latency** (Singapore, 120 s) on the dashboard. Within about 10 s, AWS+RIPE+HTTP reports `network_degradation` in region-a while AWS-only stays healthy. About 20 s after the press, the controller moves the gateway from 100% to 75% region-a after three fresh checks, then 50% and 25% while the fault lasts. The same faults are also available from the command line:
 
 ```bash
 PYTHONPATH=services:. python3 -m demo.faultctl lab-latency --region sg --ms 1500 --duration 120

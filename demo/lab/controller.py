@@ -98,15 +98,35 @@ class DemoLoop:
         self.client, self.ml = client, ml_url.rstrip("/")
         self.paths = ObserverPaths()
         self.mode, self.group = mode, group
+        self.data_dir = data_dir
         self.log = DecisionLog(data_dir / "decisions.jsonl")
         self.route = None
         self.safety = None
         if mode == "local":
             self.route = GatewayRoute(httpx.Client(base_url=gateway_url, timeout=3, trust_env=False), token)
-            journal = ActionJournal(data_dir / "controller-journal.db")
-            self.safety = SafetyController(journal, self.route, mode="local")
+            self._new_controller()
         # Review mode has no gateway to read; assume an even split unless told otherwise.
         self.weight_fallback = int(os.environ.get("DEMO_REVIEW_REGION_A_PERCENT", "50"))
+
+    def _new_controller(self) -> None:
+        journal = ActionJournal(self.data_dir / "controller-journal.db")
+        self.safety = SafetyController(journal, self.route, mode="local")
+
+    def maybe_reset(self) -> bool:
+        """Operator demo reset (requested via the view): start a fresh journal.
+
+        Only the local lab journal is discarded; it records lab gateway steps only.
+        """
+        request = self.data_dir / "reset-request"
+        if not request.exists():
+            return False
+        request.unlink(missing_ok=True)
+        if self.route is not None:
+            for suffix in ("", "-wal", "-shm"):
+                (self.data_dir / f"controller-journal.db{suffix}").unlink(missing_ok=True)
+            self._new_controller()
+        self.log.write({"at": time.time(), "state": "demo_reset", "controller_mode": self.mode})
+        return True
 
     def probe(self, scope: str) -> HttpMeasurement:
         """Controller-owned HTTP observation over the external (edge) path."""
@@ -191,6 +211,7 @@ def main() -> None:
         while True:
             started = time.monotonic()
             if mode != "disabled":
+                loop.maybe_reset()
                 record = loop.tick()
                 loop.log.write(record)
                 log.info("%s %s %s", record.get("condition"), record.get("decision", record.get("state")),
