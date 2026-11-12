@@ -101,3 +101,10 @@ def latest_snapshot():
     if snapshot is None:
         return JSONResponse({"error": "no feature snapshot yet"}, status_code=404)
     return snapshot
+
+
+@app.get("/v1/real/overview")
+def real_overview(at: float | None = None):
+    """Real AdaptiveNet telemetry in plain terms (live :8766, or a recorded snapshot at/before ``at``)."""
+    from .real_overview import overview
+    return overview(at)

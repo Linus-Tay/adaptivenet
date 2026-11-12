@@ -29,6 +29,7 @@ demo/run.sh lab-up
 | Open | What it is |
 | --- | --- |
 | http://127.0.0.1:3000 | **Main demo page.** The group dashboard, rebuilt: fault controls (latency / HTTP 503, Singapore or Virginia, 30–120 s), traffic split, AWS-only vs AWS+RIPE vs AWS+RIPE+HTTP side by side with detection times, the telemetry → ML → proposal → safety review → controller pipeline, signals by source, and the decision log. The real-AWS SSM panel is unchanged when the dashboard runs in AWS mode. |
+| http://127.0.0.1:3000 → **Real AWS telemetry** tab | The real data in plain sentences per region: inside AWS (Prometheus), from the internet (RIPE Atlas), real user requests (HTTP witness), CloudFront, each with a freshness badge, plus the same AWS-only / +RIPE / +RIPE+HTTP verdicts. Live when `scripts/live_monitor.py --sqs` runs on the host (:8766). Otherwise it shows a recorded real moment from `REAL_DATA_DIR` (set it in `demo/.env.demo`), with a time slider and one-click jumps to reviewed episodes. Recorded data is always labelled with its own time. |
 | http://127.0.0.1:3001 | Group demo site (catalogue through the gateway) |
 | http://127.0.0.1:8190 | Raw decision-service view (debugging; the dashboard reads the same data) |
 | http://127.0.0.1:8766 | Real AWS telemetry dashboard (only when the real ingestion API is running; not part of this lab) |

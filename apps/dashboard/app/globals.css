@@ -79,3 +79,16 @@ body{background:#0b1423;color:#e6edf7;font-family:Arial,sans-serif;margin:0}main
 .an-mini i{width:9px;height:9px;border-radius:9px;background:currentColor;display:inline-block}
 @media(max-width:900px){.an-top,.an-two{grid-template-columns:1fr}.an-groups{grid-template-columns:1fr}.an-flow{grid-template-columns:1fr 1fr}.an-stage::after{display:none}}
 .an-region .an-pill,.an-stage .an-pill{justify-self:start;align-self:flex-start}
+/* Tabs and real-telemetry view */
+.rt-tabs{display:flex;gap:6px;background:#0c1728;border:1px solid #2d4562;border-radius:12px;padding:4px}
+.rt-tabs button{margin:0;background:transparent;border:0;padding:8px 14px;color:#b9c8da;font-weight:600}
+.rt-tabs button.on{background:#235c9b;color:#fff}
+.rt-time input[type=range]{width:100%;margin:12px 0 4px;padding:0}
+.rt-episodes{display:flex;flex-direction:column;gap:6px;max-height:230px;overflow:auto;margin-top:8px}
+.rt-episodes button{margin:0;display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;text-align:left;background:#16273d;padding:8px 10px;font-size:12px}
+.rt-episodes small{color:#94a6bd}
+.rt-regions{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.rt-line{border-top:1px solid #263d58;padding:10px 0}
+.rt-line-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.rt-line-head small{color:#94a6bd;flex:1}
+.rt-line p{font-size:14px!important;line-height:1.55;margin:6px 0 0!important;color:#dbe6f3}
+@media(max-width:900px){.rt-regions{grid-template-columns:1fr}}

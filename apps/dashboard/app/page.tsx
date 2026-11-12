@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 import AwsFaultPanel from "./components/AwsFaultPanel";
+import RealTelemetry from "./components/RealTelemetry";
 
 /* ---------- types (subset of the decision service /api/state) ---------- */
 type RegionView={state:string;reasons:string[]};
@@ -45,6 +46,7 @@ export default function Page(){
   const [duration,setDuration]=useState(120);
   const [target,setTarget]=useState<"region-a"|"region-b">("region-a");
   const [fw,setFw]=useState<FaultWindow|null>(null);
+  const [tab,setTab]=useState<"lab"|"real">("lab");
   const firstSeen=useRef<Record<string,Record<string,number>>>({});
 
   async function refresh(){
@@ -110,8 +112,13 @@ export default function Page(){
 
   return <main className="operator an">
     <nav className="nav"><a href="/applications">Applications & endpoints ↗</a></nav>
-    <header className="operator-header"><small>ADAPTIVENET / LOCAL LAB</small><span className="operator-badge">LOCAL SIMULATOR · NO AWS EFFECTS</span></header>
-    <h1>Can AWS-only monitoring <span>see this failure?</span></h1>
+    <header className="operator-header"><small>ADAPTIVENET</small>
+      <div className="rt-tabs" role="tablist">
+        <button role="tab" aria-selected={tab==="lab"} className={tab==="lab"?"on":""} onClick={()=>setTab("lab")}>Live lab demo</button>
+        <button role="tab" aria-selected={tab==="real"} className={tab==="real"?"on":""} onClick={()=>setTab("real")}>Real AWS telemetry</button>
+      </div></header>
+    <h1>{tab==="lab"?<>Can AWS-only monitoring <span>see this failure?</span></>:<>What is happening <span>in Singapore and Virginia?</span></>}</h1>
+    {tab==="real"?<RealTelemetry/>:<>
 
     <section className="an-top">
       <div className="an-route">
@@ -184,6 +191,7 @@ export default function Page(){
       </div>
     </section>
 
+    </>}
     <div className="operator-links">
       <a href="http://127.0.0.1:3001" target="_blank" rel="noreferrer">Workload site ↗<small>The catalogue users see, through the lab gateway · :3001</small></a>
       <a href="http://127.0.0.1:8766" target="_blank" rel="noreferrer">Real AWS observability ↗<small>Prometheus + RIPE + CloudFront + HTTP witness · :8766 (when the real pipeline runs)</small></a>
