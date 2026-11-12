@@ -97,3 +97,11 @@ body{background:#0b1423;color:#e6edf7;font-family:Arial,sans-serif;margin:0}main
 .an-steps li::before{content:counter(s);position:absolute;left:14px;top:12px;width:22px;height:22px;border-radius:22px;background:#235c9b;color:#fff;font-weight:700;display:grid;place-items:center;font-size:12px}
 .an-steps b{color:#e6edf7}
 @media(max-width:900px){.an-steps{grid-template-columns:1fr}}
+/* Real-telemetry extras (former :8766 observatory) */
+.rx-chart{width:100%;height:auto;background:#0c1728;border:1px solid #263d58;border-radius:12px}
+.rx-chart text{fill:#94a6bd;font-size:11px}.rx-chart .grid{stroke:#1f3349}
+.rx-chart path{fill:none;stroke-width:2}.rx-chart path.sg{stroke:#3fb8a0}.rx-chart path.us{stroke:#6aa7ff}
+.rx-legend{display:flex;gap:16px;align-items:center;font-size:12px;color:#b9c8da;margin-top:8px}
+.rx-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}.rx-legend i.sg{background:#3fb8a0}.rx-legend i.us{background:#6aa7ff}
+.rx-legend small{margin-left:auto;color:#94a6bd}
+.rx-select,.rx-search{width:auto;min-width:220px;margin:0;padding:8px 10px}

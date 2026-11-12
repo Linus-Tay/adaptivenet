@@ -2,6 +2,7 @@
 // Real AdaptiveNet telemetry in plain language: live when the ingestion API runs,
 // otherwise a recorded moment (always labelled with its own time).
 import {useEffect,useState} from "react";
+import RealExtras,{type Trend,type Check,type Feature} from "./RealExtras";
 
 type Region={name:string;
   aws:{status:string;age_seconds:number|null;app_up:number|null;cpu_pct:number|null;memory_free_pct:number|null;p95_ms:number|null;error_ratio:number|null;missing:string[]};
@@ -11,7 +12,8 @@ type Detector={condition:string;affected_region?:string|null;regions:Record<stri
 type Episode={id:string;label:string;region:string;scenario:string;start_unix:number;end_unix:number;reviewed:boolean};
 type Overview={source:"live"|"recorded"|"none";message?:string;as_of_unix?:number;ready_for_model?:boolean;
   regions?:Record<string,Region>;cloudfront?:{status:string;metrics:Record<string,number|null>;http:{count?:number;failure_ratio?:number|null;http_latency_p95_ms?:number|null};http_age_seconds?:number|null};
-  detectors?:Record<string,Detector>;recorded_range?:{first_unix:number;last_unix:number;count:number}|null;episodes?:Episode[];notes?:string[]};
+  detectors?:Record<string,Detector>;recorded_range?:{first_unix:number;last_unix:number;count:number}|null;episodes?:Episode[];notes?:string[];
+  trends?:Trend[];checks?:Check[];features?:Feature[];source_errors?:string[]};
 
 const GROUPS=[["aws_only","AWS only"],["aws_ripe","AWS + RIPE"],["aws_ripe_http","AWS + RIPE + HTTP"]];
 const LABEL:Record<string,string>={healthy:"Healthy",unknown:"Not enough data",network_degradation:"Degraded (external signals)",
@@ -87,6 +89,8 @@ export default function RealTelemetry(){
       <p>CloudWatch counted {n(data.cloudfront.metrics.cloudfront_requests)} requests in the latest period, with {n(data.cloudfront.metrics.cloudfront_total_error_pct,1)}% errors (4xx {n(data.cloudfront.metrics.cloudfront_4xx_pct,1)}%, 5xx {n(data.cloudfront.metrics.cloudfront_5xx_pct,1)}%).
         {data.cloudfront.http?.count?` Our own checks through CloudFront: ${data.cloudfront.http.count} in 5 min, ${n((data.cloudfront.http.failure_ratio??0)*100)}% failed, p95 ${n(data.cloudfront.http.http_latency_p95_ms)} ms.`:""}</p></section>}
 
+    <RealExtras trends={data.trends??[]} checks={data.checks??[]} features={data.features??[]} sourceErrors={data.source_errors??[]}
+      quality={Object.values(data.regions??{}).map(r=>({name:r.name,aws:{status:r.aws.status,missing:r.aws.missing},ripe:{status:r.ripe.status,probes:r.ripe.probes}}))}/>
     <p className="muted">{(data.notes??[]).join(" ")} Verdicts use the same transparent per-group rules as the lab tab (not the trained models); they name which signal fired, not a verified label. “—” means missing, never zero.</p>
   </>;
 }

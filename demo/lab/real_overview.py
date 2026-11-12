@@ -29,6 +29,77 @@ REGIONS = ("region-a", "region-b")
 NAMES = {"region-a": "Singapore", "region-b": "Virginia", "cloudfront": "CloudFront"}
 
 
+def _live_extra() -> tuple[list[dict], list[dict]]:
+    base = os.environ.get("INGESTION_API_URL", "").rstrip("/")
+    try:
+        with httpx.Client(timeout=4, trust_env=False) as client:
+            hist = client.get(base + "/v1/features/history?limit=120").json().get("snapshots", [])
+            probes = client.get(base + "/v1/experiments/probes").json().get("events", [])
+        return hist, probes
+    except (httpx.HTTPError, ValueError, AttributeError):
+        return [], []
+
+
+def _recorded_extra(at: float) -> tuple[list[dict], list[dict]]:
+    folder = Path(os.environ.get("REAL_DATA_DIR", "/real"))
+    db = folder / "adaptivenet-ingestion.db"
+    hist = []
+    try:
+        con = sqlite3.connect(db.resolve().as_uri() + "?mode=ro", uri=True, timeout=5)
+        try:
+            hist = [json.loads(r[0]) for r in con.execute(
+                "SELECT body_json FROM feature_snapshots WHERE computed_at <= ? AND computed_at >= ? "
+                "ORDER BY computed_at DESC LIMIT 120", (at, at - 6 * 3600))]
+        finally:
+            con.close()
+    except sqlite3.Error:
+        pass
+    probes = sorted(_witness_window(folder, at, span=300), key=lambda e: e.get("timestamp", ""), reverse=True)
+    return hist, probes
+
+
+TREND_KEYS = ("network_rtt_p50_ms", "packet_loss_pct", "cpu_busy_pct", "http_p95_ms", "memory_available_pct",
+              "http_error_ratio")
+
+
+def _trends(history: list[dict]) -> list[dict]:
+    out = []
+    for snap in sorted(history, key=lambda s: s.get("computed_at_unix", 0)):
+        regions = snap.get("regions") or {}
+        out.append({"t": snap.get("computed_at_unix"),
+                    **{f"{r}.{k}": ((regions.get(r) or {}).get("features") or {}).get(k)
+                       for r in REGIONS for k in TREND_KEYS}})
+    return out
+
+
+UNITS = {"app_up": "0/1", "cpu_busy_pct": "%", "cpu_busy_ewma_pct": "%", "memory_available_bytes": "bytes",
+         "memory_total_bytes": "bytes", "memory_available_pct": "%", "node_load1": "", "http_rps": "req/s",
+         "http_5xx_rps": "req/s", "http_error_ratio": "ratio", "http_p95_ms": "ms", "http_p95_ewma_ms": "ms",
+         "http_p95_robust_z": "z", "network_rtt_p50_ms": "ms", "network_rtt_p95_ms": "ms", "packet_loss_pct": "%",
+         "packet_loss_median_pct": "%", "ripe_probes_reporting": "probes", "ripe_probes_full_loss": "probes"}
+
+
+def _features(snapshot: dict, at: float) -> list[dict]:
+    rows = []
+    for region in REGIONS:
+        bundle = snapshot["regions"][region]
+        prov = bundle.get("provenance") or {}
+        ripe_age = (prov.get("ripe_atlas") or {}).get("oldest_age_seconds")
+        for name, value in (bundle.get("features") or {}).items():
+            p = prov.get(name) or {}
+            age = _age(p.get("observed_at"), snapshot["computed_at_unix"])
+            source = ("AWS Prometheus" if p else "RIPE Atlas" if name in ("network_rtt_p50_ms", "network_rtt_p95_ms",
+                      "packet_loss_pct", "packet_loss_median_pct", "ripe_probes_reporting", "ripe_probes_full_loss")
+                      else "derived")
+            rows.append({"scope": NAMES[region], "name": name, "value": value, "unit": UNITS.get(name, ""),
+                         "source": source, "age_seconds": age if p else (ripe_age if source == "RIPE Atlas" else None)})
+    cf = snapshot.get("cloudfront") or {}
+    for name, value in (cf.get("features") or {}).items():
+        rows.append({"scope": "CloudFront", "name": name, "value": value, "unit": "", "source": "CloudWatch",
+                     "age_seconds": ((cf.get("provenance") or {}).get(name) or {}).get("age_seconds")})
+    return rows
+
+
 def _live() -> tuple[dict, dict] | None:
     base = os.environ.get("INGESTION_API_URL")
     if not base:
@@ -142,6 +213,7 @@ def overview(at: float | None = None) -> dict:
                 "and no recorded data folder is mounted (REAL_DATA_DIR)."}
     snapshot, fast = data
     at = snapshot["computed_at_unix"] if source == "recorded" else time.time()
+    history, probes = _live_extra() if source == "live" else _recorded_extra(at)
     slow = build_model_input(snapshot, mode="combined", now=at)
     payload = {"contract_version": "adaptivenet.detection_input.v1", "slow": slow, "fast": fast}
     regions = {}
@@ -181,6 +253,12 @@ def overview(at: float | None = None) -> dict:
                        "http": cw.get("windows", {}).get("300s", {}), "http_age_seconds": cw.get("age_seconds")},
         "detectors": {g: assess_group(payload, g) for g in GROUPS},
         "witness_vantage": fast.get("independent_vantage_count"),
+        "trends": _trends(history),
+        "checks": [{k: e.get(k) for k in ("timestamp", "scope", "http_status", "latency_ms", "origin", "outcome")}
+                   for e in probes[:36]],
+        "features": _features(snapshot, at),
+        "source_errors": snapshot.get("source_errors") or [],
+        "snapshot_age_seconds": round(time.time() - snapshot["computed_at_unix"]) if source == "live" else None,
         "notes": ["Recorded data is shown as of its own time, not as current." if source == "recorded"
                   else "Live data from the running ingestion API.",
                   "RIPE Atlas results arrive about every 15 minutes; HTTP checks every few seconds.",
