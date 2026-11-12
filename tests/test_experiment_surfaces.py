@@ -16,7 +16,8 @@ def test_real_aws_mode_blocks_operator_browser_mutation():
     operator = read("apps/dashboard/app/api/lab/route.ts")
     assert "process.env.ADAPTIVENET_MODE==='aws'" in operator
     assert "status:403" in operator
-    page = read("apps/dashboard/app/page.tsx")
+    # The real-AWS panel lives in a component used by the dashboard page.
+    page = read("apps/dashboard/app/page.tsx") + read("apps/dashboard/app/components/AwsFaultPanel.tsx")
     assert "/api/aws-fault" in page and "LOCAL SIMULATOR" in page
     assert "function Info(" in page and "window.confirm(" in page
 
