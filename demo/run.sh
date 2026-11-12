@@ -10,11 +10,19 @@ if [[ ! -f "$ENV_FILE" ]]; then
   printf 'LAB_TOKEN=%s\n' "$(python3 -c 'import secrets;print(secrets.token_hex(16))')" > "$ENV_FILE"
 fi
 set -a; source "$ENV_FILE"; set +a
-mkdir -p "$ROOT/data/demo-live" "$ROOT/data/demo-replay" "$ROOT/data/demo-models"
+mkdir -p "$ROOT/data/lab-live" "$ROOT/data/demo-live" "$ROOT/data/demo-replay" "$ROOT/data/demo-models"
 live() { docker compose -f "$HERE/compose.yaml" --env-file "$ENV_FILE" "$@"; }
+lab() { docker compose -f "$ROOT/compose.yaml" -f "$HERE/compose.lab-overlay.yaml" --env-file "$ENV_FILE" "$@"; }
 replay() { docker compose -f "$HERE/compose.replay.yaml" --env-file "$ENV_FILE" "$@"; }
 case "${1:-up}" in
-  up)     live up --build -d; echo "Decision view: http://127.0.0.1:8190";;
+  lab-up)   live down 2>/dev/null || true; lab up --build -d
+            echo "Group lab: dashboard http://127.0.0.1:3000  site http://127.0.0.1:3001"
+            echo "ML + safety decisions: http://127.0.0.1:8190";;
+  lab-down) lab down;;
+  lab-logs) lab logs -f --tail 50 "${@:2}";;
+  lab-reset) lab stop lab-controller; rm -f "$ROOT/data/lab-live/controller-journal.db"
+            lab restart gateway; lab start lab-controller;;
+  up)     lab down 2>/dev/null || true; live up --build -d; echo "Decision view: http://127.0.0.1:8190";;
   down)   live down; replay down 2>/dev/null || true;;
   logs)   live logs -f --tail 50 "${@:2}";;
   status) (cd "$ROOT" && PYTHONPATH="$ROOT/services:$ROOT" python3 -m demo.faultctl status);;
@@ -26,5 +34,5 @@ case "${1:-up}" in
           rm -rf "$ROOT/data/demo-replay"; mkdir -p "$ROOT/data/demo-replay"
           replay up --build -d; echo "Replay view: http://127.0.0.1:8190";;
   test)   (cd "$ROOT" && PYTHONPATH="$ROOT/services:$ROOT" python3 -m pytest -q demo/tests);;
-  *) echo "usage: demo/run.sh up|down|logs|status|reset|replay|test"; exit 2;;
+  *) echo "usage: demo/run.sh lab-up|lab-down|lab-logs|lab-reset|up|down|logs|status|reset|replay|test"; exit 2;;
 esac

@@ -49,7 +49,7 @@ async function refresh(){
  let s;try{s=await (await fetch('/api/state',{cache:'no-store'})).json()}catch(e){$('updated').textContent='view API unreachable';return}
  $('mode').textContent=s.mode;$('updated').textContent='updated '+new Date().toLocaleTimeString();
  $('pipe').textContent=`queue ${s.pipeline.queue.ready} ready / ${s.pipeline.queue.inflight} in flight, outbox ${s.pipeline.outbox_pending}`;
- const last=s.decisions[0];$('weight').textContent=last?last.region_a_percent:'?';
+ const last=s.decisions[0];const live=s.active_faults&&s.active_faults.region_a_percent;$('weight').textContent=(live??null)!==null?live:(last?last.region_a_percent:'?');
  const a=s.assessment||{};const det=a.detectors||{};
  $('groups').innerHTML=['aws_only','aws_ripe','aws_ripe_http'].map(g=>{const d=det[g]||{};const r=d.regions||{};
   const cell=x=>x?`${pill(x.state)} <span class="muted">${esc((x.reasons||[]).join(', '))}</span>`:'';

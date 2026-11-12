@@ -56,6 +56,10 @@ def state():
         faults = {}
         if os.environ.get("EDGE_URL"):
             faults["network"] = _get(client, os.environ["EDGE_URL"].rstrip("/") + "/admin/faults", token)
+        if os.environ.get("PATH_MODE") == "gateway":
+            gw = _get(client, os.environ["OBSERVER_GATEWAY_URL"].rstrip("/") + "/admin/state", token)
+            faults["gateway"] = gw
+            faults["region_a_percent"] = (gw or {}).get("region_a_percent")
         for region, var in (("region-a", "REGION_A_URL"), ("region-b", "REGION_B_URL")):
             if os.environ.get(var):
                 metrics = _get(client, os.environ[var].rstrip("/") + "/lab/metrics")

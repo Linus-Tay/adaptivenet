@@ -35,6 +35,8 @@ from adaptivenet.controller.recovery import HttpMeasurement, RecoveryWindow, DEA
 from adaptivenet.controller.safety import SafetyController
 from adaptivenet.controller.scaling import HpaObservation
 
+from .paths import ObserverPaths
+
 log = logging.getLogger("demo.controller")
 REGIONS = ("region-a", "region-b")
 FAILOVER_STEP = 25
@@ -93,7 +95,8 @@ class DecisionLog:
 class DemoLoop:
     def __init__(self, *, client: httpx.Client, ml_url: str, edge_url: str, gateway_url: str,
                  token: str, data_dir: Path, mode: str, group: str):
-        self.client, self.ml, self.edge = client, ml_url.rstrip("/"), edge_url.rstrip("/")
+        self.client, self.ml = client, ml_url.rstrip("/")
+        self.paths = ObserverPaths()
         self.mode, self.group = mode, group
         self.log = DecisionLog(data_dir / "decisions.jsonl")
         self.route = None
@@ -110,7 +113,8 @@ class DemoLoop:
         started = time.time()
         region, status = None, None
         try:
-            response = self.client.get(f"{self.edge}/http/{scope}", timeout=2)
+            url, headers = self.paths.http(scope)
+            response = self.client.get(url, headers=headers, timeout=2)
             status = response.status_code
             body = response.json()
             region = body.get("region") if isinstance(body, dict) else None

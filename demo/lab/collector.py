@@ -29,6 +29,7 @@ from adaptivenet.ingestion.sqs_transport import Outbox, encode_poll
 from adaptivenet.ingestion.witness import append_probe
 
 from .file_queue import FileQueue, QUEUE_URL
+from .paths import ObserverPaths
 
 log = logging.getLogger("demo.collector")
 INTERNAL_METRICS = (("app_up", "bool"), ("cpu_busy_pct", "percent"),
@@ -74,7 +75,7 @@ class Collector:
         self.data_dir = data_dir
         self.client = client
         self.origins = origins
-        self.edge = edge_url.rstrip("/")
+        self.paths = ObserverPaths()
         self.probes = probes
         self.pings = pings
         self.outbox = Outbox(data_dir / "outbox")
@@ -87,7 +88,8 @@ class Collector:
             event = {"timestamp": datetime.fromtimestamp(started, timezone.utc).isoformat(),
                      "scope": scope, "kind": "lab_witness"}
             try:
-                response = self.client.get(f"{self.edge}/http/{scope}", timeout=3)
+                url, headers = self.paths.http(scope)
+                response = self.client.get(url, headers=headers, timeout=3)
                 latency = round((time.time() - started) * 1000, 2)
                 body = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
                 served = body.get("region") if isinstance(body, dict) else None
@@ -120,7 +122,8 @@ class Collector:
                 for _ in range(self.pings):
                     started = time.perf_counter()
                     try:
-                        response = self.client.get(f"{self.edge}/ping/{region}", timeout=2)
+                        url, headers = self.paths.ping(region)
+                        response = self.client.get(url, headers=headers, timeout=2)
                         replies.append(round((time.perf_counter() - started) * 1000, 3)
                                        if response.status_code == 200 else None)
                     except httpx.HTTPError:
@@ -147,7 +150,7 @@ def main() -> None:
     external_every = float(os.environ.get("EXTERNAL_INTERVAL_SEC", "30"))
     with httpx.Client(trust_env=False) as client:
         collector = Collector(
-            data_dir=data, client=client, edge_url=os.environ["EDGE_URL"],
+            data_dir=data, client=client, edge_url=os.environ.get("EDGE_URL", ""),
             origins={"region-a": os.environ["REGION_A_URL"], "region-b": os.environ["REGION_B_URL"]},
             probes=int(os.environ.get("LAB_PROBES", "5")))
         next_internal = next_external = 0.0

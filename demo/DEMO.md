@@ -14,7 +14,46 @@ There are two modes. **Live lab** runs real containers that you can break with a
 
 Nothing in `compose.yaml`, `compose.telemetry.yaml`, `Dockerfile`, `Dockerfile.telemetry`, Terraform, SQS or the ingestion code was changed for this. The demo lives entirely in `demo/` and reuses the existing modules.
 
-## 1. Start the live lab
+## 0. Recommended: your group's existing lab plus ML and the safety controller
+
+This keeps the three existing sites and adds only the missing pieces next to them. `compose.yaml` is not edited; `demo/compose.lab-overlay.yaml` is layered on top of it.
+
+```bash
+export PATH=/Applications/Docker.app/Contents/Resources/bin:$PATH
+```
+
+```bash
+demo/run.sh lab-up
+```
+
+| Open | What it is |
+| --- | --- |
+| http://127.0.0.1:3000 | Group dashboard: fault buttons (latency 1500 ms / HTTP failure on region-a, 30 s), route buttons |
+| http://127.0.0.1:3001 | Group demo site (catalogue through the gateway) |
+| http://127.0.0.1:8190 | New: ML feature-group comparison, proposals, safety review, scale/failover decisions |
+| http://127.0.0.1:8766 | Real AWS telemetry dashboard (only when the real ingestion API is running; not part of this lab) |
+
+The overlay adds `lab-collector`, `lab-feature-worker`, `lab-ml`, `lab-controller`, `lab-view` and `lab-users`. It also runs `demo-a` / `demo-b` from the demo image, which serves the same catalogue plus `/lab/metrics` so the internal view has measured CPU and memory values. External observers go through the group's gateway (`PATH_MODE=gateway`), so the dashboard's fault buttons are exactly what they see. In this mode, the RIPE stand-in measures gateway-path reachability: an HTTP error counts as a lost probe, which real ICMP loss would not.
+
+Press **latency** on the dashboard. Within about 10 s, AWS+RIPE+HTTP reports `network_degradation` in region-a while AWS-only stays healthy. About 20 s after the press, the controller moves the gateway from 100% to 75% region-a after three fresh checks. The dashboard's faults last only 30 s, so for longer runs use:
+
+```bash
+PYTHONPATH=services:. python3 -m demo.faultctl lab-latency --region sg --ms 1500 --duration 120
+```
+
+```bash
+PYTHONPATH=services:. python3 -m demo.faultctl lab-errors --region sg --rate 1.0
+```
+
+```bash
+demo/run.sh lab-reset
+```
+
+`lab-reset` restarts the gateway (100% region-a, no faults) and clears the controller journal. Stop with `demo/run.sh lab-down`. Data goes to `data/lab-live/`, which git ignores. Port 8080 is used by the group's gateway; quit LM Studio's server first if it holds that port.
+
+The rest of this document describes the standalone stack (`demo/run.sh up`), which uses its own emulated internet path for packet-loss faults. Run one stack at a time; `lab-up` and `up` each stop the other.
+
+## 1. Start the standalone live lab
 
 Requirements: Docker Desktop running, and Python 3.11+ on the host for the fault CLI (the repo `.venv` works).
 
