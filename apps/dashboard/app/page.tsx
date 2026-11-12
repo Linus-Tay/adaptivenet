@@ -119,6 +119,7 @@ export default function Page(){
       </div></header>
     <h1>{tab==="lab"?<>Can AWS-only monitoring <span>see this failure?</span></>:<>What is happening <span>in Singapore and Virginia?</span></>}</h1>
     {tab==="real"?<RealTelemetry/>:<>
+    <span className="operator-badge">LOCAL SIMULATOR · NO AWS EFFECTS</span>
 
     <section className="an-top">
       <div className="an-route">
