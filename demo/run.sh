@@ -15,7 +15,10 @@ live() { docker compose -f "$HERE/compose.yaml" --env-file "$ENV_FILE" "$@"; }
 lab() { docker compose -f "$ROOT/compose.yaml" -f "$HERE/compose.lab-overlay.yaml" --env-file "$ENV_FILE" "$@"; }
 replay() { docker compose -f "$HERE/compose.replay.yaml" --env-file "$ENV_FILE" "$@"; }
 # Stop a real-AWS live_monitor.py started from this checkout (SIGINT lets it stop its children).
-stop_real() { pkill -INT -f "$ROOT/scripts/live_monitor.py" 2>/dev/null && echo "Stopped the real AWS telemetry pipeline" || true; }
+stop_real() {
+  pkill -f "adaptivenet-real-live.sh" 2>/dev/null || true   # optional keep-alive loop around live_monitor
+  pkill -INT -f "$ROOT/scripts/live_monitor.py" 2>/dev/null && echo "Stopped the real AWS telemetry pipeline" || true
+}
 case "${1:-up}" in
   lab-up)   live down 2>/dev/null || true; lab up --build -d
             echo "Group lab: dashboard http://127.0.0.1:3000  site http://127.0.0.1:3001"
