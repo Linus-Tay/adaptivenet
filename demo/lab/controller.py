@@ -172,6 +172,7 @@ class DemoLoop:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     mode = os.environ.get("DEMO_CONTROLLER_MODE", "local")
     if mode not in ("local", "review", "disabled"):
         raise SystemExit("DEMO_CONTROLLER_MODE must be local, review or disabled")

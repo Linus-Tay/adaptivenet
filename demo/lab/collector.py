@@ -140,6 +140,7 @@ class Collector:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     data = Path(os.environ.get("DEMO_DATA_DIR", "/app/data"))
     witness_every = float(os.environ.get("WITNESS_INTERVAL_SEC", "5"))
     internal_every = float(os.environ.get("INTERNAL_INTERVAL_SEC", "15"))

@@ -15,6 +15,7 @@ log = logging.getLogger("demo.worker")
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     data = Path(os.environ.get("DEMO_DATA_DIR", "/app/data"))
     queue = FileQueue(data / "queue")
     db = data / "adaptivenet-ingestion.db"
