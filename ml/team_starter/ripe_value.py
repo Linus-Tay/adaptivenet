@@ -52,9 +52,15 @@ INFLATION_RATIO = 1.3
 MIN_SUSTAINED_ROUNDS = 2
 UNREACHABLE_ROUNDS = 12
 MAX_AGE_SECONDS = 2 * 900
+# Loss quorum: >=2 distinct reachable probes losing packets and pooled loss >=10%
+# within the trailing window (two 240 s rounds). One probe dropping one ping is noise.
+LOSS_WINDOW_SECONDS = 480
+LOSS_QUORUM_PROBES = 2
+LOSS_QUORUM_PCT = 10.0
 
 PATH_COLUMNS = ("ripe_max_rtt_inflation_ms", "ripe_paths_inflated", "ripe_reachable_probes",
-                "ripe_loss_pct_reachable", "ripe_probes_unreachable", "ripe_result_age_s")
+                "ripe_loss_pct_reachable", "ripe_probes_unreachable", "ripe_result_age_s",
+                "ripe_window_loss_pct", "ripe_window_probes_with_loss")
 
 
 def iso(t: float) -> str:
@@ -160,7 +166,23 @@ def path_features(index: ProbeIndex, region: str, at: float) -> dict:
             inflated += _inflated(cur["rtt"], base)
     if reachable == 0:
         return {c: None for c in PATH_COLUMNS} | {"ripe_probes_unreachable": unreachable or None}
-    return {"ripe_max_rtt_inflation_ms": max(inflations) if inflations else None,
+    w_sent = w_lost = 0
+    lossy = set()
+    for probe in index.probes(region):
+        hist = index.upto((region, probe), at)
+        recent = hist[-UNREACHABLE_ROUNDS:]
+        if not hist or (len(recent) == UNREACHABLE_ROUNDS and all(s["rcvd"] == 0 for s in recent)):
+            continue
+        for smp in hist[::-1]:
+            if smp["ts"] <= at - LOSS_WINDOW_SECONDS:
+                break
+            w_sent += smp["sent"]
+            w_lost += smp["sent"] - smp["rcvd"]
+            if smp["rcvd"] < smp["sent"]:
+                lossy.add(probe)
+    return {"ripe_window_loss_pct": 100.0 * w_lost / w_sent if w_sent else None,
+            "ripe_window_probes_with_loss": len(lossy) if w_sent else None,
+            "ripe_max_rtt_inflation_ms": max(inflations) if inflations else None,
             "ripe_paths_inflated": inflated if inflations else None,
             "ripe_reachable_probes": reachable,
             "ripe_loss_pct_reachable": 100.0 * lost / sent if sent else None,
@@ -172,8 +194,10 @@ def ripe_path_alert(feat: dict) -> bool | None:
     """Fixed, pre-declared external rule. None = no usable external evidence."""
     if feat.get("ripe_reachable_probes") in (None, 0):
         return None
-    loss = feat.get("ripe_loss_pct_reachable")
-    return bool((feat.get("ripe_paths_inflated") or 0) >= 1 or (loss is not None and loss >= 50))
+    loss = feat.get("ripe_window_loss_pct")
+    quorum = (loss is not None and loss >= LOSS_QUORUM_PCT
+              and (feat.get("ripe_window_probes_with_loss") or 0) >= LOSS_QUORUM_PROBES)
+    return bool((feat.get("ripe_paths_inflated") or 0) >= 1 or quorum)
 
 
 # -------------------------------------------------------------- candidate events
@@ -234,19 +258,20 @@ def _event(index: ProbeIndex, region: str, probe: int, run: list[dict]) -> dict:
 
 
 # ------------------------------------------------------------- AWS-only detectors
-def aws_only_alert(slow: dict, region: str, history: list[dict]) -> bool | None:
+def aws_view_alert(values: dict, ready: bool, region: str, history: list[float | None]) -> bool | None:
     """Most sensitive reasonable AWS-only detector, to be FAIR to AWS-only.
 
-    Alerts on app down, any 5xx ratio >= 5%, existing robust-z >= 3, or p95 latency
-    >= 1.5x its own trailing median. None when internal data is not usable.
+    Alerts on app down, 5xx ratio >= 5%, robust-z >= 3, or p95 latency >= 1.5x its own
+    trailing median. None when internal data is not usable (abstain).
+    Host memory/CPU drift is deliberately NOT used: it is not a network signal and in
+    the Nov 10 study it moved with the experiment tooling, not with impairment.
     """
-    view = project(slow, "aws_only")
-    v = view["values"]
-    if not view["ready_for_shadow_assessment"] or v.get(f"{region}.app_up") is None:
+    if not ready or values.get(f"{region}.app_up") is None:
         return None
-    if v[f"{region}.app_up"] == 0:
+    if values[f"{region}.app_up"] == 0:
         return True
-    err, z, p95 = v.get(f"{region}.http_error_ratio"), v.get(f"{region}.http_p95_robust_z"), v.get(f"{region}.http_p95_ms")
+    err, z, p95 = (values.get(f"{region}.http_error_ratio"), values.get(f"{region}.http_p95_robust_z"),
+                   values.get(f"{region}.http_p95_ms"))
     if err is not None and err >= 0.05:
         return True
     if z is not None and z >= 3:
@@ -255,6 +280,11 @@ def aws_only_alert(slow: dict, region: str, history: list[dict]) -> bool | None:
     if p95 is not None and len(past) >= 10 and p95 >= 1.5 * statistics.median(past):
         return True
     return False
+
+
+def aws_only_alert(slow: dict, region: str, history: list[float | None]) -> bool | None:
+    view = project(slow, "aws_only")
+    return aws_view_alert(view["values"], view["ready_for_shadow_assessment"], region, history)
 
 
 def _snap_time(s: dict) -> float:
@@ -343,6 +373,105 @@ def paired_summary(episodes: list[dict], a: str = "aws_only", b: str = "aws_ripe
             "mcnemar_exact_p": mcnemar_exact(only_a, only_b),
             "median_delay_gain_s_jointly_detected": statistics.median(joint) if joint else None,
             "note": "episodes are the unit; rows inside one episode are not independent"}
+
+
+# ------------------------------------------------------- reviewed-episode study
+def episode_study(dataset: dict, index: ProbeIndex, *, exclusion_pad_s: float = 1800) -> dict:
+    """Fixed-rule, no-training paired comparison on every reviewed episode.
+
+    AWS-only uses the episode's own archived aws_only rows; AWS+RIPE alerts when
+    AWS-only alerts OR the pre-declared RIPE rule fires on RIPE results inside the
+    episode (as-of each result). No threshold is fitted, so no split is needed.
+    Also scans all RIPE rounds OUTSIDE reviewed episodes (+/- pad) for alert onsets:
+    that time is unlabeled, so the rate is an upper bound on false alarms, not a
+    verified specificity.
+    """
+    rows = defaultdict(list)
+    for r in dataset.get("rows", []):
+        rows[r["episode_id"]].append(r)
+    episodes, per = dataset.get("episodes", []), []
+    for ep in sorted(episodes, key=lambda e: e["start_unix"]):
+        region = ep.get("region")
+        if region not in REGIONS or ep["episode_id"] not in rows:
+            continue
+        mine = sorted(rows[ep["episode_id"]], key=lambda r: r["at_unix"])
+        first_aws, votes, hist = None, [], []
+        for r in mine:
+            view = r["views"]["aws_only"]
+            a = aws_view_alert(view["values"], view["ready_for_shadow_assessment"], region, hist)
+            hist.append(view["values"].get(f"{region}.http_p95_ms"))
+            votes.append(a)
+            if a and first_aws is None:
+                first_aws = r["at_unix"]
+        stamps = sorted({s["ts"] for p in index.probes(region)
+                         for s in index.series[(region, p)] if ep["start_unix"] <= s["ts"] <= ep["end_unix"]})
+        first_ripe, ripe_votes = None, []
+        for t in stamps:
+            f = path_features(index, region, t)
+            alert = ripe_path_alert(f)
+            ripe_votes.append(alert)
+            if alert and first_ripe is None:
+                first_ripe = t
+        first_both = min([t for t in (first_aws, first_ripe) if t is not None], default=None)
+        positive = ep["label"] in ("network_degradation", "partial_outage")
+        per.append({"episode_id": ep["episode_id"], "label": ep["label"], "region": region,
+                    "start_utc": iso(ep["start_unix"]), "duration_s": ep["end_unix"] - ep["start_unix"],
+                    "positive": positive, "evaluable": any(v is not None for v in votes) or bool(stamps),
+                    "aws_rows": len(mine), "aws_abstained_rows": sum(v is None for v in votes),
+                    "ripe_rounds": len(stamps), "ripe_rounds_alerting": sum(bool(v) for v in ripe_votes),
+                    "aws_only_detected": first_aws is not None, "aws_ripe_detected": first_both is not None,
+                    "aws_only_delay_s": first_aws - ep["start_unix"] if first_aws is not None else None,
+                    "aws_ripe_delay_s": first_both - ep["start_unix"] if first_both is not None else None})
+    pos = [e for e in per if e["positive"]]
+    neg = [e for e in per if not e["positive"]]
+    # Unlabeled-time scan for alert onsets (RIPE rule only; AWS rows are not archived per round here).
+    scan = {}
+    for region in REGIONS:
+        busy = [(e["start_unix"] - exclusion_pad_s, e["end_unix"] + exclusion_pad_s) for e in episodes]
+        stamps = sorted({s["ts"] for p in index.probes(region) for s in index.series[(region, p)]})
+        stamps = [t for t in stamps if not any(a <= t <= b for a, b in busy)]
+        onsets, prev, covered = 0, False, 0.0
+        for i, t in enumerate(stamps):
+            alert = bool(ripe_path_alert(path_features(index, region, t)))
+            onsets += alert and not prev
+            prev = alert
+            if i and t - stamps[i - 1] <= MAX_AGE_SECONDS:
+                covered += t - stamps[i - 1]
+        scan[region] = {"unlabeled_hours": covered / 3600, "ripe_alert_onsets": onsets,
+                        "onsets_per_day_upper_bound": onsets * 86400 / covered if covered else None}
+    return {"episodes": per,
+            "positives": paired_summary(pos),
+            "healthy_false_alarm_episodes": {"aws_only": sum(e["aws_only_detected"] for e in neg),
+                                             "aws_ripe": sum(e["aws_ripe_detected"] for e in neg),
+                                             "healthy_episodes": len(neg)},
+            "unlabeled_time_scan": scan,
+            "rule": {"loss_window_s": LOSS_WINDOW_SECONDS, "loss_quorum_probes": LOSS_QUORUM_PROBES,
+                     "loss_quorum_pct": LOSS_QUORUM_PCT, "inflation_ms": INFLATION_MS,
+                     "inflation_ratio": INFLATION_RATIO}}
+
+
+def trial_request_delays(trials: list[dict], index: ProbeIndex) -> list[dict]:
+    """RIPE-independent timing: first RIPE alert after the logged SSM *request*.
+
+    Reviewed onsets were defined from RIPE itself, so delays from those onsets are
+    circular. The request time and configured duration come from the experiment
+    log, not from RIPE. A request is not proof of effect, so trials without review
+    are reported, never counted as misses or hits.
+    """
+    out = []
+    for t in trials:
+        region, start = t.get("region"), t.get("requested_utc")
+        if region not in REGIONS or not start or not isinstance(t.get("duration_seconds"), (int, float)):
+            continue
+        a = datetime.fromisoformat(start).timestamp()
+        b = a + t["duration_seconds"]
+        stamps = sorted({s["ts"] for p in index.probes(region) for s in index.series[(region, p)] if a <= s["ts"] <= b})
+        first = next((x for x in stamps if ripe_path_alert(path_features(index, region, x))), None)
+        out.append({"run_id": t.get("run_id"), "region": region, "requested_utc": start,
+                    "configured_packet_loss_percent": t.get("configured_packet_loss_percent"),
+                    "ripe_rounds": len(stamps), "alert_at_request": bool(ripe_path_alert(path_features(index, region, a))),
+                    "first_ripe_alert_after_request_s": first - a if first is not None else None})
+    return out
 
 
 # ------------------------------------------------------------------- native arm
@@ -444,6 +573,7 @@ def main(argv=None) -> int:
     s.add_argument("--dataset", type=Path)
     s.add_argument("--labels", type=Path)
     s.add_argument("--reviews", type=Path)
+    s.add_argument("--trials-dir", type=Path, help="authorized-network-trials/*.json (request log)")
     s.add_argument("--out", type=Path, default=Path("data/ml-results/native/ripe-value"))
     args = ap.parse_args(argv)
     if args.cmd == "fetch":
@@ -464,7 +594,16 @@ def main(argv=None) -> int:
         report["aws_join_paired"] = paired_summary(joined)
         report["status"] = "aws_joined_candidates_unreviewed"
     else:
-        report["blockers"].append("no archived AWS snapshots supplied: AWS-only behaviour during events unknown")
+        report["blockers"].append("candidate events not joined to archived AWS snapshots (--snapshots): "
+                                  "AWS-only behaviour during those unlabeled events unknown")
+    if args.dataset:
+        report["episode_study"] = episode_study(json.loads(args.dataset.read_text(encoding="utf-8-sig")), index)
+        report["status"] = "episode_study_evaluated"
+        print("episode study", json.dumps(report["episode_study"]["positives"]),
+              json.dumps(report["episode_study"]["healthy_false_alarm_episodes"]))
+    if args.trials_dir:
+        trials = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(args.trials_dir.glob("*.json"))]
+        report["trial_request_delays"] = trial_request_delays(trials, index)
     if args.dataset and args.labels and args.reviews:
         load = lambda p: json.loads(p.read_text(encoding="utf-8-sig"))
         report["native"] = native_paired(load(args.dataset), load(args.labels), load(args.reviews), index)

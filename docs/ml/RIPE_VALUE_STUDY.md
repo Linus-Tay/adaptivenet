@@ -1,130 +1,187 @@
 # Does RIPE Atlas add detection value beyond AWS-only monitoring?
 
-**Status (2026-11-12):** partly established. The diagnosis and the external-path
-events below come from real public RIPE Atlas data. The paired AWS-only versus
-AWS+RIPE result still needs the archived AWS feature snapshots, so it is **not yet
-computed**. No numbers on this page are invented, and none come from a fixture.
+**Answer (2026-11-12): yes, for network packet loss on the origin path, with a small
+sample.** In the 6 reviewed Virginia packet-loss trials, AWS-only detected **0 of 6**
+and AWS+RIPE detected **6 of 6**. Neither arm raised an alarm in the 4 reviewed
+healthy controls. The exact McNemar test gives p = 0.031 (6 discordant episodes, all
+in RIPE's favour). Every number here comes from the team's archived AWS feature
+snapshots, the reviewed episode manifest and public RIPE Atlas results. Nothing is
+fabricated. The limitations in section 6 are part of the result.
 
-Code: `ml/team_starter/ripe_value.py`. Tests: `ml/team_starter/tests/test_ripe_value.py`
-(synthetic fixtures only).
+Code: `ml/team_starter/ripe_value.py` and `ml/team_starter/ripe_value_confound.py`.
+Tests: `ml/team_starter/tests/test_ripe_value.py` (synthetic fixtures only).
+Evidence used (read-only): `/Users/my/Project/adaptivenet-evidence/adaptivenet/data/ml-results/native/step2-network-approved/`
+(`verified_network_dataset.json`, `verified_episodes.json`, `approved_chronological_split.json`),
+`.../native/authorized-network-trials/*.json`, and public RIPE measurements 234317384,
+234705665 and 235482125 (Virginia) plus 234316056, 234705187 and 235485629 (Singapore).
 
-## 1. Why the three existing arms tied (50% recall, 17/34 abstentions in every arm)
+## 1. Headline result
 
-| Cause | Evidence |
-|---|---|
-| Every arm abstains on the same rows. `ready_for_shadow_assessment` requires fresh AWS internal data in every arm, and the RIPE and HTTP arms only add extra conditions. External data can never rescue an AWS-side abstention, so the 17/34 is shared by construction. | `dataset.py` `make_dataset` sets readiness to `internal_ok and (aws_only or external_ok) ...` |
-| The snapshot RIPE columns are regional aggregates. Probe **1010367 never reached the Singapore origin**: 100% loss in every one of its 1,373 results across msm 234316056, 234705187 and 235485629, yet the same probe reaches Virginia normally. The mean `packet_loss_pct` for Singapore is therefore pinned at about 25%, whatever the real path state. | Public results, section 3 |
-| Real path degradations hit **one probe at a time**. In 29 of the 30 Singapore candidates below, the other Singapore probes stayed normal. A regional p50 barely moves, and loss doesn't move at all. | `other_probes_same_region_inflated_fraction` in the report |
-| RIPE rounds are 240 s (Nov 8 onward) or 900 s (Oct). A test episode of a few minutes contains zero or one new RIPE result. | Measurement metadata |
-| `http_p95_ms` (AWS-only) is the application's own server-side handler histogram (`adaptivenet_http_request_duration_seconds`, 5 m rate). It **cannot contain client-to-origin transit time**, so on a pure path degradation AWS-only has nothing to react to. | `services/adaptivenet/ingestion/sources.py:26` |
+The unit is one reviewed episode. Detectors are fixed rules, declared before they
+were run against the outcomes, with no training and so no train/test leakage.
 
-So the tie doesn't mean RIPE is useless. The test episodes were faults that AWS
-internals could already see, the RIPE representation erased path-level signal, and
-the readiness gate made the arms identical wherever AWS data was unusable.
+| Episode | Truth | AWS-only (fair rule) | AWS+RIPE | RIPE rounds alerting |
+|---|---|---|---|---:|
+| planned-control 15:45 Nov 9 | healthy | no alarm | no alarm | 0/12 |
+| planned-control 16:01 Nov 9 | healthy | no alarm | no alarm | 0/11 |
+| planned-control 16:26 Nov 9 | healthy | no alarm | no alarm | 0/12 |
+| planned-control 18:05 Nov 9 | healthy | no alarm | no alarm | 0/11 |
+| network-trial-1c97d1b18433 | 25% loss, VA | **miss** | detected | 35/37 |
+| network-trial-9a546977616b | 25% loss, VA | **miss** | detected | 2/23 |
+| network-trial-a65a252ed200 | 25% loss, VA | **miss** | detected | 11/16 |
+| network-trial-ff63a063c834 | 25% loss, VA | **miss** | detected | 11/19 |
+| network-trial-a7e5356532f8 | 25% loss, VA | **miss** (AWS data missing, 17/17 abstain) | detected | 5/19 |
+| network-trial-31b8c3c6ebf6 | 25% loss, VA | **miss** | detected | 13/17 |
 
-## 2. What was added
+* The recall difference is +1.0. The episode-bootstrap 95% CI is degenerate at
+  [1.0, 1.0] because all six pairs agree. With n = 6, read this as "every case went
+  one way", not as a precise effect size.
+* **Timing, independent of RIPE.** RIPE first alerted **61–521 s after the logged SSM
+  impairment request** in all six trials (median 417 s). No alert was active at any
+  request time. RIPE rounds are 240 s apart, so 1–2 rounds is the expected delay.
+* The seventh request (`814b352e651a`, 08:52 Nov 10) shows only 1/119 RIPE packets
+  lost and was never reviewed as effective. It isn't counted either way.
 
-* `fetch`: read-only download of **public** RIPE results (no key, nothing written to RIPE or AWS).
-* Per-probe, **past-only** path features: RTT inflation against each probe's own
-  trailing 6 h median, the number of inflated paths, loss among *reachable* probes
-  only, a separate count of unreachable probes, and result age. Stale or absent
-  values stay `None`, never 0.
-* A candidate external-path event finder (≥50 ms **and** ≥1.3× over baseline,
-  sustained ≥2 rounds). Each event has a cross-region control (the same probe
-  toward the other origin) and a peer check (other probes toward the same origin).
-  **Candidates are not labels**, so `status=candidate_unreviewed`.
-* A fair AWS-only detector: app down, 5xx ratio ≥5%, robust-z ≥3, or p95 ≥1.5×
-  its own pre-event median. This is deliberately more sensitive than the trained
-  model, so AWS-only isn't handicapped.
-* A paired, episode-level comparison: exact McNemar on discordant episodes, an
-  episode-bootstrap 95% CI for the recall difference, and the paired delay gain on
-  jointly detected episodes.
-* A native fourth arm, `aws_ripe_path`: the row's exact `aws_only` values plus the
-  path features, retrained on the **identical** reviewed chronological split, with
-  the same logistic pipeline and threshold. The two arms differ only by external
-  path information.
+The "fair" AWS-only rule alerts on app down, a 5xx ratio ≥5%, robust-z ≥3, or p95
+≥1.5× its own pre-event median. It's more sensitive than any threshold the project
+used. The AWS+RIPE rule is AWS-only OR (in the trailing 480 s, ≥2 distinct
+reachable probes lost packets and pooled loss ≥10%) OR (≥1 path's RTT ≥50 ms
+**and** ≥1.3× its own trailing 6 h median). Persistently unreachable probes are
+excluded from loss.
 
-The thresholds were fixed before looking at any AWS data or labels.
+## 2. Why AWS-only can't see this fault
 
-## 3. Real external-path events in the public RIPE data (Nov 8–12 2026, 240 s rounds)
+During **every** degraded row, the archived AWS application signals for Virginia are
+**bit-identical** to the healthy controls. All 49 healthy rows and 82 of 109
+degraded rows have exactly `app_up=1`, `5xx=0`, `error_ratio=0`, `p95=4.75 ms`,
+`robust_z=0` and `rps=0.0667`. The remaining 27 degraded rows are AMP gaps (`None`)
+or small variants with a missing robust-z or `rps=0.0632`. `http_p95_ms` is the application's own server-side handler
+histogram (`services/adaptivenet/ingestion/sources.py:26`), so it can't include
+client-to-origin transit time. The response loss happens on the network path, after
+the handler has finished.
 
-Measurements: Singapore 234316056, 234705187, 235485629 and Virginia 234317384,
-234705665, 235482125. This covers 10,983 results through 2026-11-12 07:23 UTC.
-There are 32 candidates in all (30 Singapore, 2 Virginia). The candidates lasting
-≥30 minutes are:
+Over the same windows, RIPE saw 8–24% loss across 4 independent probes. The same
+probes saw 0.0% loss during the healthy controls. The single-vantage HTTP witness
+also saw the trials (300 s p95 of about 800–3,500 ms against about 500–770 ms when
+healthy), but it can't say whether the problem is the origin path or the Mac's own
+network. RIPE's four probes in different networks can.
 
-| Region | Probe | Start (UTC) | End (UTC) | Rounds | Baseline ms | Peak ms | Same probe to other region | Other probes same region |
-|---|---|---|---|---:|---:|---:|---|---|
-| SG | 13106 | 11-09 12:39 | 11-09 15:31 | 44 | 170 | 311 | normal | 9% / 0% |
-| SG | 13106 | 11-10 00:27 | 11-10 02:59 | 39 | 172 | 267 | **also flagged** | 0% / 0% |
-| SG | 1008208 | 11-10 06:04 | 11-10 06:36 | 9 | 149 | 273 | normal | 0% / 0% |
-| SG | 1008208 | 11-10 07:20 | 11-10 08:39 | 21 | 149 | 287 | normal | 0% / 0% |
-| SG | 13106 | 11-10 14:16 | 11-10 16:11 | 30 | 185 | 291 | normal | 0% / 0% |
-| SG | **1015838** | **11-10 21:29** | **11-11 00:13** | **42** | **96** | **211** | normal (≈230 ms flat) | 0% / 0% |
-| SG | 1008208 | 11-11 08:13 | 11-11 10:37 | 37 | 149 | 284 | normal | 0% / 0% |
-| SG | 13106 | 11-12 01:23 | 11-12 02:28 | 17 | 173 | 258 | normal | 0% / 0% |
+## 3. Why the original three arms tied at 50% recall
 
-The clearest case is probe 1015838. Its RTT to the Singapore origin roughly doubled
-(96 to about 204 ms median) for 2 h 45 m. Over the same hours, the same probe's RTT
-to Virginia stayed flat at about 230 ms, the other Singapore probes stayed at
-baseline, and the TTL didn't change (116). So the probe's own access link isn't the
-cause, the origin isn't globally slow, and there was no hop-count route change. It
-was on-path congestion affecting users behind that network on their way to
-Singapore. Probe 1008208 also shows recurring daily inflation (about 149 to 280 ms
-around 06:00–10:00 UTC), which is a repeatable congestion pattern.
+1. **The held-out test had no healthy rows.** An "always degraded" model therefore
+   scores the same as a real detector. All three saved models labeled all 17 rows
+   of `31b8c3c6ebf6` as degraded and abstained on all 17 rows of `a7e5356532f8`.
+2. **The trained AWS-only model used a confound.** Its largest coefficients are
+   Virginia `memory_available_bytes` and `memory_available_pct` (−1.75 toward
+   degradation). Virginia free memory fell from about 567–571 MB to about 546–561 MB
+   at roughly 09:00 Nov 10, when the trial tooling was set up. It **stayed low after
+   the trials ended** (14:00–16:00 median about 548–554 MB), so it tracks the
+   experiment setup, not network state. If you retrain the identical pipeline without
+   host memory, CPU and load columns, AWS-only alerts on **0** held-out rows. With
+   the same columns removed, `aws_ripe_path` alerts on 19/19, 16/17 and 19/19 rows of
+   the three trials where AWS was ready (`ripe_value_confound.py`).
+3. **A shared readiness gate.** Every arm abstains whenever AWS internal data is
+   stale (`dataset.py` `make_dataset`). External evidence can never rescue an AWS
+   gap, which is why `a7e5356532f8` was 17/17 abstentions in every arm even though
+   RIPE saw the loss. A future gate should let the external arms decide on
+   external-only evidence and record `aws_internal_unavailable` as a reason.
+4. **The RIPE representation erased the signal.** Probe 1010367 never reached the
+   Singapore origin (100% loss in all 1,373 of its results), which pins Singapore
+   mean loss at about 25%. Real path events also tend to hit one probe at a time,
+   so regional aggregates hide them. The new per-probe features fix both.
 
-**Claim supported now:** RIPE Atlas observed real, sustained, path-specific
-degradation toward the Singapore origin, and none of the AWS-only features can
-measure it, because they are host and application metrics plus server-side handler
-latency.
+## 4. Unlabeled time (false-alarm upper bound)
 
-**Claim NOT yet supported:** "AWS-only did not alert during these events." That
-needs the archived AMP feature snapshots for these hours (section 4). Until then,
-this is a structural argument, not an empirical paired result.
+Outside all reviewed episodes (±30 min), over about 82 h per region from Nov 8 to Nov 12:
 
-## 4. What is still required
+| Region | Loss-quorum onsets | RTT-inflation onsets | Rate |
+|---|---:|---:|---|
+| Virginia | 3 | 5 | 2.3/day (loss only: 0.9/day) |
+| Singapore | 0 | 55 | 16/day |
 
-1. **AWS-side data for 2026-11-08 → 11-12.** Either option works:
-   * `data/ml-archive/feature_snapshots.jsonl`, plus `verified-dataset.json`,
-     `verified_episodes.json` and network reviews from the machine that produced the
-     Step 8 study, or
-   * read-only AMP query access (AMP keeps 150 days by default) to export the same
-     `model_input.v1` features for those hours.
-2. **Independent review** of each candidate before it's used as a label. Suitable
-   evidence includes a second RIPE measurement type (traceroute) from the same
-   probe, CloudFront per-edge latency, or another HTTP vantage. The RIPE detector
-   must not grade itself, and without that review its precision is unknown.
-3. **Healthy windows** with AWS and RIPE both normal, to estimate the RIPE-path
-   false-alarm rate per day.
-4. The 240 s measurements end at 2026-11-12 08:47 UTC. More events require
-   re-cloning them, which spends RIPE credits and needs the team's API key.
+This time is **unlabeled**, so these are upper bounds, not verified false alarms.
+Most Singapore onsets are real, recurring external path congestion. Probe 1008208's
+path to Singapore rises from about 149 to about 280 ms almost every day around
+06:00–10:00 UTC. Probe 1015838's path went from 96 to about 204 ms for 2 h 45 m
+(Nov 10 21:29 to Nov 11 00:13 UTC), while the same probe's Virginia path and the
+other Singapore probes stayed flat. These are gray failures for users behind those
+networks, but nobody has reviewed them. For an alerting deployment, the RTT rule
+needs a quorum of ≥2 paths, or time-of-day baselines, before it should page anyone.
 
-## 5. Commands
+## 5. Claims
+
+**Supported:** On the team's reviewed packet-loss experiments, RIPE Atlas detected
+network degradation that AWS-only monitoring could not detect at all (0/6 vs 6/6,
+no false alarms in 4 healthy controls, McNemar p = 0.031). It did so within 1–2 RIPE
+rounds of the impairment request. The AWS-only failure is structural: its signals
+didn't change.
+
+**Not supported:**
+* Earlier detection *when both detect*. AWS-only never detected, so there is no
+  paired delay.
+* Generalization to other fault types. For service-stop failures, AWS-only already
+  works.
+* Forecasting. The horizon is 0.
+* A verified false-alarm rate per day.
+
+## 6. Limitations (read with the result)
+
+* **Six positive and four healthy episodes, one region, one fault type, one day**
+  (healthy controls Nov 9, trials Nov 10). Small n, so p = 0.031 is the smallest
+  p-value possible with six discordant pairs.
+* **Partly circular labels.** The reviewed onset of each trial was defined as "first
+  observed RIPE loss", and RIPE was one of the label evidence sources. Detection *at
+  the reviewed onset* is therefore partly by construction. The RIPE-independent
+  checks are the firewall injection log (SSM request and configured duration), the
+  HTTP witness, and the request-to-alert delays above. The AWS-only result doesn't
+  depend on the labels at all, because its inputs were identical in both classes.
+* The RIPE rule thresholds were written after the trial configuration (25% loss) was
+  known, but before running the rule against the outcomes. They weren't fitted to
+  these episodes. A truly prospective test needs new trials.
+* Review was an AI technical review with reported (not signed) human approval. See
+  `verified_episodes.json` notes.
+* The Singapore candidate events are unreviewed and are not labels.
+
+## 7. What would strengthen it
+
+1. Further impairment trials in **Singapore**, plus healthy controls on the **same
+   days** as the trials, to remove the day confound. Review the onset from the
+   injection log, not from RIPE.
+2. Keep 240 s RIPE measurements running. The current ones end 2026-11-12 08:47 UTC,
+   and re-cloning spends RIPE credits.
+3. Change the readiness gate so external arms can act on external-only evidence (section 3.3).
+4. Drop host memory, CPU and load from network-degradation features, or treat them as
+   confounders and stratify by day.
+
+## 8. Reproduce
 
 ```bash
-# public results (repeat per measurement); written under ignored data/
-python -m ml.team_starter.ripe_value fetch --msm 235485629 --start <unix> --stop <unix> --out data/ripe-public/235485629.json
+# public RIPE results (read-only, no key); repeat per measurement, <=7-day chunks handled
+python -m ml.team_starter.ripe_value fetch --msm 235482125 --start <unix> --stop <unix> --out data/ripe-public/235482125.json
 
-# candidates only
+N=data/ml-results/native
 python -m ml.team_starter.ripe_value study \
   --ripe region-a=data/ripe-public/234316056.json --ripe region-a=data/ripe-public/234705187.json \
   --ripe region-a=data/ripe-public/235485629.json --ripe region-b=data/ripe-public/234317384.json \
-  --ripe region-b=data/ripe-public/234705665.json --ripe region-b=data/ripe-public/235482125.json
+  --ripe region-b=data/ripe-public/234705665.json --ripe region-b=data/ripe-public/235482125.json \
+  --dataset $N/step2-network-approved/verified_network_dataset.json \
+  --trials-dir $N/authorized-network-trials --out $N/ripe-value
 
-# + AWS join (paired AWS-only vs AWS+RIPE on each event)
-...  --snapshots data/ml-archive/feature_snapshots.jsonl
-
-# + native retrain on the reviewed split (aws_only vs aws_ripe_path)
-...  --dataset data/ml-archive/verified-dataset.json --labels data/verified_episodes.json \
-     --reviews data/network_binary_reviews.json
+python -m ml.team_starter.ripe_value_confound \
+  --dataset $N/step2-network-approved/verified_network_dataset.json \
+  --split $N/step2-network-approved/approved_chronological_split.json \
+  --ripe region-b=data/ripe-public/235482125.json --ripe region-b=data/ripe-public/234705665.json \
+  --ripe region-b=data/ripe-public/234317384.json --ripe region-a=data/ripe-public/235485629.json \
+  --ripe region-a=data/ripe-public/234705187.json --ripe region-a=data/ripe-public/234316056.json
 
 python -m pytest -q ml/team_starter/tests/test_ripe_value.py
 ```
 
-Everything here is shadow-only and makes no AWS calls. Raw RIPE results stay under
-the ignored `data/` directory.
+Everything is shadow-only and makes no AWS calls. Raw RIPE results and native
+evidence stay under the ignored `data/` directory.
 
-Integration note: `integration/end-to-end` now adds `packet_loss_median_pct` and
-`ripe_probes_full_loss` to `features.py`, so the safety controller is no longer
-pinned by the dead probe. That fixes loss. It doesn't capture single-path RTT
-inflation, which is what this study's per-probe baseline features are for.
+Integration note: `integration/end-to-end` adds `packet_loss_median_pct` and
+`ripe_probes_full_loss` to `features.py`, so the controller is no longer pinned by
+the dead Singapore probe. The per-probe loss quorum and RTT-inflation features here
+are what actually separated the trials from the controls. They're the ones to carry
+into the live feature contract.

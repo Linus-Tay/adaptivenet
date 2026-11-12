@@ -141,3 +141,34 @@ class NativePairedFixtureTest(unittest.TestCase):
         self.assertEqual(set(out["arms"]), {"aws_only", "aws_ripe_path"})
         self.assertIn("mcnemar_exact_p", out["paired"])
         self.assertTrue(out["split"]["test"])
+
+
+class EpisodeStudyFixtureTest(unittest.TestCase):
+    """Wiring only, synthetic data."""
+
+    def test_loss_quorum_detects_external_only_episode(self):
+        from ml.team_starter.ripe_value import episode_study, trial_request_delays
+        rows_raw = []
+        for i in range(300):
+            ts = T0 + i * STEP
+            lossy = 200 <= i < 210
+            for p in (1, 2, 3):
+                rows_raw.append(raw(p, ts, 80.0, rcvd=2 if lossy and p != 3 else 3))
+        idx = ProbeIndex(normalize(rows_raw, "region-b"))
+        values = {f"region-b.{c}": 1.0 for c in AWS_COLUMNS}
+        values.update({"region-b.app_up": 1.0, "region-b.http_error_ratio": 0.0,
+                       "region-b.http_p95_robust_z": 0.0, "region-b.http_p95_ms": 5.0})
+        view = {"values": values, "missing": {k: False for k in values}, "ready_for_shadow_assessment": True}
+        eps = [{"episode_id": "fx-healthy", "label": "healthy", "region": "region-b",
+                "start_unix": T0 + 100 * STEP, "end_unix": T0 + 110 * STEP},
+               {"episode_id": "fx-net", "label": "network_degradation", "region": "region-b",
+                "start_unix": T0 + 200 * STEP, "end_unix": T0 + 210 * STEP}]
+        rows = [{"episode_id": e["episode_id"], "at_unix": e["start_unix"] + k * 60, "views": {"aws_only": view}}
+                for e in eps for k in range(5)]
+        out = episode_study({"rows": rows, "episodes": eps}, idx)
+        self.assertEqual(out["positives"]["aws_ripe_only"], 1)
+        self.assertEqual(out["positives"]["aws_only_only"], 0)
+        self.assertEqual(out["healthy_false_alarm_episodes"]["aws_ripe"], 0)
+        delays = trial_request_delays([{"run_id": "fx", "region": "region-b", "duration_seconds": 2400,
+            "requested_utc": "2027-01-15T08:00:00+00:00"}], idx)
+        self.assertEqual(len(delays), 1)
