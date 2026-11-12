@@ -87,7 +87,49 @@ The RIPE value study (PR #23) independently confirms the confound: AWS-only retr
 The review request, with the checks the reviewer must make, is kept with the private evidence at
 `adaptivenet-evidence/reviews/healthy-control-nov10-pm-REVIEW-REQUEST.json`.
 
-## 5. Reproduce
+## 5. Update: the Nov 10 afternoon reviewed as healthy (2026-11-12)
+
+MY reviewed **2026-11-10 13:45–17:55 UTC** as a healthy control. The SSM command history (checked
+read-only in both regions) shows no command in the window: the last us-east-1 command was the 13:26
+rollback check (`FAULT_RULES_CLEARED`), and the last ap-southeast-1 command was on Nov 9 at 18:56.
+The short RIPE blip around 16:27 was kept in the window, so any alert there counts as a false alarm.
+That gives 16 reviewed episodes and 476 rows, with 4.17 h of held-out healthy exposure. This is the
+first **real** false-alarm denominator. The window is the latest run, so both splits test on it.
+
+**Global chronological split** (test = the last 3 network trials plus the healthy window; train has no
+network runs at all, so the trained arms cannot detect network degradation):
+
+| Arm | Network recall | False alarms/day (95% CI) | Healthy rows in alert |
+|---|---:|---:|---:|
+| AWS only | 0.00 (0 of 3 incidents) | 23 (6–59) | 1.6% |
+| AWS + RIPE | 0.00 | 5.8 (0.1–32) | 1.6% |
+| AWS + RIPE + HTTP | 0.00 | 29 (9–67) | 4.5% |
+| Fixed rule, AWS + RIPE | 0.68 (2 of 3 incidents, median 41 s) | 1 onset, then never clears | 100% |
+
+The fixed RIPE rule (loss ≥ 20%) is **permanently in alert**, because Singapore probe 1010367
+reports 25–33% loss at all times. Counting alarm onsets understates this, which is why the audit now
+also reports the share of judged healthy rows in alert.
+
+**Class-stratified split** (test = the latest app failure, the latest network trial and the healthy
+window):
+
+| Arm | Macro F1 | Incidents detected | False alarms/day (95% CI) | Healthy rows in alert |
+|---|---:|---:|---:|---:|
+| AWS only | 0.10 | 2 of 2 | 92 (53–150) | 97% |
+| AWS + RIPE | 0.16 | 2 of 2 | 150 (98–219) | 92% |
+| AWS + RIPE + HTTP | 0.54 | 2 of 2 | 58 (28–106) | 53% |
+
+The perfect scores in section 3 do **not** survive a real healthy control. Trained on Nov 9 healthy
+data, every arm treats most of a quiet Nov 10 afternoon as an incident. The HTTP arm is affected
+least. Status is still `indicative_only`, because 4.17 h is below the 6 h threshold.
+
+**Conclusion:** the native classifiers are not yet usable detectors. Their false-alarm rate is
+dominated by between-day drift (host memory, a chronically lossy RIPE probe), not by faults. The
+fixes are in the data, not the model: record healthy controls on the same days as fault runs, drop
+or baseline-normalise host-drift columns (the RIPE study, PR #23, finds that AWS-only without host
+columns raises 0 alerts in this window), and use per-probe baselines for RIPE loss.
+
+## 6. Reproduce
 
 ```bash
 python -m pip install -e '.[ml]'
@@ -105,8 +147,8 @@ python -m ml.team_starter.offline_cli replay --models models/*.pkl \
 Model IDs from this run: `logreg-aws_only-e053dc49d57c4e3f`, `logreg-aws_ripe-7841c8bd039d87ba`,
 `logreg-aws_ripe_http-4c89b96a51612734` (scikit-learn 1.9.1).
 
-## 6. Still required
+## 7. Still required
 
-- A human review of the Nov 10 afternoon window, plus new passive healthy controls on the **same days** as fault runs, so that date cannot separate the classes.
+- More passive healthy controls (≥6 h held out) on the **same days** as fault runs, so that date cannot separate the classes.
 - Fault runs interleaved with healthy controls in time (not class blocks), so the stronger chronological split can be used.
 - `transient` / `recovery` phases labeled inside their incident runs, and `partial_outage` from multi-probe RIPE evidence.

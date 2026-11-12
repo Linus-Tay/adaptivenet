@@ -179,8 +179,14 @@ def audit(manifest: dict, dataset: dict | None = None, predictions: dict | None 
             missing_preds = sum(_key(r) not in preds for r in rows)
             alarms = sum(_alarm_transitions(rows, preds).values())
             fa = false_alarm_rate(alarms, exposure)
+            judged = [preds[_key(r)] for r in rows if _key(r) in preds and preds[_key(r)] is not None]
+            # Transitions undercount a detector that stays in alert all day;
+            # report the share of non-abstained healthy rows that were alerts too.
+            alert_share = (sum(p != "healthy" for p in judged) / len(judged)) if judged else None
             fa.update(healthy_test_episodes=len(healthy_test), healthy_test_rows=len(rows),
-                      rows_without_prediction=missing_preds)
+                      rows_without_prediction=missing_preds,
+                      healthy_rows_abstained=sum(_key(r) in preds and preds[_key(r)] is None for r in rows),
+                      share_of_judged_healthy_rows_in_alert=alert_share)
             if missing_preds:
                 fa["status"] = "incomplete_predictions"
     if fa["per_day"] is None and fa["status"] == "not_estimable":

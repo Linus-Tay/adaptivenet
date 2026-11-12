@@ -84,6 +84,8 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(fa["false_alarms"], 2)
         self.assertAlmostEqual(fa["per_day"], 48.0)
         self.assertEqual(fa["status"], "indicative_only")
+        self.assertEqual(fa["healthy_rows_abstained"], 1)
+        self.assertAlmostEqual(fa["share_of_judged_healthy_rows_in_alert"], 3 / 5)
 
     def test_missing_predictions_are_reported_not_assumed_healthy(self):
         blocks = [["healthy", "network_degradation"]] * 5
