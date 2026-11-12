@@ -1,0 +1,101 @@
+# AdaptiveNet one-command LOCAL demo (live lab). No AWS credentials, no AWS calls.
+#   demo/run.sh up        # or: docker compose -f demo/compose.yaml --env-file demo/.env.demo up --build
+# All ports bind to 127.0.0.1. The real pipeline (compose.telemetry.yaml) and the
+# original lab (compose.yaml) are untouched and can be used separately.
+name: adaptivenet-demo
+
+x-image: &image
+  build:
+    context: ..
+    dockerfile: demo/Dockerfile
+  image: adaptivenet-demo:local
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  restart: unless-stopped
+
+x-env: &env
+  LAB_TOKEN: "${LAB_TOKEN:?run demo/run.sh up, or set LAB_TOKEN}"
+  DEMO_DATA_DIR: /app/data
+  REGION_A_URL: http://origin-sg:8000
+  REGION_B_URL: http://origin-us:8000
+  GATEWAY_URL: http://gateway:8000
+  EDGE_URL: http://edge:8000
+  ML_URL: http://ml:8000
+
+x-data: &data
+  - "${DEMO_DATA_HOST:-../data/demo-live}:/app/data"
+
+services:
+  origin-sg:
+    <<: *image
+    command: ["uvicorn", "demo.lab.origin:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: {<<: *env, REGION: region-a}
+    ports: ["127.0.0.1:8181:8000"]
+  origin-us:
+    <<: *image
+    command: ["uvicorn", "demo.lab.origin:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: {<<: *env, REGION: region-b}
+    ports: ["127.0.0.1:8182:8000"]
+  gateway:   # existing local route simulator; the only thing the controller may change
+    <<: *image
+    command: ["uvicorn", "adaptivenet.gateway:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: *env
+    ports: ["127.0.0.1:8180:8000"]
+    depends_on: [origin-sg, origin-us]
+  edge:      # emulated external path (where latency/loss faults are injected)
+    <<: *image
+    command: ["uvicorn", "demo.lab.edge:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: *env
+    ports: ["127.0.0.1:8191:8000"]
+    depends_on: [gateway]
+  users:
+    <<: *image
+    command: ["python", "-m", "demo.lab.traffic"]
+    environment: {<<: *env, USER_RPS: "2"}
+    depends_on: [edge]
+  collector:
+    <<: *image
+    command: ["python", "-m", "demo.lab.collector"]
+    environment:
+      <<: *env
+      WITNESS_INTERVAL_SEC: "5"
+      INTERNAL_INTERVAL_SEC: "15"
+      EXTERNAL_INTERVAL_SEC: "${EXTERNAL_INTERVAL_SEC:-30}"
+    volumes: *data
+    depends_on: [edge]
+  feature-worker:
+    <<: *image
+    command: ["python", "-m", "demo.lab.worker"]
+    environment: *env
+    volumes: *data
+  ml:
+    <<: *image
+    command: ["uvicorn", "demo.lab.ml_service:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      <<: *env
+      # Optional trusted local artifacts (never downloaded): see DEMO.md.
+      ADAPTIVENET_SHADOW_MODEL: "${ADAPTIVENET_SHADOW_MODEL:-}"
+      DEMO_MODELS_DIR: "${DEMO_MODELS_DIR:-}"
+    volumes:
+      - "${DEMO_DATA_HOST:-../data/demo-live}:/app/data"
+      - "${DEMO_MODELS_HOST:-../data/demo-models}:/app/models:ro"
+    ports: ["127.0.0.1:8192:8000"]
+  controller:
+    <<: *image
+    command: ["python", "-m", "demo.lab.controller"]
+    # Shares the gateway's network namespace: the route adapter accepts loopback only.
+    network_mode: "service:gateway"
+    environment:
+      <<: *env
+      GATEWAY_URL: http://127.0.0.1:8000
+      DEMO_CONTROLLER_MODE: "${DEMO_CONTROLLER_MODE:-local}"
+      DEMO_DECISION_GROUP: "${DEMO_DECISION_GROUP:-aws_ripe_http}"
+    volumes: *data
+    depends_on: [gateway, ml]
+  view:
+    <<: *image
+    command: ["uvicorn", "demo.lab.view:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: {<<: *env, DEMO_MODE: live_lab}
+    volumes: *data
+    ports: ["127.0.0.1:8190:8000"]
+    depends_on: [ml]
