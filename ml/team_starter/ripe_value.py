@@ -474,6 +474,93 @@ def trial_request_delays(trials: list[dict], index: ProbeIndex) -> list[dict]:
     return out
 
 
+# ------------------------------------------------------- pre-registered campaign
+def campaign_eval(slots: list[dict], amp_rows: dict[str, list[dict]], index: ProbeIndex) -> dict:
+    """Evaluate the pre-registered campaign (docs/ml/RIPE_TRIALS_PROTOCOL.md).
+
+    `slots`: one dict per executed slot with region, control_region, request_unix,
+    duration_seconds, control_start_unix, control_end_unix and `effect_confirmed`
+    (SSM output shows rollback armed AND rules added; this is NOT derived from RIPE).
+    Positives are impaired windows; negatives are same-time windows in the other
+    region. AWS-only uses AMP history only; AWS+RIPE = AWS-only OR frozen RIPE rule.
+    """
+    def aws_alerts(region: str, a: float, b: float, impaired: list[tuple[float, float]]):
+        rows = amp_rows.get(region, [])
+        hist = [r.get("http_p95_ms") for r in rows if a - BASELINE_SECONDS <= r["ts"] < a
+                and not any(x <= r["ts"] <= y for x, y in impaired)]
+        first, votes = None, []
+        for r in rows:
+            if not a <= r["ts"] <= b:
+                continue
+            values = {f"{region}.{k}": v for k, v in r.items() if k not in ("ts", "region")}
+            v = aws_view_alert(values, True, region, hist)
+            votes.append(v)
+            if v and first is None:
+                first = r["ts"]
+        return first, votes
+
+    def ripe_first(region: str, a: float, b: float):
+        stamps = sorted({s["ts"] for p in index.probes(region) for s in index.series[(region, p)] if a <= s["ts"] <= b})
+        return next((t for t in stamps if ripe_path_alert(path_features(index, region, t))), None), len(stamps)
+
+    impaired = defaultdict(list)
+    for s in slots:
+        if s.get("effect_confirmed"):
+            impaired[s["region"]].append((s["request_unix"], s["request_unix"] + s["duration_seconds"]))
+    pos, neg = [], []
+    for s in slots:
+        if not s.get("effect_confirmed"):
+            continue
+        for kind, region, a, b in (("impaired", s["region"], s["request_unix"], s["request_unix"] + s["duration_seconds"]),
+                                   ("control", s["control_region"], s["control_start_unix"], s["control_end_unix"])):
+            fa, votes = aws_alerts(region, a, b, impaired[region])
+            fr, n = ripe_first(region, a, b)
+            both = min([t for t in (fa, fr) if t is not None], default=None)
+            e = {"slot": s["slot"], "kind": kind, "region": region, "loss_percent": s.get("loss_percent"),
+                 "start_utc": iso(a), "aws_rows": len(votes), "ripe_rounds": n,
+                 "evaluable": bool(votes) or n > 0,
+                 "aws_only_detected": fa is not None, "aws_ripe_detected": both is not None,
+                 "aws_only_delay_s": fa - a if fa is not None else None,
+                 "aws_ripe_delay_s": both - a if both is not None else None}
+            (pos if kind == "impaired" else neg).append(e)
+    ev_neg = [e for e in neg if e["evaluable"]]
+    by_loss = defaultdict(lambda: [0, 0, 0])
+    for e in pos:
+        if e["evaluable"]:
+            by_loss[e["loss_percent"]][0] += 1
+            by_loss[e["loss_percent"]][1] += e["aws_only_detected"]
+            by_loss[e["loss_percent"]][2] += e["aws_ripe_detected"]
+    return {"report_version": "adaptivenet.ripe_campaign_eval.v1", "positives": pos, "controls": neg,
+            "paired_positives": paired_summary(pos),
+            "controls_false_alarms": {"evaluable": len(ev_neg),
+                                      "aws_only": sum(e["aws_only_detected"] for e in ev_neg),
+                                      "aws_ripe": sum(e["aws_ripe_detected"] for e in ev_neg)},
+            "detection_by_loss_percent": {str(k): {"trials": v[0], "aws_only": v[1], "aws_ripe": v[2]}
+                                          for k, v in sorted(by_loss.items())},
+            "excluded_unconfirmed_slots": [s["slot"] for s in slots if not s.get("effect_confirmed")]}
+
+
+def campaign_slots(plan: dict, log_rows: list[dict], trial_dir: Path) -> list[dict]:
+    """Join plan + campaign log + guarded trial records (SSM check outcome)."""
+    planned = {s["slot"]: s for s in plan["slots"]}
+    out = []
+    for row in log_rows:
+        if row.get("status") != "submitted" or not row.get("trial_record"):
+            continue
+        rec_path = Path(row["trial_record"])
+        if not rec_path.is_absolute():
+            rec_path = trial_dir / rec_path.name
+        rec = json.loads(rec_path.read_text(encoding="utf-8"))
+        p = planned[row["slot"]]
+        req = datetime.fromisoformat(rec["requested_utc"]).timestamp()
+        out.append({"slot": row["slot"], "region": rec["region"], "control_region": p["control_region"],
+                    "loss_percent": rec["configured_packet_loss_percent"], "request_unix": req,
+                    "duration_seconds": rec["duration_seconds"],
+                    "control_start_unix": req + 240, "control_end_unix": req + rec["duration_seconds"],
+                    "effect_confirmed": bool(rec.get("remote_rollback_armed_and_rules_added"))})
+    return out
+
+
 # ------------------------------------------------------------------- native arm
 def augment_dataset(dataset: dict, index: ProbeIndex) -> dict:
     """Add an `aws_ripe_path` view: AWS-only columns + as-of per-probe path features.
@@ -574,6 +661,8 @@ def main(argv=None) -> int:
     s.add_argument("--labels", type=Path)
     s.add_argument("--reviews", type=Path)
     s.add_argument("--trials-dir", type=Path, help="authorized-network-trials/*.json (request log)")
+    s.add_argument("--campaign-dir", type=Path, help="ripe-campaign dir: campaign-log.jsonl, trials/, amp-*.jsonl")
+    s.add_argument("--campaign-plan", type=Path)
     s.add_argument("--out", type=Path, default=Path("data/ml-results/native/ripe-value"))
     args = ap.parse_args(argv)
     if args.cmd == "fetch":
@@ -604,6 +693,16 @@ def main(argv=None) -> int:
     if args.trials_dir:
         trials = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(args.trials_dir.glob("*.json"))]
         report["trial_request_delays"] = trial_request_delays(trials, index)
+    if args.campaign_dir and args.campaign_plan:
+        plan = json.loads(args.campaign_plan.read_text(encoding="utf-8"))
+        log_rows = _read_jsonl(args.campaign_dir / "campaign-log.jsonl")
+        slots = campaign_slots(plan, log_rows, args.campaign_dir / "trials")
+        amp = {r: _read_jsonl(args.campaign_dir / f"amp-{r}.jsonl") for r in REGIONS
+               if (args.campaign_dir / f"amp-{r}.jsonl").exists()}
+        report["campaign"] = campaign_eval(slots, amp, index)
+        report["status"] = "campaign_evaluated"
+        print("campaign", json.dumps(report["campaign"]["paired_positives"]),
+              json.dumps(report["campaign"]["controls_false_alarms"]))
     if args.dataset and args.labels and args.reviews:
         load = lambda p: json.loads(p.read_text(encoding="utf-8-sig"))
         report["native"] = native_paired(load(args.dataset), load(args.labels), load(args.reviews), index)

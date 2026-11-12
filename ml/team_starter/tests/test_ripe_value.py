@@ -172,3 +172,47 @@ class EpisodeStudyFixtureTest(unittest.TestCase):
         delays = trial_request_delays([{"run_id": "fx", "region": "region-b", "duration_seconds": 2400,
             "requested_utc": "2027-01-15T08:00:00+00:00"}], idx)
         self.assertEqual(len(delays), 1)
+
+
+class CampaignFixtureTest(unittest.TestCase):
+    """Wiring only, synthetic data."""
+
+    def test_campaign_eval_positive_and_control(self):
+        from ml.team_starter.ripe_value import campaign_eval
+        raw_a, raw_b = [], []
+        for i in range(300):
+            ts = T0 + i * STEP
+            lossy = 200 <= i < 204
+            for p in (1, 2, 3):
+                raw_b.append(raw(p, ts, 80.0, rcvd=2 if lossy and p != 3 else 3))
+                raw_a.append(raw(p, ts, 150.0))
+        idx = ProbeIndex(normalize(raw_a, "region-a") + normalize(raw_b, "region-b"))
+        amp = {r: [{"ts": T0 + k * 30, "region": r, "app_up": 1.0, "http_5xx_rps": 0.0, "http_rps": .07,
+                    "http_error_ratio": 0.0, "http_p95_ms": 4.75} for k in range(300 * STEP // 30)]
+               for r in ("region-a", "region-b")}
+        req = T0 + 200 * STEP - 10
+        slots = [{"slot": 0, "region": "region-b", "control_region": "region-a", "loss_percent": 25,
+                  "request_unix": req, "duration_seconds": 960, "control_start_unix": req + 240,
+                  "control_end_unix": req + 960, "effect_confirmed": True},
+                 {"slot": 1, "region": "region-a", "control_region": "region-b", "loss_percent": 10,
+                  "request_unix": req + 3000, "duration_seconds": 960, "control_start_unix": req + 3240,
+                  "control_end_unix": req + 3960, "effect_confirmed": False}]
+        out = campaign_eval(slots, amp, idx)
+        self.assertEqual(out["paired_positives"]["aws_ripe_only"], 1)
+        self.assertEqual(out["controls_false_alarms"]["aws_ripe"], 0)
+        self.assertEqual(out["excluded_unconfirmed_slots"], [1])
+
+    def test_campaign_plan_is_seeded_and_non_overlapping(self):
+        import importlib.util, pathlib
+        from datetime import datetime, timezone
+        spec = importlib.util.spec_from_file_location(
+            "camp", pathlib.Path(__file__).resolve().parents[3] / "scripts" / "ripe_trial_campaign.py")
+        camp = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(camp)
+        start = datetime(2027, 1, 1, tzinfo=timezone.utc)
+        p1 = camp.plan(7, start, 10, {"region-a": 1, "region-b": 2})
+        self.assertEqual(p1["slots"], camp.plan(7, start, 10, {"region-a": 1, "region-b": 2})["slots"])
+        self.assertEqual(len(p1["slots"]), 20)
+        self.assertEqual(sum(s["region"] == "region-a" for s in p1["slots"]), 10)
+        ts = [datetime.fromisoformat(s["planned_start_utc"]).timestamp() for s in p1["slots"]]
+        self.assertTrue(all(b - a >= 960 + 300 for a, b in zip(ts, ts[1:])))
