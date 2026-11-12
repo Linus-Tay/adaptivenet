@@ -45,6 +45,10 @@ python -m ml.team_starter.archive \
 
 The helper reads the live SQLite database read-only, preserves all currently available snapshots and HTTP witness rows, and deduplicates on repeat runs. It writes only to ignored data/ml-archive; labels remain unset. Run frequently (for example every ten minutes during testing), before the 512-KiB HTTP journal rotates or SQLite prunes after seven days. It is **manual**, not a continuously running lossless recorder: events already rotated away cannot be recovered. A durable continuous archive needs separate implementation and validation.
 
+## Six-class coverage and false-alarm audit
+
+See [COVERAGE_AND_HEALTHY_CONTROLS.md](COVERAGE_AND_HEALTHY_CONTROLS.md): `python -m ml.team_starter.coverage_audit --labels <verified.json>` reports which classes have enough verified runs per split and whether false alarms per day can be estimated, and lists the evidence still missing.
+
 ## Ownership and next milestones
 
 Telemetry owner: keep AWS sources, SQS/outbox, feature contracts, origin monitoring and dashboards stable.
