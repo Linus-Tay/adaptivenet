@@ -262,8 +262,28 @@
         "2026-11-12T16:52:04+00:00"
       ],
       "ripe_measurement_id": 236682051
+    },
+    {
+      "slot": 20,
+      "region": "region-b",
+      "control_region": "region-a",
+      "planned_start_utc": "2026-11-12T17:01:04+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 35,
+      "control_window_utc": [
+        "2026-11-12T17:05:04+00:00",
+        "2026-11-12T17:17:04+00:00"
+      ],
+      "ripe_measurement_id": 236682051,
+      "makeup_for_slot": 0
     }
   ],
   "frozen_analysis": "docs/ml/RIPE_TRIALS_PROTOCOL.md",
-  "stop_file": "/Users/my/Project/adaptivenet-ripe-campaign/STOP"
+  "stop_file": "/Users/my/Project/adaptivenet-ripe-campaign/STOP",
+  "deviations": [
+    {
+      "utc": "2026-11-12T08:51:11.980967+00:00",
+      "note": "Slot 0 (region-b, 35%) never reached AWS: the AWS CLI SSO refresh hung on a black-holed IPv6 route and the trial script timed out before any write. Fixed by an IPv4-only credential_process plus a short CLI connect timeout. Make-up slot 20 has the same region and loss level, appended after slot 19. No analysis rule changed."
+    }
+  ]
 }
