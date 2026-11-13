@@ -93,7 +93,7 @@ What to try:
 4. After 3 confidence windows plus 3 controller probes (about 90 s in our run), the gateway moves Singapore's traffic share from 100% to 75%. A longer fault takes further 25-point steps.
 5. When the fault ends and Singapore stays clean, traffic returns to 100% Singapore (failback; about 100 s after the fault ended in our run).
 
-What we saw on 13 Nov 2026 with a 120 s, +1.5 s latency fault: AWS-only stayed healthy the whole time; AWS+RIPE+HTTP flagged region-a after about 15 s; the gateway went 100→75 at about 93 s; and failback brought it back to 100 about 100 s after the fault ended.
+What we saw on 13 Nov 2026 with a 120 s, +1.5 s latency fault: AWS-only stayed healthy the whole time; AWS+RIPE+HTTP flagged region-a after about 15 s; the gateway went 100→75 at about 93 s (about 65 s in a second run); and failback brought it back to 100 about 100 s after the fault ended.
 
 The same faults from the command line:
 

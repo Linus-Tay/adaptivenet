@@ -52,8 +52,10 @@ Evidence: `data/live-failover-20261113/` (`http_witness.jsonl`, `ssm-invocation.
 * Kubernetes' own HPA scaled 2 to 4 pods in about 30 s. The HPA minimum and maximum were never changed,
   and the run ended at 2/6 with 2 pods.
 * The AdaptiveNet controller did not request capacity. Its rule needs 3 consecutive fresh metric readings
-  with CPU at or above target, and it got only one (`qualifying` 1 at 04:21:48) before the HPA had already
-  brought CPU under 60%. The test script reports `no_controller_action_qualified`, which is the expected
+  with CPU at or above target. CPU was at or above 60% in five readings in a row (81, 97, 73, 73 and 67%),
+  but in the first four the newly started pods had no metrics timestamp yet, so the controller discarded
+  them as `compute_evidence_missing_or_stale`. Only one reading had complete, fresh pod metrics
+  (`qualifying` 1 at 04:21:48), and by the next reading the HPA had already brought CPU under 60%. The test script reports `no_controller_action_qualified`, which is the expected
   safe outcome when the native HPA keeps up.
 * Cleanup note: the script's own Job delete failed (`kubectl_connection_or_permission_failed`). The Job had
   already completed. It was deleted manually with kubectl at about 04:23, and the Job TTL would have removed it anyway.

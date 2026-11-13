@@ -15,7 +15,7 @@ This page brings together every experiment run for AdaptiveNet, with the main nu
 | 5 | Live CloudFront failover check | 13 Nov | **108/108 HTTP 200**; all 27 requests during the stop served by Virginia | Done, single run |
 | 6 | Earlier ML studies | Oct–12 Nov | 85.7% accuracy on 118 rows; 50% recall tie from a memory confound; **58–150 false alarms/day** | Superseded by #7 |
 | 7 | ML same-day retrain (shadow) | 12–13 Nov | Best model **16–17/20** at **~14 false alarms/day** (95% CI 4.6–33); AWS-only ML without host features 0/20 (anomaly) or 2/20 (supervised) | Done, shadow-only |
-| 8 | Confidence rules, lab runs | 13 Nov | Latency fault: detected in ~15 s, 100→75 at ~93 s, failback to SG. Application-error fault: confident in ~30 s, **blocked by the safety reviewer** | Done, design question open |
+| 8 | Confidence rules, lab runs | 13 Nov | Latency fault: detected in ~11–15 s, 100→75 at ~65–93 s (two runs), failback to SG. Application-error fault: confident in ~30 s, **blocked by the safety reviewer** | Done, design question open |
 | 9 | Local Docker demo | 12 Nov | 700 ms SG latency: AWS-only healthy, AWS+RIPE flags in ~20 s, 4 steps to Virginia | Demonstration, not evidence |
 | 10 | Test suite | 13 Nov | **472/472** pass on the submission branch | Done |
 | 11 | Live EKS scale test (SG) | 13 Nov | CPU 2% → 97% peak; HPA scaled pods **2→3 about 40 s after load start, →4 about 30 s later**; controller held; 0 of 10,762 requests failed | Done, single run |
@@ -33,7 +33,7 @@ This page brings together every experiment run for AdaptiveNet, with the main nu
 
 ## 2. 20-trial pre-registered RIPE campaign (12 Nov, 15:22–23:57 UTC)
 
-**Design.** The protocol and both detection rules were committed before the first trial. There were 20 slots (10 per region), drawn from a seeded plan that randomised region order, start time and loss level from {10, 15, 20, 25, 30, 35}%. Each trial used SSM to install iptables rules that dropped ICMP echo replies and HTTP responses at the origin for 960 s, with an automatic rollback armed first. Ground truth came only from the SSM confirmation, not from RIPE. The untouched region served as a same-time healthy control. There were four RIPE probes per region, measuring every 240 s. Slot 1 (Singapore 25%) was refused on the instance and never ran; a make-up slot 20 with the same settings ran at the end, so 20 trials were scored.
+**Design.** The protocol and both detection rules were committed before the first trial. There were 20 slots (10 per region), drawn from a seeded plan that randomised region order, start time and loss level from {10, 15, 20, 25, 30, 35}%. Each trial used SSM to install iptables rules that dropped ICMP echo replies and HTTP responses at the origin for 960 s, with an automatic rollback armed first. Ground truth came only from the SSM confirmation, not from RIPE. The untouched region served as a same-time healthy control. The same four RIPE probes measured both regions every 240 s; one of them (probe 1010367) received no replies from Singapore during the campaign, so only three reached Singapore. Slot 1 (Singapore 25%) was refused on the instance and never ran; a make-up slot 20 with the same settings ran at the end, so 20 trials were scored.
 
 **Results.**
 
@@ -60,7 +60,7 @@ AWS+RIPE detected all 8 trials at 30–35% loss, but only 5 of 12 at 10–25%.
 Details: `docs/ml/RIPE_CAMPAIGN_RESULTS.md`.
 
 **Limitations.**
-- 20 trials in nine hours, on one day, with one fault type (packet loss) and four probes per region. The 65% confidence interval is wide (41–85%).
+- 20 trials in nine hours, on one day, with one fault type (packet loss) and four probes, three of which reached Singapore. The 65% confidence interval is wide (41–85%).
 - Light loss (10–25%) is often missed, because each probe loses few packets in one 240 s round.
 - Detection is slow (median 459 s, almost 8 minutes), so it is not suited to fast failover on its own.
 - On the 10 November healthy window, the RTT branch of the primary rule produced about 14 alarm onsets per day from single-path RTT inflation, although none occurred in the campaign controls. A loss-only variant gave 1 onset. RTT alerts need a multi-path quorum before operational use.
@@ -119,7 +119,7 @@ Details: `docs/ml/RIPE_CAMPAIGN_RESULTS.md`.
 ## 7. ML same-day retrain (shadow mode)
 
 - The models were retrained on campaign-day data. The train/test split was committed before scoring, and the healthy hours used to count false alarms were held out of training.
-- The best model (an anomaly detector on AWS+RIPE features) detected 16–17 of the 20 trials at about 14 false alarms per day (95% CI 4.6–33 per day, over 8.4 h of unseen healthy time), down from 58–150.
+- The best model (an anomaly detector on AWS+RIPE features) detected 16–17 of the 20 trials at about 14 false alarms per region per day (95% CI 4.6–33, over 8.4 region-hours of unseen healthy time, about 4.2 h of clock time; about 28 a day for both regions together), down from 58–150.
 - With the host memory and CPU features removed, the AWS-only models detected 0 of 20 (anomaly) and 2 of 20 (supervised), which confirms that their earlier detections came mostly from host drift.
 - **Decision:** the frozen rule (13/20, with no false alarms in the same hours) remains the alerting mechanism, and the ML models remain in shadow mode. Further gains would need fresh, pre-registered data.
 - Details: `docs/ml/CAMPAIGN_SAME_DAY_ML.md`.
@@ -131,7 +131,7 @@ Details: `docs/ml/RIPE_CAMPAIGN_RESULTS.md`.
 **Rules.** Failover needs 2 of 3 views (AWS, RIPE, HTTP) for 3 consecutive checks, with the other region clean and no reversal within 2 min. Failback happens after 2 min clean and 2 min since the last step. Scale-out needs CPU ≥80% for 3 consecutive checks with the application running. Scale-in is a recommendation only, at ≤30% for 5 min, and never goes below the initial size. Traffic moves in 25-point steps. ML is not used.
 
 **Lab results.**
-- **Latency fault on Singapore:** the AWS-only view stayed healthy, AWS+RIPE+HTTP detected the fault in about 15 s, traffic moved from 100% to 75% at about 93 s, and it returned to Singapore after sustained recovery.
+- **Latency fault on Singapore:** the AWS-only view stayed healthy, AWS+RIPE+HTTP detected the fault in about 15 s, traffic moved from 100% to 75% at about 65–93 s across two runs, and it returned to Singapore after sustained recovery.
 - **Application-error fault (100% gateway errors):** the rules reached a confident decision in about 30 s, but the safety reviewer blocked the move because no RIPE RTT was available.
 
 Details: `docs/END_TO_END.md`.
@@ -140,7 +140,7 @@ Details: `docs/END_TO_END.md`.
 
 ## 9. Local Docker demo
 
-- 10 containers on a laptop, reusing the production ingestion, review and controller code, with a directory queue in place of SQS.
+- 13 containers on a laptop (the stack `demo/run.sh lab-up` starts), reusing the production ingestion, review and controller code, with a directory queue in place of SQS.
 - With no fault, all views were healthy and the controller held. With 700 ms on the Singapore external path, AWS-only stayed healthy, AWS+RIPE flagged Singapore in about 20 s, and all traffic moved to Virginia in 4 verified steps.
 
 **Limitations.** This is a demonstration of function with simulated faults, not evaluation evidence.
@@ -155,7 +155,7 @@ Details: `docs/END_TO_END.md`.
 
 - A load test sent 10,762 requests over 90 s, and none failed. CPU went from 2% to 81–97% (peak 97%).
 - The Kubernetes HPA scaled the pods 2 → 3 at about 04:20:57Z (about 40 s after the load started at 04:20:16Z) and 3 → 4 at about 04:21:25Z (about 30 s later).
-- The AdaptiveNet controller held. Its SafetyController needs 3 consecutive fresh readings with CPU at or above the 60% HPA target; it got only one before the HPA had already brought CPU back under 60%. (The 80% confidence rule from #8 runs in the lab controller only and was not part of this test.)
+- The AdaptiveNet controller held. Its SafetyController needs 3 consecutive fresh readings with CPU at or above the 60% HPA target; CPU was at or above 60% in five readings in a row, but the new pods had no metrics timestamp yet in four of them, so only one reading had complete, fresh pod metrics before the HPA brought CPU back under 60%. (The 80% confidence rule from #8 runs in the lab controller only and was not part of this test.)
 - Cleanup passed: by 04:27:23Z the HPA was back at 2/6, with 2 pods at 2% CPU.
 - Details: `docs/LIVE_TESTS_20261113.md`.
 

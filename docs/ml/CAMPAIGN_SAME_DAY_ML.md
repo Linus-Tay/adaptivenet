@@ -71,7 +71,7 @@ was 296 s, against 471 s for the frozen rule on the same rows.
    8.4 h is short.
 2. **It's still worse than the frozen rule on false alarms.** The rule raised 0 in the
    same 8.4 h. The ML catches 3–4 more trials (mostly at 10–25% loss) and alerts about
-   3 min sooner, but at roughly 14 false alarms a day. Not a good trade for a pager.
+   3 min sooner, but at roughly 14 false alarms a day per region (the 8.43 healthy hours are summed over both regions, about 4.2 h of clock time). Not a good trade for a pager.
 3. **The AWS-only "detections" are not real.** Supervised AWS-only scores 19/20, but it
    drops to 2/20 once memory/CPU/load are removed, and it raises 236 false alarms a day.
    The app metrics are flat during trials, so the model is picking up small host
@@ -82,7 +82,7 @@ was 296 s, against 471 s for the frozen rule on the same rows.
 
 ## Caveats
 
-* One evening, one kind of fault (random drop), 4 probes per region, 8.4 h of healthy
+* One evening, one kind of fault (random drop), 4 probes (3 of which reached Singapore), 8.4 region-hours of healthy
   time. The false-alarm CIs are wide.
 * Healthy rows sit between trials, so they're close in time to impairments. That
   suits same-day training, but it's not a quiet day.

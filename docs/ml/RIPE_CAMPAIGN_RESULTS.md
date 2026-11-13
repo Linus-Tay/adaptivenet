@@ -75,7 +75,7 @@ count.
 Caveats to keep with the claim:
 * Controlled impairment of one kind (random drop of ICMP echo-replies and port-80
   responses).
-* 4 probes per region.
+* The same 4 probes measured both regions; probe 1010367 got no replies from Singapore, so 3 probes reached Singapore.
 * Same-time controls cover 8-minute windows; the false-alarm rate per day comes
   from the approved Nov 10 healthy window (`RIPE_VALUE_STUDY.md`). There, the
   loss-only rule raised about 3 alarm onsets a day and the RTT trigger far more.

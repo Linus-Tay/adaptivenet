@@ -73,7 +73,7 @@ A **window** is one new feature snapshot (every 10–15 s in the lab, where the 
 In each window three independent signals vote on each region: **AWS** (app down, error ratio >= 20% or
 p95 >= 800 ms), **RIPE** (median probe loss >= 20%, p50 RTT >= 400 ms or every probe unreachable; needs
 3+ fresh probes) and **HTTP** (the controller's own client request failed, was served by the wrong region
-or missed the 2 s deadline). Stale or missing data votes *unknown*, never good.
+or missed the 500 ms deadline; the request itself times out at 2 s). Stale or missing data votes *unknown*, never good.
 
 **Post-campaign rule (`ripe_loss_only_v1`, added 13 Nov 2026).** When every RIPE probe is lost
 there is no RTT, ingestion marks RIPE quality `loss_only`, and `network_health` above returns unknown.

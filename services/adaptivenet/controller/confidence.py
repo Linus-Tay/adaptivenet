@@ -19,7 +19,8 @@ Three independent **signals** vote on each region in each window:
   post-campaign rule: it does not change ``end_to_end.network_health`` or the
   frozen campaign detector in ``ml/team_starter/ripe_value.py``.
 * ``http`` the controller's own client request: failed, served by the wrong
-  region, or missed the 2 s deadline
+  region, or missed the 500 ms deadline (``recovery.DEADLINE_SEC``; the
+  request itself times out at 2 s)
 
 A vote is ``bad``, ``good`` or ``unknown`` (stale or missing data). Unknown
 never counts as good or bad.
