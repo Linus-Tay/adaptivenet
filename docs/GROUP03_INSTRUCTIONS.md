@@ -240,7 +240,7 @@ In our run the full cycle (fault, two traffic steps, failback to 100%) took abou
 1. Press **Reset demo** and wait about 30 seconds.
 2. Press **Inject HTTP 503** (Singapore, 120 s).
 
-**Expected:** within about a minute, **AWS + RIPE Atlas** and **AWS + RIPE + HTTP** show **Network degradation** for Singapore, while **AWS only** stays **Healthy**. In this lab the 503 errors are injected on the gateway path that outside users take, so the servers' own metrics stay clean. Every probe to Singapore loses every packet here, so RIPE has loss but no RTT; the safety reviewer accepts that for the region traffic leaves. The pipeline row then shows Safety review **Approved: move traffic**, and the traffic bar moves to **75% Singapore · 25% Virginia** after about 45 s and to **50% · 50%** after about 85 s (our run on 13 Nov). After the fault ends, traffic returns to 100% Singapore within a few minutes.
+**Expected:** within about a minute, **AWS + RIPE Atlas** and **AWS + RIPE + HTTP** show **Network degradation** for Singapore, while **AWS only** stays **Healthy**. In this lab the 503 errors are injected on the gateway path that outside users take, so the servers' own metrics stay clean. Every probe to Singapore loses every packet here, so RIPE has loss but no RTT; the safety reviewer accepts that for the region traffic leaves. The pipeline row then shows Safety review **Approved: move traffic**, and the traffic bar moves to **75% Singapore · 25% Virginia** after about 40–45 s, to **50% · 50%** after about 75–85 s, and, if the fault is still active, to **25% · 75%** at about 115 s (our runs on 13 Nov). After the fault ends, the controller waits for Singapore to stay healthy and then moves traffic back in 25-point steps to **100% Singapore** (about 3 minutes after the fault ended in our run).
 
 ### 4.5 The same faults from the command line (optional)
 
@@ -343,6 +343,7 @@ On 13 Nov 2026 we followed these steps on a clean Linux machine (x86_64, Docker 
 - Section 4: `lab-up` started all 13 containers; the latency test produced the sequence in 4.3 (HTTP view 11 s, RIPE view 21 s, 100→75% at about 65 s, 75→50% at about 120 s, back to 100% at about 286 s); the HTTP 503 test was detected by the two external views; `lab-reset` and `lab-down` worked.
 - Section 5.1: the standalone stack detected the 700 ms latency fault in about 20 s and moved region-a to 50%.
 - The group also ran `lab-up` on macOS with Docker Desktop.
+- Re-check on `main` (commit `16645c0`, same machine, 13 Nov): 486 passed, 0 failed (318 in `tests/`); `lab-up` rebuilt and started; the HTTP 503 test (4.4) gave: both external views flagged Singapore within 5 s, safety review approved, traffic 100→75% at about 40 s, 75→50% at about 75 s, 50→25% at about 115 s, then back to 100% at about 306 s after injection (the fault ended at 120 s). AWS only stayed Healthy throughout.
 
 Two notes from that run: on Linux the `data/` folder needed the `chmod` in section 4.1; and our test machine sat behind a network proxy, so we added its certificate to the image builds. A normal internet connection does not need that change.
 
