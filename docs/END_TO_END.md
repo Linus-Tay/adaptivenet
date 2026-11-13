@@ -49,6 +49,20 @@ the decision is no-op.
   actuator, so the plan names the local gateway as the only executor.
 * **no-op**: everything else, with the reviewer's reasons.
 
+## Fit with the recorded SSM outage experiments
+
+The SSM experiments (23 Oct and 9 Nov 2026) stopped the application service, not the host:
+application scrapes failed (`app_up = 0`), node exporter, CPU and memory stayed normal, and the
+other region stayed healthy. That shape maps to `application_failure` -> **failover** away from
+the stopped region, never to **scale** (CPU stays low, and more replicas of a stopped service
+would not help). `tests/test_end_to_end.py::test_ssm_service_stop_shape_maps_to_failover_not_scale`
+covers both the Singapore and Virginia runs. With Singapore as the primary origin, pass
+`--current-region-a-percent 100`; the first step is then 100 -> 75 (the reviewer's 25-point limit).
+
+The report did not establish that CloudFront served from Virginia, or the switching time, so the
+failover plan records CloudFront origin failover as unverified. These were application-level
+interruptions, so they do not exercise the network-only (RIPE) path.
+
 ## Live execution (needs explicit approval)
 
 `execute` runs only for a `scale` decision and only with `--approve-live-write <site>` matching

@@ -274,4 +274,6 @@ def decide(
         "live_executor": None,
         "live_executor_reason": "eks_routing_not_implemented",
         "local_executor": "SafetyController mode=local (local gateway)",
+        # The 9 Nov 2026 SSM tests showed CloudFront stayed at HTTP 200, but not which origin served.
+        "aws_managed_failover": "CloudFront origin group on 5xx; serving origin not yet verified",
     }}
