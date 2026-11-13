@@ -19,7 +19,7 @@ Leakage controls
   both sides of the fold, so false alarms are always counted on unseen healthy time.
 * Forward split: train only on the first half of the campaign, test on the second half.
 * Features are as-of: AMP row at t and RIPE results with timestamp <= t only.
-* Dead Singapore probe 1010367 is removed before any feature is computed.
+* Dead Singapore probe 1010367 is removed (Singapore only) before any feature is computed.
 """
 from __future__ import annotations
 
@@ -42,7 +42,10 @@ PROTOCOL = {
     "pre_pad_seconds": 60,
     "embargo_seconds": 900,
     "slots_per_fold": 4,
-    "excluded_probes": [1010367],           # never reaches Singapore (100% loss)
+    # 1010367 never reaches Singapore (0 of 408 pings) but reaches Virginia normally
+    # (379 of 392), so it is removed for region-a only. Correction made before the
+    # results were written up: the first run removed it from both regions.
+    "excluded_probes": {"region-a": [1010367]},
     "supervised_min_probability": 0.55,     # same as the earlier native arms
     "anomaly_quantile": 0.995,              # threshold from TRAINING healthy scores only
     "isolation_forest": {"n_estimators": 300, "random_state": 42},
@@ -296,7 +299,8 @@ def main(argv=None) -> int:
     for v in args.ripe:
         region, _, path = v.partition("=")
         spec[region].append(Path(path))
-    samples = [s for s in load_samples(spec) if s["probe"] not in PROTOCOL["excluded_probes"]]
+    samples = [s for s in load_samples(spec) 
+               if s["probe"] not in PROTOCOL["excluded_probes"].get(s["region"], [])]
     index = ProbeIndex(samples)
     read = lambda p: [json.loads(l) for l in p.read_text(encoding="utf-8").splitlines() if l.strip()]
     plan = json.loads(args.campaign_plan.read_text(encoding="utf-8"))
