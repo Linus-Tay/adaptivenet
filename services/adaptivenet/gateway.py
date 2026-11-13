@@ -4,17 +4,27 @@ Each request selects a region. Failures are not silently retried. Faults expire
 on a monotonic clock even if the experiment runner disappears.
 """
 import asyncio
+from contextlib import asynccontextmanager
 import os
 import random
 import secrets
 import time
-from fastapi import FastAPI, Header, HTTPException
+from typing import Literal
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 import httpx
 from pydantic import BaseModel, Field
 from .contracts import Fault
 
-app = FastAPI(title="LOCAL route and fault simulator")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with httpx.AsyncClient(timeout=3, trust_env=False) as upstream:
+        app.state.upstream = upstream
+        yield
+
+
+app = FastAPI(title="LOCAL route and fault simulator", lifespan=lifespan)
 faults: dict = {}
 weight_a = 100
 
@@ -25,6 +35,7 @@ def authorize(token: str | None):
 
 class Weights(BaseModel):
     region_a_percent: int = Field(ge=0, le=100)
+    expected_region_a_percent: int | None = Field(default=None, ge=0, le=100)
 
 @app.get("/healthz")
 def health():
@@ -39,9 +50,11 @@ def state(x_lab_token: str | None = Header(default=None)):
         for r, f in faults.items() if f[1] > now}}
 
 @app.put("/admin/routes")
-def route(body: Weights, x_lab_token: str | None = Header(default=None)):
+async def route(body: Weights, x_lab_token: str | None = Header(default=None)):
     authorize(x_lab_token)
     global weight_a
+    if body.expected_region_a_percent is not None and body.expected_region_a_percent != weight_a:
+        raise HTTPException(409, "Route weight changed")
     weight_a = body.region_a_percent
     return {"region_a_percent": weight_a}
 
@@ -58,8 +71,21 @@ def clear(x_lab_token: str | None = Header(default=None)):
     return {"status": "cleared"}
 
 @app.get("/api/catalog")
-async def catalog():
+async def catalog(request: Request):
     region = "region-a" if random.random() * 100 < weight_a else "region-b"
+    return await regional_catalog(region, request.app.state.upstream)
+
+
+@app.get("/admin/probe/{region}")
+async def probe(
+    region: Literal["region-a", "region-b"], request: Request,
+    x_lab_token: str | None = Header(default=None),
+):
+    authorize(x_lab_token)
+    return await regional_catalog(region, request.app.state.upstream)
+
+
+async def regional_catalog(region: str, upstream: httpx.AsyncClient):
     fault, expiry = faults.get(region, ({}, 0))
     if expiry > time.monotonic():
         await asyncio.sleep(fault["latency_ms"] / 1000)
@@ -68,8 +94,7 @@ async def catalog():
     url = os.getenv("REGION_A_URL" if region == "region-a" else "REGION_B_URL",
                     "http://127.0.0.1:8101" if region == "region-a" else "http://127.0.0.1:8102")
     try:
-        async with httpx.AsyncClient(timeout=3, trust_env=False) as client:
-            response = await client.get(url + "/api/catalog")
+        response = await upstream.get(url + "/api/catalog")
         return JSONResponse(response.json(), status_code=response.status_code)
     except (httpx.HTTPError, ValueError):
         return JSONResponse({"region": region, "error": "upstream unavailable"}, status_code=502)

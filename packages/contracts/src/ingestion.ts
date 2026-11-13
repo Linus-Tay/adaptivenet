@@ -19,6 +19,10 @@ export interface IngestionFeatures {
   network_rtt_p95_ms: MaybeNumber;
   packet_loss_pct: MaybeNumber;
   ripe_probes_reporting: number;
+  /** Median per-probe loss; robust to a single unreachable probe. */
+  packet_loss_median_pct?: MaybeNumber;
+  /** Probes reporting 100% loss in this window. */
+  ripe_probes_full_loss?: number;
   http_p95_ewma_ms: MaybeNumber;
   http_p95_robust_z: MaybeNumber;
 }
@@ -87,6 +91,7 @@ export interface ModelProposalV1 {
   snapshot_id: string;
   action: RecommendedAction;
   confidence: number; // [0,1]
+  affected_region?: Region; // required for scale_out; resolved through the controller allowlist
   target_region_a_percent?: number; // int [0,100], only meaningful for shift_traffic
   evidence?: string[];
 }

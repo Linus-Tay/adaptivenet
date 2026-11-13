@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AdaptiveNet demo</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#1b1f24;--muted:#5b6470;--line:#dde1e6;--ok:#1a7f37;--warn:#9a6700;--bad:#cf222e;--unk:#6e7781;--accent:#0969da}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--card:#161b22;--fg:#e6edf3;--muted:#8d96a0;--line:#30363d;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--unk:#8b949e;--accent:#4493f8}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+header{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:12px;align-items:baseline}
+h1{font-size:18px;margin:0}h2{font-size:14px;margin:0 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+main{display:grid;gap:12px;padding:12px 16px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+section{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;min-width:0}
+.wide{grid-column:1/-1}table{width:100%;border-collapse:collapse}td,th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600}.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;font-weight:600;border:1px solid currentColor}
+.healthy,.recovered,.hold{color:var(--ok)}.unknown,.observing,.no-op,.qualifying,.confirming_signals,.cooldown{color:var(--unk)}
+.network_degradation,.compute_saturation,.verifying,.continue_candidate,.scale,.investigate{color:var(--warn)}
+.application_failure,.region_down,.multi_region_degradation,.blocked,.failover{color:var(--bad)}
+.muted{color:var(--muted)}.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}.scroll{max-height:420px;overflow:auto}
+.big{font-size:22px;font-weight:700}.note{font-size:12px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<header><h1>AdaptiveNet local demo</h1><span id="mode" class="pill"></span>
+<span>Route to region-a: <b id="weight">?</b>%</span><span class="muted" id="pipe"></span><span class="muted" id="updated"></span></header>
+<main>
+<section class="wide"><h2>Same telemetry, three feature groups</h2>
+<table><thead><tr><th>Feature group</th><th>Condition</th><th>region-a (SG)</th><th>region-b (US)</th></tr></thead><tbody id="groups"></tbody></table>
+<div class="note">Lab rule detectors (not trained ML). AWS-only cannot see RIPE or HTTP inputs. Trained shadow proposals appear below when model files are mounted.</div>
+<div id="trained" class="note"></div></section>
+<section><h2>Internal (AMP stand-in)</h2><table id="internal"></table></section>
+<section><h2>External path (RIPE stand-in) and HTTP witness</h2><table id="external"></table></section>
+<section><h2>Active faults</h2><div id="faults" class="mono"></div><h2 style="margin-top:12px">Fault commands</h2><div id="faultlog" class="mono scroll"></div>
+<div class="note">A fault command is not proof of failure. Labels come from what the telemetry shows.</div></section>
+<section><h2>predictor.py proposal and safety review</h2><div id="predictor" class="mono"></div></section>
+<section class="wide"><h2>Decisions (proposal → safety reviewer → EKS decision → local execution)</h2>
+<div class="scroll"><table><thead><tr><th>Time</th><th>Condition</th><th>Proposal</th><th>Decision</th><th>Reasons</th><th>Local controller</th></tr></thead><tbody id="decisions"></tbody></table></div>
+<div class="note">Scale decisions are plans only. Live EKS writes need <span class="mono">scripts/end_to_end.py execute --approve-live-write</span>. Failover runs only on the local lab gateway.</div></section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pill=s=>`<span class="pill ${esc(s)}">${esc(s??'?')}</span>`;
+const n=(v,d=1)=>v===null||v===undefined?'<span class="muted">missing</span>':(typeof v==='number'?v.toFixed(d):esc(v));
+const t=ts=>ts?new Date(ts*1000).toLocaleTimeString():'';
+function rows(el,data){el.innerHTML='<tr><th></th><th>region-a</th><th>region-b</th></tr>'+data.map(([k,a,b])=>`<tr><td>${k}</td><td>${a}</td><td>${b}</td></tr>`).join('')}
+async function refresh(){
+ let s;try{s=await (await fetch('/api/state',{cache:'no-store'})).json()}catch(e){$('updated').textContent='view API unreachable';return}
+ $('mode').textContent=s.mode;$('updated').textContent='updated '+new Date().toLocaleTimeString();
+ $('pipe').textContent=`queue ${s.pipeline.queue.ready} ready / ${s.pipeline.queue.inflight} in flight, outbox ${s.pipeline.outbox_pending}`;
+ const last=s.decisions[0];const live=s.active_faults&&s.active_faults.region_a_percent;$('weight').textContent=(live??null)!==null?live:(last?last.region_a_percent:'?');
+ const a=s.assessment||{};const det=a.detectors||{};
+ $('groups').innerHTML=['aws_only','aws_ripe','aws_ripe_http'].map(g=>{const d=det[g]||{};const r=d.regions||{};
+  const cell=x=>x?`${pill(x.state)} <span class="muted">${esc((x.reasons||[]).join(', '))}</span>`:'';
+  return `<tr><td><b>${g}</b></td><td>${pill(d.condition)}</td><td>${cell(r['region-a'])}</td><td>${cell(r['region-b'])}</td></tr>`}).join('')||'<tr><td colspan=4>waiting for first snapshot</td></tr>';
+ const tr=a.trained||{};$('trained').innerHTML=Object.keys(tr).length?'Trained shadow: '+Object.entries(tr).map(([g,p])=>`${g}: ${esc(p.action||p.error)} ${esc((p.evidence||[]).join(' '))}`).join(' | '):'';
+ const snap=s.snapshot,R=k=>snap?snap.regions[k]:null;
+ if(snap){const f=k=>R(k).features,q=k=>R(k).quality;
+  rows($('internal'),[['quality',pill(q('region-a').internal==='fresh'?'healthy':'unknown')+' '+esc(q('region-a').internal),pill(q('region-b').internal==='fresh'?'healthy':'unknown')+' '+esc(q('region-b').internal)],
+   ...[['app_up','app_up',0],['CPU %','cpu_busy_pct',1],['memory free %','memory_available_pct',1],['HTTP p95 ms','http_p95_ms',1],['5xx ratio','http_error_ratio',3],['rps','http_rps',2]].map(([l,k,d])=>[l,n(f('region-a')[k],d),n(f('region-b')[k],d)]),
+   ['snapshot age s',n(a.snapshot_age_seconds,0),'']]);
+  const fs=s.fast.scopes||{},w=k=>(fs[k]||{}).windows?.['60s']||{};
+  rows($('external'),[['RIPE quality',esc(q('region-a').external),esc(q('region-b').external)],
+   ...[['RTT p50 ms','network_rtt_p50_ms',1],['packet loss %','packet_loss_pct',1],['probes reporting','ripe_probes_reporting',0]].map(([l,k,d])=>[l,n(f('region-a')[k],d),n(f('region-b')[k],d)]),
+   ['HTTP 60s failure',n(w('region-a').failure_ratio,2),n(w('region-b').failure_ratio,2)],['HTTP 60s p95 ms',n(w('region-a').http_latency_p95_ms,0),n(w('region-b').http_latency_p95_ms,0)],
+   ['user path (cloudfront) 60s failure / p95',n(w('cloudfront').failure_ratio,2)+' / '+n(w('cloudfront').http_latency_p95_ms,0),'']]);}
+ $('faults').innerHTML=esc(JSON.stringify(s.active_faults,null,1));
+ $('faultlog').innerHTML=s.fault_log.map(x=>`${t(x.at)} ${esc(x.command)}`).join('<br>')||'none';
+ const p=(a.predictor||{});$('predictor').innerHTML=esc(JSON.stringify({proposal:p.proposal,review:p.safety_review&&{policy_valid:p.safety_review.policy_valid,effective_action:p.safety_review.effective_action,rejection_reasons:p.safety_review.rejection_reasons}},null,1));
+ $('decisions').innerHTML=s.decisions.map(d=>{const ex=d.executed_locally,st=ex&&(ex.verify||ex.step||ex);
+  return `<tr><td>${t(d.at)}</td><td>${pill(d.condition||d.state)}</td><td>${pill((d.proposal||{}).action)} ${esc((d.proposal||{}).target_region_a_percent??'')}</td><td>${pill(d.decision)}</td><td class="mono">${esc((d.reasons||[]).slice(0,3).join(', '))}</td><td>${st?pill(st.state)+' <span class="mono">'+esc((st.reasons||[st.reason]).join(', '))+'</span>':''}</td></tr>`}).join('');
+}
+refresh();setInterval(refresh,3000);
+</script>
+</body>
+</html>

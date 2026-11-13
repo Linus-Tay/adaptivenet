@@ -1,0 +1,13 @@
+# Used by BuildKit for demo/Dockerfile only. Keeps local data, secrets and models out of the image.
+**
+!pyproject.toml
+!requirements-runtime.lock
+!services/**
+!ml/**
+!scripts/end_to_end.py
+!demo/**
+demo/.env.demo
+demo/data
+**/__pycache__
+**/*.pkl
+**/*.egg-info

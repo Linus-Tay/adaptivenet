@@ -87,3 +87,12 @@ def test_repeatable_snapshot_adapter():
     a = build_model_input(snap, now=10020)
     b = build_model_input(snap, now=10020)
     assert a == b
+
+
+def test_removed_shadow_command_is_rejected_before_opening_database(tmp_path):
+    from scripts.model_handoff import main
+    db = tmp_path / "unused.db"
+    with pytest.raises(SystemExit) as exc:
+        main(["shadow", "--db", str(db)])
+    assert exc.value.code == 2
+    assert not db.exists()

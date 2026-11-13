@@ -55,6 +55,8 @@ jobs:
         include:
           - name: services
             dockerfile: Dockerfile
+          - name: telemetry
+            dockerfile: Dockerfile.telemetry
           - name: dashboard
             dockerfile: apps/Dockerfile
           - name: demo-web

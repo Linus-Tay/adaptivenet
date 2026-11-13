@@ -77,7 +77,8 @@ def test_http_503_is_recorded_as_failure_not_availability():
     assert result['http_status']==503 and result['outcome']=='http_error'
 
 def test_unsafe_probe_interval_rejected():
-    with pytest.raises(SystemExit): continuous_probe.main(['--interval','30'])
+    # Fast HTTP witnesses allow 15s but reject abusive sub-10s schedules.
+    with pytest.raises(SystemExit): continuous_probe.main(['--interval','5'])
 
 def test_ssm_offline_safely_prevents_fault():
     with patch.object(aws_fault,'aws_read',return_value={'InstanceInformationList':[

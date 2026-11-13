@@ -1,0 +1,19 @@
+{
+  "contract_version": "adaptivenet.verified_episodes.v1",
+  "episodes": [
+    {
+      "episode_id": "REPLACE-WITH-REAL-UNIQUE-EPISODE-ID",
+      "experiment_run_id": "REPLACE-WITH-REAL-UNIQUE-EXPERIMENT-RUN-ID",
+      "label": "network_degradation",
+      "region": "region-a",
+      "verified_start_utc": null,
+      "verified_end_utc": null,
+      "reviewed_at_utc": null,
+      "reviewed": false,
+      "reviewer": null,
+      "independent_evidence_refs": [],
+      "independent_vantage_count": 1,
+      "notes": "TEMPLATE ONLY: will be rejected until independent evidence is supplied and reviewed"
+    }
+  ]
+}

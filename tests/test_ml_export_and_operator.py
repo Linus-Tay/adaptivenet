@@ -30,7 +30,7 @@ def test_ml_export_has_real_timestamp_and_missing_masks_without_stale_display_va
 
 def test_operator_supports_local_one_button_demo_faults():
     server=(ROOT/"apps/dashboard/app/api/aws-fault/route.ts").read_text()
-    ui=(ROOT/"apps/dashboard/app/page.tsx").read_text()
+    ui=(ROOT/"apps/dashboard/app/page.tsx").read_text()+(ROOT/"apps/dashboard/app/components/AwsFaultPanel.tsx").read_text()
     # No separate arming toggle or arbitrary remote command.
     assert 'ENABLE_REAL_AWS_FAULT_UI' not in server
     assert 'requestInProgress' in server
@@ -45,7 +45,7 @@ def test_operator_supports_local_one_button_demo_faults():
     assert '/api/aws-fault' in ui
 
 def test_fault_controls_are_separate_from_public_workload():
-    ui=(ROOT/"apps/dashboard/app/page.tsx").read_text()
+    ui=(ROOT/"apps/dashboard/app/page.tsx").read_text()+(ROOT/"apps/dashboard/app/components/AwsFaultPanel.tsx").read_text()
     workload=(ROOT/"apps/demo-web/app/page.tsx").read_text()
     assert "/api/aws-fault" in ui and 'function Info(' in ui
     assert "window.confirm(" in ui

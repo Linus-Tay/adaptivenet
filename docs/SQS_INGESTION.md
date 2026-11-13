@@ -1,4 +1,4 @@
-# AdaptiveNet SQS ingestion — implementation and operations
+# AdaptiveNet SQS ingestion — implementation and operations\n\nSee [canonical architecture and multi-rate ML design](ARCHITECTURE_AND_ML_2026.md) for the optional real Docker producer/consumer and short-window HTTP witness signals.\n
 
 This implements **the ingestion → Amazon SQS → detector/feature-worker segment** of the system architecture. RIPE Atlas, AMP and CloudFront are existing external measurements; this change does not create RIPE probes, EKS clusters, models or actuators.
 
@@ -39,7 +39,7 @@ CloudFront CloudWatch (global) ──────┘         │
 - The **producer** durably stages a complete poll under ignored `data/sqs-outbox/`, retries staged messages first, and deletes the local staged copy only after SQS returns a `MessageId`.
 - The **consumer** validates the entire envelope before writing, uses the existing SQLite SHA256 event ID to suppress SQS redelivery duplicates, creates the same `adaptivenet.features.v1` snapshot, and only then calls SQS `DeleteMessage`.
 - SQS Standard delivery is **at least once and not guaranteed in order**. Retrying a message can recompute a snapshot, but cannot insert duplicate observation IDs. No bad message is acknowledged; SQS retries and moves it to the DLQ per configured redrive policy.
-- `live_monitor.py --sqs` starts producer + consumer + unchanged read-only dashboard. Without `--sqs`, the original **direct SQLite** collector still works as a fallback. **Do not run both source-collection modes simultaneously**.
+- `live_monitor.py --sqs` starts producer + consumer + unchanged read-only dashboard. Without `--sqs`, the original **direct SQLite** collector still works as a fallback. New `--external-workers` mode intentionally does not start any producers when Dockerized workers are already running. **Do not run both source-collection modes simultaneously**.
 - The existing SG Terraform queue/DLQ are reused. New least-privilege *attachable* producer and consumer IAM policies and CloudWatch backlog/DLQ alarms are defined; AWS identities/roles are **not modified automatically** by merely cloning or running tests.
 
 ## Prerequisites and initial verification

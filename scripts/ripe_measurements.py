@@ -61,6 +61,7 @@ def inspect(region: str, measurement: int) -> dict:
         "id": measurement,
         "status": state(info),
         "target": info.get("target"),
+        "configured_interval_seconds": info.get("interval"),
         "last_result_age_seconds": age,
         "fresh": age is not None and age <= FRESH_SECONDS,
         "distinct_probes": len({e.source_id.split("/")[-1] for e in events}),

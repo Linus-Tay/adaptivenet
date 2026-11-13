@@ -1,0 +1,114 @@
+# Adds ML -> safety reviewer -> scale/failover decision on top of the group's
+# EXISTING local lab (root compose.yaml) without editing it. Use both files:
+#   demo/run.sh lab-up
+#   (= docker compose -f compose.yaml -f demo/compose.lab-overlay.yaml --env-file demo/.env.demo up --build -d)
+# Keeps: demo-web :3001 (the site), dashboard :3000 (fault buttons / routes),
+# gateway, control-api, experiment-runner. Faults from the dashboard's buttons
+# act on the gateway path; the lab collector observes through that same path.
+# Local only: no AWS calls. Do not point any of this at the real origins.
+
+x-demo-image: &demo-image
+  build:
+    context: .
+    dockerfile: demo/Dockerfile
+  image: adaptivenet-demo:local
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  restart: unless-stopped
+
+x-demo-env: &demo-env
+  LAB_TOKEN: "${LAB_TOKEN:?Set LAB_TOKEN (demo/run.sh lab-up creates one)}"
+  DEMO_DATA_DIR: /app/data
+  PATH_MODE: gateway
+  OBSERVER_GATEWAY_URL: http://gateway:8000
+  REGION_A_URL: http://demo-a:8000
+  REGION_B_URL: http://demo-b:8000
+  ML_URL: http://lab-ml:8000
+
+x-demo-data: &demo-data
+  - "${LAB_DATA_HOST:-./data/lab-live}:/app/data"
+
+services:
+  # Same catalogue app, plus /lab/metrics (measured CPU, memory, request counters)
+  # so the internal (AMP stand-in) view has real values. Endpoints are unchanged.
+  demo-a:
+    build: {context: ., dockerfile: demo/Dockerfile}
+    image: adaptivenet-demo:local
+    command: ["uvicorn", "demo.lab.origin:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: {REGION: region-a, LAB_TOKEN: "${LAB_TOKEN}"}
+  demo-b:
+    build: {context: ., dockerfile: demo/Dockerfile}
+    image: adaptivenet-demo:local
+    command: ["uvicorn", "demo.lab.origin:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: {REGION: region-b, LAB_TOKEN: "${LAB_TOKEN}"}
+
+  # The group's dashboard (:3000) reads the decision service through its own API route.
+  dashboard:
+    environment:
+      LAB_VIEW_URL: http://lab-view:8000
+      LAB_ML_URL: http://lab-ml:8000
+
+  # Customer view (:3001): "behind the scenes" checks ask each lab region directly.
+  demo-web:
+    environment:
+      DEMO_REGION_A_URL: http://demo-a:8000
+      DEMO_REGION_B_URL: http://demo-b:8000
+
+  lab-users:
+    <<: *demo-image
+    command: ["python", "-m", "demo.lab.traffic"]
+    environment: {<<: *demo-env, USER_RPS: "2"}
+    depends_on: [gateway]
+  lab-collector:
+    <<: *demo-image
+    command: ["python", "-m", "demo.lab.collector"]
+    environment:
+      <<: *demo-env
+      WITNESS_INTERVAL_SEC: "5"
+      INTERNAL_INTERVAL_SEC: "10"
+      EXTERNAL_INTERVAL_SEC: "10"
+      LAB_PROBES: "3"
+    volumes: *demo-data
+    depends_on: [gateway]
+  lab-feature-worker:
+    <<: *demo-image
+    command: ["python", "-m", "demo.lab.worker"]
+    environment: *demo-env
+    volumes: *demo-data
+  lab-ml:
+    <<: *demo-image
+    command: ["uvicorn", "demo.lab.ml_service:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      <<: *demo-env
+      ADAPTIVENET_SHADOW_MODEL: "${ADAPTIVENET_SHADOW_MODEL:-}"
+      DEMO_MODELS_DIR: "${DEMO_MODELS_DIR:-}"
+      # Real telemetry tab: live ingestion API on the host (scripts/live_monitor.py --sqs),
+      # else the latest snapshot in a read-only real data folder.
+      INGESTION_API_URL: http://host.docker.internal:8766
+      REAL_DATA_DIR: /real
+    extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes:
+      - "${LAB_DATA_HOST:-./data/lab-live}:/app/data"
+      - "${REAL_DATA_DIR:-./data}:/real:ro"
+      - "${DEMO_MODELS_HOST:-./data/demo-models}:/app/models:ro"
+    ports: ["127.0.0.1:8192:8000"]
+  lab-controller:
+    <<: *demo-image
+    command: ["python", "-m", "demo.lab.controller"]
+    network_mode: "service:gateway"   # route adapter is loopback-only
+    environment:
+      <<: *demo-env
+      OBSERVER_GATEWAY_URL: http://127.0.0.1:8000
+      GATEWAY_URL: http://127.0.0.1:8000
+      DEMO_CONTROLLER_MODE: "${DEMO_CONTROLLER_MODE:-local}"
+      DEMO_DECISION_GROUP: "${DEMO_DECISION_GROUP:-aws_ripe_http}"
+      FAILBACK_HEALTHY_SEC: "${FAILBACK_HEALTHY_SEC:-60}"
+    volumes: *demo-data
+    depends_on: [gateway, lab-ml]
+  lab-view:
+    <<: *demo-image
+    command: ["uvicorn", "demo.lab.view:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment: {<<: *demo-env, DEMO_MODE: group_lab}
+    volumes: *demo-data
+    ports: ["127.0.0.1:8190:8000"]
+    depends_on: [lab-ml]
