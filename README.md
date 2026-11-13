@@ -181,9 +181,11 @@ All numbers come from the linked documents; each states its data, method and lim
 | Same-day ML retrain (shadow only) | anomaly model AWS+RIPE: 17/20 detected, about 14 false alarms/day; frozen rule: 13/20, 0 false alarms | [CAMPAIGN_SAME_DAY_ML.md](docs/ml/CAMPAIGN_SAME_DAY_ML.md) |
 | Earlier reviewed loss trials | AWS-only 0/6, AWS+RIPE 6/6 | [RIPE_VALUE_STUDY.md](docs/ml/RIPE_VALUE_STUDY.md) |
 | Models trained on a different day | 58–150 false alarms/day (host memory drift) | [SIX_CLASS_AND_FALSE_ALARM_STUDY.md](docs/ml/SIX_CLASS_AND_FALSE_ALARM_STUDY.md) |
+| Live CloudFront failover (Singapore service stopped 60 s, 13 Nov) | **108/108** CloudFront requests HTTP 200; the 27 during the outage were served by Virginia (first one 5 s after the stop) | [LIVE_TESTS_20261113.md](docs/LIVE_TESTS_20261113.md) |
+| Live EKS scale-up (Singapore cluster, 13 Nov) | Kubernetes HPA scaled **2→4** pods in about 30 s at up to 97% CPU; 10,762 load requests, **0 failed**; the AdaptiveNet controller correctly held | same |
 | Decision path and confidence rules | failover, failback and scale rules with lab checks | [END_TO_END.md](docs/END_TO_END.md) |
 
-Limits stated in those documents still apply: one HTTP witness vantage, RIPE results arrive every few minutes, ML stays shadow-only, and the demo never executes a scale action.
+Limits stated in those documents still apply: one HTTP witness vantage, RIPE results arrive every few minutes, ML stays shadow-only, the demo never executes a scale action, and each live AWS test above ran once.
 
 ## 8. More documents
 
