@@ -14,6 +14,8 @@ AWS metrics (Prometheus) + RIPE Atlas probes + HTTP witness + CloudFront
   -> safety controller (bounded steps, verified, journaled, reversible)
 ```
 
+**Markers:** step-by-step testing instructions with expected output are in [docs/GROUP03_INSTRUCTIONS.md](docs/GROUP03_INSTRUCTIONS.md) ([PDF](docs/GROUP03_INSTRUCTIONS.pdf)).
+
 Everything below can be run on a laptop **without any AWS or RIPE account**. The real cloud parts are described in [section 6](#6-real-aws-and-ripe-atlas-access).
 
 ---
