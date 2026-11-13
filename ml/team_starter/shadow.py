@@ -49,7 +49,10 @@ def shadow_predict(payload: dict, model_path: Path) -> dict:
     internal_ok = all((quality.get(r) or {}).get("internal") == "fresh"
                       and all(cleaned_slow["features"][r].get(c) is not None for c in required)
                       for r in ("region-a", "region-b"))
-    external_ok = all((quality.get(r) or {}).get("external") == "fresh" for r in ("region-a", "region-b"))
+    # A "fresh" flag cannot vouch for RIPE values that were just masked as future-dated.
+    external_ok = all((quality.get(r) or {}).get("external") == "fresh"
+                      and f"masked_future_ripe_source_time:{r}" not in asof_notes
+                      for r in ("region-a", "region-b"))
     fresh_ok = internal_ok and (group == "aws_only" or external_ok)
     if group == "aws_ripe_http":
         fresh_ok = fresh_ok and (payload.get("fast") or {}).get("ready_for_fast_assessment") is True

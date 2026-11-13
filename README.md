@@ -115,7 +115,7 @@ With the virtual environment active, from the repository root:
 PYTHONPATH=services:. python -m pytest -q tests demo/tests ml/team_starter/tests step7_finish step8_finish
 ```
 
-This runs all Python test suites: services and controller (`tests/`), demo (`demo/tests/`), ML (`ml/team_starter/tests/`) and the ML shadow service (`step7_finish/`, `step8_finish/`). None of them call AWS. On this branch (13 Nov 2026, Python 3.14) the result was **471 passed, 1 failed**; `tests/` alone is 304 passed. The one failure is the ML test `test_shadow_masks_future_ripe_even_when_old_quality_flag_is_fresh`, a known failure that came over from the ML branch.
+This runs all Python test suites: services and controller (`tests/`), demo (`demo/tests/`), ML (`ml/team_starter/tests/`) and the ML shadow service (`step7_finish/`, `step8_finish/`). None of them call AWS. On this branch (13 Nov 2026, Python 3.14) the result was **472 passed, 0 failed**; `tests/` alone is 304 passed.
 
 A no-Docker end-to-end smoke of the demo:
 
