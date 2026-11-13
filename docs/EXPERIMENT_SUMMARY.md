@@ -17,7 +17,7 @@ This page brings together every experiment run for AdaptiveNet, with the main nu
 | 7 | ML same-day retrain (shadow) | 12–13 Nov | Best model **16–17/20** at **~14 false alarms per region per day** (95% CI 4.6–33); AWS-only ML without host features 0/20 (anomaly) or 2/20 (supervised) | Done, shadow-only |
 | 8 | Confidence rules, lab runs | 13 Nov | Latency fault: detected in ~11–15 s, 100→75 at ~65–93 s (two runs), failback to SG. Application-error fault: confident in ~30 s, **blocked by the safety reviewer** | Done, design question open |
 | 9 | Local Docker demo | 12 Nov | 700 ms SG latency: AWS-only healthy, AWS+RIPE flags in ~20 s, 4 steps to Virginia | Demonstration, not evidence |
-| 10 | Test suite | 13 Nov | **472/472** pass on the submission branch | Done |
+| 10 | Test suite | 13 Nov | **475/475** pass on `main` | Done |
 | 11 | Live EKS scale test (SG) | 13 Nov | CPU 2% → 97% peak; HPA scaled pods **2→3 about 40 s after load start, →4 about 30 s later**; controller held; 0 of 10,762 requests failed | Done, single run |
 | 12 | Offline action replay of the 20 campaign trials | 13 Nov | At the controller's 500 ms HTTP deadline: **1/20** trials would fail over (slot 0, Virginia 35%, 210 s); **0 false actions** in 20 controls and 1.6 h healthy gaps; held by the confidence rule (10) and 3-fresh-checks (2) | Done, offline |
 
@@ -152,7 +152,7 @@ Details: `docs/END_TO_END.md`.
 
 ## 10. Test suite
 
-- All 472 automated tests pass on the submission branch, including replays of the recorded SSM outages.
+- All 475 automated tests pass on `main`, including replays of the recorded SSM outages.
 
 **Limitations.** The tests cover the scaling rules as unit tests. Live EKS behaviour is covered separately in #11.
 
