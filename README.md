@@ -23,11 +23,13 @@ Everything below can be run on a laptop **without any AWS or RIPE account**. The
 | Tool | Version used | Needed for |
 |---|---|---|
 | Git | any recent | getting the code |
-| Docker Desktop (Engine + Compose v2) | Engine 29.9, Compose 5.7 (any Compose v2 works) | the demo (required) |
+| Docker Desktop (macOS/Windows) or Docker Engine with Compose v2 (Linux) | Engine 29.9, Compose 5.7 (any Compose v2 works) | the demo (required) |
 | Python | 3.11 or newer (CI uses 3.12; also tested on 3.14) | tests and the fault command line |
 | Node.js + npm | Node 24 | only to build or type-check the dashboards outside Docker |
 | Terraform | 1.13.5 (`.terraform-version`) | only for the AWS infrastructure (group members) |
 | Helm, kubectl, AWS CLI v2 | Helm 3, any recent kubectl / AWS CLI | only for EKS and AWS work (group members) |
+
+Tested on macOS and Linux. **Windows is untested.** The scripts are bash scripts, so on Windows use WSL 2 (Ubuntu) with Docker Desktop's WSL integration turned on, and run every command in the WSL terminal.
 
 Get the code:
 
@@ -60,6 +62,14 @@ The first lock file holds the runtime and test packages (FastAPI, Uvicorn, httpx
 ## 3. Run the demo
 
 The demo runs the full loop in local containers. It makes no AWS calls and needs no credentials.
+
+**Linux only:** the containers run as a non-root user (uid 10001) and write to the `data/` folder. Run this once before the first start, or some containers will restart in a loop with "Permission denied". macOS and Windows (Docker Desktop) do not need it.
+
+```bash
+mkdir -p data/lab-live data/demo-live data/demo-replay data/demo-models && chmod -R a+rwX data
+```
+
+Start the demo:
 
 ```bash
 demo/run.sh lab-up
