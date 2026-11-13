@@ -5,6 +5,7 @@
  ],
  "start_region_a_percent": 50,
  "tick_seconds": 15,
+ "committed_http_deadline_ms": 500,
  "rules": {
   "min_bad_signals": 2,
   "failover_bad_windows": 3,
@@ -20,6 +21,2346 @@
  },
  "runs": {
   "campaign": {
+   "http_deadline_ms": 500.0,
+   "summary": {
+    "trials": 20,
+    "would_fail_over_away_from_impaired_region": 1,
+    "failover_delays_s": [
+     210
+    ],
+    "false_actions_in_control_windows": 0,
+    "false_action_slots": [],
+    "not_acted_blocked_at_stage": {
+     "confidence": 10,
+     "no_proposal": 7,
+     "safety_controller": 2
+    }
+   },
+   "healthy_gaps": {
+    "gaps": 21,
+    "hours": 1.58,
+    "actions": [],
+    "note": "an action flagged before_fault happened in the 10 min warm-up, not in the gap"
+   },
+   "slots": [
+    {
+     "slot": 0,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 35,
+     "action": {
+      "at_unix": 1794497144.307433,
+      "away_from": "region-b",
+      "delay_s": 210,
+      "route": "50->75",
+      "confidence": "confident:RIPE+HTTP_bad_for_5_windows"
+     },
+     "blocked_at": null,
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 120,
+      "reviewer_pass": 120,
+      "confident": 180
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {
+       "region-b": 7
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 15
+      },
+      "ripe": {
+       "good": 8,
+       "bad": 7
+      },
+      "http": {
+       "good": 2,
+       "bad": 13
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 8
+      },
+      "confidence": {
+       "bad_windows": 3,
+       "signals_disagree": 1
+      },
+      "safety_controller": {
+       "qualifying:": 2
+      },
+      "action": {
+       "away_from:region-b": 1
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 8,
+      "reviewer": 0,
+      "confidence": 4,
+      "safety_controller": 2,
+      "action": 1
+     }
+    },
+    {
+     "slot": 2,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 30,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        32
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 285,
+      "reviewer_pass": 285,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {
+       "region-b": 32
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "bad": 51,
+       "good": 14
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 33
+      },
+      "confidence": {
+       "signals_disagree": 32
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 33,
+      "reviewer": 0,
+      "confidence": 32,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 3,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 35,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        37
+       ],
+       [
+        "bad_windows",
+        4
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 360,
+      "reviewer_pass": 360,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {
+       "region-a": 41
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 39,
+       "bad": 26
+      },
+      "http": {
+       "good": 53,
+       "bad": 12
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 24
+      },
+      "confidence": {
+       "signals_disagree": 37,
+       "bad_windows": 4
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 24,
+      "reviewer": 0,
+      "confidence": 41,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 4,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 20,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        7
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 870,
+      "reviewer_pass": 870,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-a": 33
+      },
+      "fault_window": {
+       "region-a": 7
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 42,
+       "bad": 23
+      },
+      "http": {
+       "good": 46,
+       "bad": 19
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 58
+      },
+      "confidence": {
+       "signals_disagree": 7
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 58,
+      "reviewer": 0,
+      "confidence": 7,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 5,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 15,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        6
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 885,
+      "reviewer_pass": 885,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-a": 32
+      },
+      "fault_window": {
+       "region-b": 6
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 27,
+       "bad": 38
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 59
+      },
+      "confidence": {
+       "signals_disagree": 6
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 59,
+      "reviewer": 0,
+      "confidence": 6,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 6,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 15,
+     "action": null,
+     "blocked_at": {
+      "stage": "no_proposal",
+      "top_reasons": [
+       [
+        "hold",
+        65
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": null,
+      "reviewer_pass": null,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-b": 9
+      },
+      "fault_window": {}
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 58,
+       "bad": 7
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 65
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 65,
+      "reviewer": 0,
+      "confidence": 0,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 7,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 35,
+     "action": null,
+     "blocked_at": {
+      "stage": "safety_controller",
+      "top_reasons": [
+       [
+        "qualifying:",
+        2
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 405,
+      "reviewer_pass": 405,
+      "confident": 780
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {
+       "region-b": 38
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 47,
+       "bad": 18
+      },
+      "http": {
+       "good": 20,
+       "bad": 45
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 27
+      },
+      "confidence": {
+       "signals_disagree": 28,
+       "bad_windows": 8
+      },
+      "safety_controller": {
+       "qualifying:": 2
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 27,
+      "reviewer": 0,
+      "confidence": 36,
+      "safety_controller": 2,
+      "action": 0
+     }
+    },
+    {
+     "slot": 8,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 25,
+     "action": null,
+     "blocked_at": {
+      "stage": "no_proposal",
+      "top_reasons": [
+       [
+        "hold",
+        65
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": null,
+      "reviewer_pass": null,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-b": 15
+      },
+      "fault_window": {}
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 48,
+       "bad": 17
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 65
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 65,
+      "reviewer": 0,
+      "confidence": 0,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 9,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 30,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        19
+       ],
+       [
+        "bad_windows",
+        6
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 600,
+      "reviewer_pass": 600,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {
+       "region-b": 25
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 49,
+       "bad": 16
+      },
+      "http": {
+       "bad": 45,
+       "good": 20
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 40
+      },
+      "confidence": {
+       "signals_disagree": 19,
+       "bad_windows": 6
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 40,
+      "reviewer": 0,
+      "confidence": 25,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 10,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 10,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        15
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 465,
+      "reviewer_pass": 465,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-b": 7
+      },
+      "fault_window": {
+       "region-b": 15
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "bad": 41,
+       "good": 24
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 50
+      },
+      "confidence": {
+       "signals_disagree": 15
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 50,
+      "reviewer": 0,
+      "confidence": 15,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 11,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 35,
+     "action": null,
+     "blocked_at": {
+      "stage": "safety_controller",
+      "top_reasons": [
+       [
+        "qualifying:",
+        1
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 30,
+      "reviewer_pass": 30,
+      "confident": 435
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {
+       "region-a": 63
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 15,
+       "bad": 50
+      },
+      "http": {
+       "good": 40,
+       "bad": 25
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 2
+      },
+      "confidence": {
+       "signals_disagree": 45,
+       "bad_windows": 16,
+       "other_region_not_clean": 1
+      },
+      "safety_controller": {
+       "qualifying:": 1
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 2,
+      "reviewer": 0,
+      "confidence": 62,
+      "safety_controller": 1,
+      "action": 0
+     }
+    },
+    {
+     "slot": 12,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 25,
+     "action": null,
+     "blocked_at": {
+      "stage": "no_proposal",
+      "top_reasons": [
+       [
+        "hold",
+        65
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": null,
+      "reviewer_pass": null,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {}
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 29,
+       "bad": 36
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 65
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 65,
+      "reviewer": 0,
+      "confidence": 0,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 13,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 10,
+     "action": null,
+     "blocked_at": {
+      "stage": "no_proposal",
+      "top_reasons": [
+       [
+        "hold",
+        65
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": null,
+      "reviewer_pass": null,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {}
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 60,
+       "bad": 5
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 65
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 65,
+      "reviewer": 0,
+      "confidence": 0,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 14,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 10,
+     "action": null,
+     "blocked_at": {
+      "stage": "no_proposal",
+      "top_reasons": [
+       [
+        "hold",
+        65
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": null,
+      "reviewer_pass": null,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {}
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 49,
+       "bad": 16
+      },
+      "http": {
+       "good": 59,
+       "bad": 6
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 65
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 65,
+      "reviewer": 0,
+      "confidence": 0,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 15,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 25,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        36
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 435,
+      "reviewer_pass": 435,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {
+       "region-b": 36
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 19,
+       "bad": 46
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 29
+      },
+      "confidence": {
+       "signals_disagree": 36
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 29,
+      "reviewer": 0,
+      "confidence": 36,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 16,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 15,
+     "action": null,
+     "blocked_at": {
+      "stage": "no_proposal",
+      "top_reasons": [
+       [
+        "hold",
+        65
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": null,
+      "reviewer_pass": null,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-b": 22
+      },
+      "fault_window": {}
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 22,
+       "bad": 43
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 65
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 65,
+      "reviewer": 0,
+      "confidence": 0,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 17,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 35,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        8
+       ],
+       [
+        "bad_windows",
+        7
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 750,
+      "reviewer_pass": 750,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {
+       "region-a": 15
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 50,
+       "bad": 15
+      },
+      "http": {
+       "good": 39,
+       "bad": 26
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 50
+      },
+      "confidence": {
+       "bad_windows": 7,
+       "signals_disagree": 8
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 50,
+      "reviewer": 0,
+      "confidence": 15,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 18,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 35,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        4
+       ],
+       [
+        "bad_windows",
+        1
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 900,
+      "reviewer_pass": 900,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-a": 20
+      },
+      "fault_window": {
+       "region-a": 5
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 28,
+       "bad": 37
+      },
+      "http": {
+       "good": 47,
+       "bad": 18
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 60
+      },
+      "confidence": {
+       "signals_disagree": 4,
+       "bad_windows": 1
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 60,
+      "reviewer": 0,
+      "confidence": 5,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 19,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 20,
+     "action": null,
+     "blocked_at": {
+      "stage": "no_proposal",
+      "top_reasons": [
+       [
+        "hold",
+        65
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": null,
+      "reviewer_pass": null,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-a": 16
+      },
+      "fault_window": {}
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 21,
+       "bad": 44
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 65
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 65,
+      "reviewer": 0,
+      "confidence": 0,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 20,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 25,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        5
+       ],
+       [
+        "bad_windows",
+        1
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 885,
+      "reviewer_pass": 885,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {
+       "region-a": 6
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 44,
+       "bad": 21
+      },
+      "http": {
+       "good": 53,
+       "bad": 12
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 59
+      },
+      "confidence": {
+       "bad_windows": 1,
+       "signals_disagree": 5
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 59,
+      "reviewer": 0,
+      "confidence": 6,
+      "safety_controller": 0,
+      "action": 0
+     }
+    }
+   ]
+  },
+  "lab": {
+   "http_deadline_ms": 500.0,
+   "summary": {
+    "trials": 20,
+    "would_fail_over_away_from_impaired_region": 1,
+    "failover_delays_s": [
+     210
+    ],
+    "false_actions_in_control_windows": 0,
+    "false_action_slots": [],
+    "not_acted_blocked_at_stage": {
+     "confidence": 16,
+     "safety_controller": 3
+    }
+   },
+   "healthy_gaps": {
+    "gaps": 21,
+    "hours": 1.58,
+    "actions": [],
+    "note": "an action flagged before_fault happened in the 10 min warm-up, not in the gap"
+   },
+   "slots": [
+    {
+     "slot": 0,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 35,
+     "action": {
+      "at_unix": 1794497144.307433,
+      "away_from": "region-b",
+      "delay_s": 210,
+      "route": "50->75",
+      "confidence": "confident:RIPE+HTTP_bad_for_5_windows"
+     },
+     "blocked_at": null,
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 15,
+      "reviewer_pass": 15,
+      "confident": 180
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {
+       "region-b": 13
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 15
+      },
+      "ripe": {
+       "good": 8,
+       "bad": 7
+      },
+      "http": {
+       "good": 2,
+       "bad": 13
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 2
+      },
+      "confidence": {
+       "signals_disagree": 7,
+       "bad_windows": 3
+      },
+      "safety_controller": {
+       "qualifying:": 2
+      },
+      "action": {
+       "away_from:region-b": 1
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 2,
+      "reviewer": 0,
+      "confidence": 10,
+      "safety_controller": 2,
+      "action": 1
+     }
+    },
+    {
+     "slot": 2,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 30,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        44
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 135,
+      "reviewer_pass": 135,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-a": 4
+      },
+      "fault_window": {
+       "region-b": 44
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "bad": 51,
+       "good": 14
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 21
+      },
+      "confidence": {
+       "signals_disagree": 44
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 21,
+      "reviewer": 0,
+      "confidence": 44,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 3,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 35,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        58
+       ],
+       [
+        "bad_windows",
+        4
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 30,
+      "reviewer_pass": 30,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-b": 4
+      },
+      "fault_window": {
+       "region-a": 62
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 39,
+       "bad": 26
+      },
+      "http": {
+       "good": 53,
+       "bad": 12
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 3
+      },
+      "confidence": {
+       "signals_disagree": 58,
+       "bad_windows": 4
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 3,
+      "reviewer": 0,
+      "confidence": 62,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 4,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 20,
+     "action": null,
+     "blocked_at": {
+      "stage": "safety_controller",
+      "top_reasons": [
+       [
+        "qualifying:",
+        1
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 60,
+      "reviewer_pass": 60,
+      "confident": 180
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-a": 19
+      },
+      "fault_window": {
+       "region-a": 56
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 42,
+       "bad": 23
+      },
+      "http": {
+       "good": 46,
+       "bad": 19
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 9
+      },
+      "confidence": {
+       "signals_disagree": 50,
+       "bad_windows": 4,
+       "other_region_not_clean": 1
+      },
+      "safety_controller": {
+       "qualifying:": 1
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 9,
+      "reviewer": 0,
+      "confidence": 55,
+      "safety_controller": 1,
+      "action": 0
+     }
+    },
+    {
+     "slot": 5,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 15,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        37
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 60,
+      "reviewer_pass": 60,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-a": 16
+      },
+      "fault_window": {
+       "region-b": 37
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 27,
+       "bad": 38
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 28
+      },
+      "confidence": {
+       "signals_disagree": 37
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 28,
+      "reviewer": 0,
+      "confidence": 37,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 6,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 15,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        29
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 210,
+      "reviewer_pass": 210,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-b": 4,
+       "region-a": 15
+      },
+      "fault_window": {
+       "region-a": 29
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 58,
+       "bad": 7
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 36
+      },
+      "confidence": {
+       "signals_disagree": 29
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 36,
+      "reviewer": 0,
+      "confidence": 29,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 7,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 35,
+     "action": null,
+     "blocked_at": {
+      "stage": "safety_controller",
+      "top_reasons": [
+       [
+        "qualifying:",
+        2
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 15,
+      "reviewer_pass": 15,
+      "confident": 780
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-a": 4
+      },
+      "fault_window": {
+       "region-b": 60
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 47,
+       "bad": 18
+      },
+      "http": {
+       "good": 20,
+       "bad": 45
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 5
+      },
+      "confidence": {
+       "signals_disagree": 50,
+       "bad_windows": 8
+      },
+      "safety_controller": {
+       "qualifying:": 2
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 5,
+      "reviewer": 0,
+      "confidence": 58,
+      "safety_controller": 2,
+      "action": 0
+     }
+    },
+    {
+     "slot": 8,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 25,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        51
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 45,
+      "reviewer_pass": 45,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-b": 6
+      },
+      "fault_window": {
+       "region-a": 51
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 48,
+       "bad": 17
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 14
+      },
+      "confidence": {
+       "signals_disagree": 51
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 14,
+      "reviewer": 0,
+      "confidence": 51,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 9,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 30,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        55
+       ],
+       [
+        "bad_windows",
+        6
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 60,
+      "reviewer_pass": 60,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-a": 14
+      },
+      "fault_window": {
+       "region-b": 61
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 49,
+       "bad": 16
+      },
+      "http": {
+       "bad": 45,
+       "good": 20
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 4
+      },
+      "confidence": {
+       "signals_disagree": 55,
+       "bad_windows": 6
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 4,
+      "reviewer": 0,
+      "confidence": 61,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 10,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 10,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        25
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 75,
+      "reviewer_pass": 75,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-b": 3
+      },
+      "fault_window": {
+       "region-b": 21,
+       "region-a": 4
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "bad": 41,
+       "good": 24
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 40
+      },
+      "confidence": {
+       "signals_disagree": 25
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 40,
+      "reviewer": 0,
+      "confidence": 25,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 11,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 35,
+     "action": null,
+     "blocked_at": {
+      "stage": "safety_controller",
+      "top_reasons": [
+       [
+        "qualifying:",
+        1
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 15,
+      "reviewer_pass": 15,
+      "confident": 435
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {
+       "region-a": 64
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 15,
+       "bad": 50
+      },
+      "http": {
+       "good": 40,
+       "bad": 25
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 1
+      },
+      "confidence": {
+       "signals_disagree": 46,
+       "bad_windows": 16,
+       "other_region_not_clean": 1
+      },
+      "safety_controller": {
+       "qualifying:": 1
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 1,
+      "reviewer": 0,
+      "confidence": 63,
+      "safety_controller": 1,
+      "action": 0
+     }
+    },
+    {
+     "slot": 12,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 25,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        48
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 15,
+      "reviewer_pass": 15,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {
+       "region-b": 48
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 29,
+       "bad": 36
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 17
+      },
+      "confidence": {
+       "signals_disagree": 48
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 17,
+      "reviewer": 0,
+      "confidence": 48,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 13,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 10,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        13
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 45,
+      "reviewer_pass": 45,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-b": 6
+      },
+      "fault_window": {
+       "region-b": 4,
+       "region-a": 9
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 60,
+       "bad": 5
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 48,
+       "investigate": 4
+      },
+      "confidence": {
+       "signals_disagree": 13
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 52,
+      "reviewer": 0,
+      "confidence": 13,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 14,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 10,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        31
+       ],
+       [
+        "bad_windows",
+        2
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 75,
+      "reviewer_pass": 75,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {},
+      "fault_window": {
+       "region-a": 33
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 49,
+       "bad": 16
+      },
+      "http": {
+       "good": 59,
+       "bad": 6
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 32
+      },
+      "confidence": {
+       "signals_disagree": 31,
+       "bad_windows": 2
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 32,
+      "reviewer": 0,
+      "confidence": 33,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 15,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 25,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        36
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 90,
+      "reviewer_pass": 90,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-a": 16
+      },
+      "fault_window": {
+       "region-b": 36
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 19,
+       "bad": 46
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 29
+      },
+      "confidence": {
+       "signals_disagree": 36
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 29,
+      "reviewer": 0,
+      "confidence": 36,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 16,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 15,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        49
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 30,
+      "reviewer_pass": 30,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-b": 11
+      },
+      "fault_window": {
+       "region-b": 47,
+       "region-a": 2
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 22,
+       "bad": 43
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 12,
+       "investigate": 4
+      },
+      "confidence": {
+       "signals_disagree": 49
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 16,
+      "reviewer": 0,
+      "confidence": 49,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 17,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 35,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        48
+       ],
+       [
+        "bad_windows",
+        7
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 75,
+      "reviewer_pass": 75,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-a": 9
+      },
+      "fault_window": {
+       "region-a": 55
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 50,
+       "bad": 15
+      },
+      "http": {
+       "good": 39,
+       "bad": 26
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 10
+      },
+      "confidence": {
+       "signals_disagree": 48,
+       "bad_windows": 7
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 10,
+      "reviewer": 0,
+      "confidence": 55,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 18,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 35,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        51
+       ],
+       [
+        "bad_windows",
+        7
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 45,
+      "reviewer_pass": 45,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-a": 19
+      },
+      "fault_window": {
+       "region-a": 58
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 28,
+       "bad": 37
+      },
+      "http": {
+       "good": 47,
+       "bad": 18
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 7
+      },
+      "confidence": {
+       "signals_disagree": 51,
+       "bad_windows": 7
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 7,
+      "reviewer": 0,
+      "confidence": 58,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 19,
+     "region": "region-b",
+     "control_region": "region-a",
+     "loss_percent": 20,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        46
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 75,
+      "reviewer_pass": 75,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-a": 22
+      },
+      "fault_window": {
+       "region-b": 46
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 65
+      },
+      "http": {
+       "good": 21,
+       "bad": 44
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 19
+      },
+      "confidence": {
+       "signals_disagree": 46
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 19,
+      "reviewer": 0,
+      "confidence": 46,
+      "safety_controller": 0,
+      "action": 0
+     }
+    },
+    {
+     "slot": 20,
+     "region": "region-a",
+     "control_region": "region-b",
+     "loss_percent": 25,
+     "action": null,
+     "blocked_at": {
+      "stage": "confidence",
+      "top_reasons": [
+       [
+        "signals_disagree",
+        60
+       ],
+       [
+        "bad_windows",
+        4
+       ],
+       [
+        "other_region_not_clean",
+        1
+       ]
+      ]
+     },
+     "first_seen_delay_s": {
+      "campaign_detector_or_lab_proposal": 0,
+      "reviewer_pass": 0,
+      "confident": null
+     },
+     "shift_proposals_by_blamed_region": {
+      "warmup_before_fault": {
+       "region-b": 8,
+       "region-a": 6
+      },
+      "fault_window": {
+       "region-a": 65
+      }
+     },
+     "impaired_region_votes_in_window": {
+      "aws": {
+       "good": 65
+      },
+      "ripe": {
+       "good": 44,
+       "bad": 21
+      },
+      "http": {
+       "good": 53,
+       "bad": 12
+      }
+     },
+     "reasons_by_stage": {
+      "confidence": {
+       "signals_disagree": 60,
+       "bad_windows": 4,
+       "other_region_not_clean": 1
+      }
+     },
+     "ticks_by_stage": {
+      "no_proposal": 0,
+      "reviewer": 0,
+      "confidence": 65,
+      "safety_controller": 0,
+      "action": 0
+     }
+    }
+   ]
+  },
+  "campaign@http_2000ms": {
+   "http_deadline_ms": 2000.0,
    "summary": {
     "trials": 20,
     "would_fail_over_away_from_impaired_region": 0,
@@ -30,6 +2371,12 @@
      "confidence": 13,
      "no_proposal": 7
     }
+   },
+   "healthy_gaps": {
+    "gaps": 21,
+    "hours": 1.58,
+    "actions": [],
+    "note": "an action flagged before_fault happened in the 10 min warm-up, not in the gap"
    },
    "slots": [
     {
@@ -73,6 +2420,15 @@
       "http": {
        "good": 58,
        "bad": 7
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 16
+      },
+      "confidence": {
+       "signals_disagree": 43,
+       "bad_windows": 6
       }
      },
      "ticks_by_stage": {
@@ -121,6 +2477,14 @@
        "bad": 4
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 33
+      },
+      "confidence": {
+       "signals_disagree": 32
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 33,
       "reviewer": 0,
@@ -165,6 +2529,14 @@
       },
       "http": {
        "good": 65
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 24
+      },
+      "confidence": {
+       "signals_disagree": 41
       }
      },
      "ticks_by_stage": {
@@ -215,6 +2587,14 @@
        "good": 65
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 58
+      },
+      "confidence": {
+       "signals_disagree": 7
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 58,
       "reviewer": 0,
@@ -263,6 +2643,14 @@
        "bad": 1
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 59
+      },
+      "confidence": {
+       "signals_disagree": 6
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 59,
       "reviewer": 0,
@@ -306,6 +2694,11 @@
       },
       "http": {
        "good": 65
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 65
       }
      },
      "ticks_by_stage": {
@@ -359,6 +2752,15 @@
        "bad": 9
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 27
+      },
+      "confidence": {
+       "signals_disagree": 36,
+       "bad_windows": 2
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 27,
       "reviewer": 0,
@@ -403,6 +2805,11 @@
       "http": {
        "good": 63,
        "bad": 2
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 65
       }
      },
      "ticks_by_stage": {
@@ -452,6 +2859,14 @@
        "bad": 4
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 40
+      },
+      "confidence": {
+       "signals_disagree": 25
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 40,
       "reviewer": 0,
@@ -497,6 +2912,14 @@
       },
       "http": {
        "good": 65
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 50
+      },
+      "confidence": {
+       "signals_disagree": 15
       }
      },
      "ticks_by_stage": {
@@ -546,6 +2969,14 @@
        "bad": 2
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 2
+      },
+      "confidence": {
+       "signals_disagree": 63
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 2,
       "reviewer": 0,
@@ -588,6 +3019,11 @@
       "http": {
        "good": 63,
        "bad": 2
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 65
       }
      },
      "ticks_by_stage": {
@@ -633,6 +3069,11 @@
        "good": 65
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 65
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 65,
       "reviewer": 0,
@@ -675,6 +3116,11 @@
       },
       "http": {
        "good": 65
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 65
       }
      },
      "ticks_by_stage": {
@@ -722,6 +3168,14 @@
        "good": 65
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 29
+      },
+      "confidence": {
+       "signals_disagree": 36
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 29,
       "reviewer": 0,
@@ -766,6 +3220,11 @@
       "http": {
        "good": 64,
        "bad": 1
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 65
       }
      },
      "ticks_by_stage": {
@@ -819,6 +3278,15 @@
        "bad": 1
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 50
+      },
+      "confidence": {
+       "signals_disagree": 14,
+       "bad_windows": 1
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 50,
       "reviewer": 0,
@@ -868,6 +3336,14 @@
        "bad": 5
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 60
+      },
+      "confidence": {
+       "signals_disagree": 5
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 60,
       "reviewer": 0,
@@ -911,6 +3387,11 @@
       },
       "http": {
        "good": 65
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 65
       }
      },
      "ticks_by_stage": {
@@ -959,6 +3440,14 @@
        "good": 65
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 59
+      },
+      "confidence": {
+       "signals_disagree": 6
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 59,
       "reviewer": 0,
@@ -969,7 +3458,8 @@
     }
    ]
   },
-  "lab": {
+  "lab@http_2000ms": {
+   "http_deadline_ms": 2000.0,
    "summary": {
     "trials": 20,
     "would_fail_over_away_from_impaired_region": 0,
@@ -979,6 +3469,12 @@
     "not_acted_blocked_at_stage": {
      "confidence": 20
     }
+   },
+   "healthy_gaps": {
+    "gaps": 21,
+    "hours": 1.58,
+    "actions": [],
+    "note": "an action flagged before_fault happened in the 10 min warm-up, not in the gap"
    },
    "slots": [
     {
@@ -1022,6 +3518,16 @@
       "http": {
        "good": 58,
        "bad": 7
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 10,
+       "investigate": 4
+      },
+      "confidence": {
+       "signals_disagree": 45,
+       "bad_windows": 6
       }
      },
      "ticks_by_stage": {
@@ -1072,6 +3578,14 @@
        "bad": 4
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 21
+      },
+      "confidence": {
+       "signals_disagree": 44
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 21,
       "reviewer": 0,
@@ -1118,6 +3632,14 @@
       },
       "http": {
        "good": 65
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 3
+      },
+      "confidence": {
+       "signals_disagree": 62
       }
      },
      "ticks_by_stage": {
@@ -1168,6 +3690,14 @@
        "good": 65
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 9
+      },
+      "confidence": {
+       "signals_disagree": 56
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 9,
       "reviewer": 0,
@@ -1216,6 +3746,14 @@
        "bad": 1
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 28
+      },
+      "confidence": {
+       "signals_disagree": 37
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 28,
       "reviewer": 0,
@@ -1262,6 +3800,14 @@
       },
       "http": {
        "good": 65
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 36
+      },
+      "confidence": {
+       "signals_disagree": 29
       }
      },
      "ticks_by_stage": {
@@ -1317,6 +3863,15 @@
        "bad": 9
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 5
+      },
+      "confidence": {
+       "signals_disagree": 58,
+       "bad_windows": 2
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 5,
       "reviewer": 0,
@@ -1363,6 +3918,14 @@
       "http": {
        "good": 63,
        "bad": 2
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 14
+      },
+      "confidence": {
+       "signals_disagree": 51
       }
      },
      "ticks_by_stage": {
@@ -1414,6 +3977,14 @@
        "bad": 4
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 4
+      },
+      "confidence": {
+       "signals_disagree": 61
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 4,
       "reviewer": 0,
@@ -1460,6 +4031,14 @@
       },
       "http": {
        "good": 65
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 40
+      },
+      "confidence": {
+       "signals_disagree": 25
       }
      },
      "ticks_by_stage": {
@@ -1509,6 +4088,14 @@
        "bad": 2
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 1
+      },
+      "confidence": {
+       "signals_disagree": 64
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 1,
       "reviewer": 0,
@@ -1553,6 +4140,14 @@
       "http": {
        "good": 63,
        "bad": 2
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 17
+      },
+      "confidence": {
+       "signals_disagree": 48
       }
      },
      "ticks_by_stage": {
@@ -1603,6 +4198,15 @@
        "good": 65
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 48,
+       "investigate": 4
+      },
+      "confidence": {
+       "signals_disagree": 13
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 52,
       "reviewer": 0,
@@ -1647,6 +4251,14 @@
       },
       "http": {
        "good": 65
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 32
+      },
+      "confidence": {
+       "signals_disagree": 33
       }
      },
      "ticks_by_stage": {
@@ -1696,6 +4308,14 @@
        "good": 65
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 29
+      },
+      "confidence": {
+       "signals_disagree": 36
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 29,
       "reviewer": 0,
@@ -1743,6 +4363,15 @@
       "http": {
        "good": 64,
        "bad": 1
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 12,
+       "investigate": 4
+      },
+      "confidence": {
+       "signals_disagree": 49
       }
      },
      "ticks_by_stage": {
@@ -1798,6 +4427,15 @@
        "bad": 1
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 10
+      },
+      "confidence": {
+       "signals_disagree": 54,
+       "bad_windows": 1
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 10,
       "reviewer": 0,
@@ -1851,6 +4489,15 @@
        "bad": 5
       }
      },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 7
+      },
+      "confidence": {
+       "signals_disagree": 55,
+       "bad_windows": 3
+      }
+     },
      "ticks_by_stage": {
       "no_proposal": 7,
       "reviewer": 0,
@@ -1896,6 +4543,14 @@
       },
       "http": {
        "good": 65
+      }
+     },
+     "reasons_by_stage": {
+      "no_proposal": {
+       "hold": 19
+      },
+      "confidence": {
+       "signals_disagree": 46
       }
      },
      "ticks_by_stage": {
@@ -1945,6 +4600,11 @@
       },
       "http": {
        "good": 65
+      }
+     },
+     "reasons_by_stage": {
+      "confidence": {
+       "signals_disagree": 65
       }
      },
      "ticks_by_stage": {

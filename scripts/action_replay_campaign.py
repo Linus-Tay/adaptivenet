@@ -10,7 +10,9 @@ Every 15 s tick (the witness cadence) on a replayed clock:
   1. features.v1 snapshot = ingestion.features.make_snapshot(observations up to t)
      (RIPE parsed with the real ingestion parser, parse_atlas_latest)
   2. confidence rules (controller/confidence.py) observe the snapshot + the witness
-     result for each region (HTTP 200, served by that region, <= 2 s)
+     result for each region: HTTP 2xx, served by that region, within the controller's
+     client deadline (recovery.DEADLINE_SEC = 0.5 s, as DemoLoop.tick uses via
+     HttpMeasurement.met_deadline). --http-deadline-ms adds other deadlines side by side.
   3. a proposal from one of two detectors (both unchanged, as committed):
        campaign : the frozen campaign detector (ml/team_starter/ripe_value.py,
                   AWS-only fair rule OR primary RIPE rule), mapped to a 25-point shift
@@ -43,6 +45,7 @@ sys.path[:0] = [str(ROOT / "services"), str(ROOT)]
 from adaptivenet.controller.confidence import ConfidenceTracker, ConfidenceRules  # noqa: E402
 from adaptivenet.controller.end_to_end import decide  # noqa: E402
 from adaptivenet.controller.journal import ActionJournal  # noqa: E402
+from adaptivenet.controller.recovery import DEADLINE_SEC  # noqa: E402
 from adaptivenet.controller.safety import SafetyController  # noqa: E402
 from adaptivenet.ingestion.config import RegionConfig  # noqa: E402
 from adaptivenet.ingestion.fast_signals import build_fast_signals  # noqa: E402
@@ -58,7 +61,7 @@ AMP_METRICS = ("app_up", "http_rps", "http_5xx_rps", "http_p95_ms", "cpu_busy_pc
                "memory_available_bytes", "memory_total_bytes", "node_load1")
 TICK_SEC = 15
 WARMUP_SEC = 600
-HTTP_DEADLINE_MS = 2000
+HTTP_DEADLINE_MS = round(DEADLINE_SEC * 1000)  # 500 ms, the committed controller deadline
 STEP = 25
 STAGES = ("no_proposal", "reviewer", "confidence", "safety_controller", "action")
 
@@ -122,12 +125,12 @@ class Inputs:
         return None
 
 
-def http_ok(sample: dict | None, region: str) -> bool | None:
+def http_ok(sample: dict | None, region: str, deadline_ms: float = HTTP_DEADLINE_MS) -> bool | None:
     if sample is None:
         return None
-    latency = sample.get("latency_ms")
-    return (sample.get("http_status") == 200 and sample.get("origin") == region
-            and isinstance(latency, (int, float)) and latency <= HTTP_DEADLINE_MS)
+    latency, status = sample.get("latency_ms"), sample.get("http_status")
+    return (type(status) is int and 200 <= status < 300 and sample.get("origin") == region
+            and isinstance(latency, (int, float)) and latency <= deadline_ms)
 
 
 # ---------------------------------------------------------------- proposals
@@ -203,7 +206,7 @@ def replay_clock():
 
 
 def replay_slot(inputs: Inputs, slot: dict, proposer: str, *, start_weight: int = 50,
-                rules: ConfidenceRules | None = None) -> dict:
+                rules: ConfidenceRules | None = None, deadline_ms: float = HTTP_DEADLINE_MS) -> dict:
     start = slot["request_unix"] - WARMUP_SEC
     end = slot["request_unix"] + slot["duration_seconds"]
     tracker = ConfidenceTracker(rules)
@@ -221,14 +224,14 @@ def replay_slot(inputs: Inputs, slot: dict, proposer: str, *, start_weight: int 
             clock["now"] = t
             snapshot = make_snapshot(inputs.observations(t), t)
             samples = {r: inputs.witness_sample(r, t) for r in REGIONS}
-            tracker.observe(snapshot, now=t, http_ok={r: http_ok(samples[r], r) for r in REGIONS})
+            tracker.observe(snapshot, now=t, http_ok={r: http_ok(samples[r], r, deadline_ms) for r in REGIONS})
             weight = route.read_weight()
             proposal = PROPOSERS[proposer](inputs, snapshot, t, weight)
             decision = decide(snapshot, proposal, current_region_a_percent=weight, now=t)
             in_window = t >= slot["request_unix"]
             if proposal.get("action") == "shift_traffic":
                 proposals["fault_window" if in_window else "warmup_before_fault"][proposal.get("affected_region")] += 1
-            if in_window:
+            if in_window and slot["region"]:
                 for sig, value in tracker.regions[slot["region"]].votes.items():
                     votes[sig][value] += 1
             if proposal.get("action") != "shift_traffic":
@@ -239,11 +242,11 @@ def replay_slot(inputs: Inputs, slot: dict, proposer: str, *, start_weight: int 
                 source = decision["plan"]["from_region"]
                 verdict = tracker.failover(source, t)
                 sample, dest = samples[source], samples[OTHER[source]]
-                degraded = http_ok(sample, source) is False
+                degraded = http_ok(sample, source, deadline_ms) is False
                 result = safety.step(snapshot, decision["proposal"],
                                      observed_at=ts(sample["timestamp"]) if sample else None,
                                      source_degraded=verdict.ok and degraded,
-                                     destination_responsive=http_ok(dest, OTHER[source]) is True)
+                                     destination_responsive=http_ok(dest, OTHER[source], deadline_ms) is True)
                 if not verdict.ok:
                     stage, reason = "confidence", verdict.reason.split(":")[0]
                 elif result.state == "verifying":
@@ -264,11 +267,12 @@ def replay_slot(inputs: Inputs, slot: dict, proposer: str, *, start_weight: int 
                 action["before_fault"] = True
             t += TICK_SEC
     furthest = next((s for s in reversed(STAGES) if stages[s]), "no_proposal")
-    blocker = None if action else {"stage": furthest, "top_reasons": stages[furthest].most_common(3)}
+    blocker = None if action else {"stage": furthest, "top_reasons": stages[furthest].most_common()}
     return {"slot": slot["slot"], "region": slot["region"], "control_region": slot["control_region"],
             "loss_percent": slot["loss_percent"], "action": action, "blocked_at": blocker,
             "first_seen_delay_s": first, "shift_proposals_by_blamed_region": {k: dict(v) for k, v in proposals.items()},
             "impaired_region_votes_in_window": {k: dict(v) for k, v in votes.items()},
+            "reasons_by_stage": {k: dict(v) for k, v in stages.items() if v},
             "ticks_by_stage": {s: sum(c.values()) for s, c in stages.items()}}
 
 
@@ -289,11 +293,27 @@ def summarise(rows: list[dict], slots: list[dict]) -> dict:
             "not_acted_blocked_at_stage": dict(blocked)}
 
 
+def healthy_gaps(inputs: Inputs, *, pad_after: float = 300, min_len: float = 120) -> list[dict]:
+    """Stretches with no slot running in either region (all submitted slots, + pad after)."""
+    busy = sorted((s["request_unix"], s["request_unix"] + s["duration_seconds"] + pad_after) for s in inputs.slots)
+    begin = max(ts(inputs.witness[0]["timestamp"]), min(r["ts"] for r in inputs.amp["region-a"])) + WARMUP_SEC
+    finish = min(ts(inputs.witness[-1]["timestamp"]), max(r["ts"] for r in inputs.amp["region-a"]))
+    gaps, cursor = [], begin
+    for a, b in busy + [(finish, finish)]:
+        if a - cursor >= min_len:
+            gaps.append({"slot": f"gap-{len(gaps)}", "region": None, "control_region": None, "loss_percent": None,
+                         "request_unix": cursor, "duration_seconds": a - cursor})
+        cursor = max(cursor, b)
+    return gaps
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--campaign-dir", required=True, type=Path)
     parser.add_argument("--proposer", choices=sorted(PROPOSERS), action="append")
     parser.add_argument("--start-weight", type=int, default=50)
+    parser.add_argument("--http-deadline-ms", type=float, action="append",
+                        help=f"client deadline(s) for the HTTP vote; default {HTTP_DEADLINE_MS} (the committed value)")
     parser.add_argument("--out", type=Path)
     args = parser.parse_args(argv)
     inputs = Inputs(args.campaign_dir)
@@ -301,11 +321,23 @@ def main(argv=None) -> int:
     report = {"report_version": "adaptivenet.action_replay_campaign.v1",
               "excluded_unconfirmed_slots": [s["slot"] for s in inputs.slots if not s["effect_confirmed"]],
               "start_region_a_percent": args.start_weight, "tick_seconds": TICK_SEC,
+              "committed_http_deadline_ms": HTTP_DEADLINE_MS,
               "rules": asdict(ConfidenceRules()), "runs": {}}
-    for proposer in args.proposer or ["campaign", "lab"]:
-        rows = [replay_slot(inputs, s, proposer, start_weight=args.start_weight) for s in slots]
-        report["runs"][proposer] = {"summary": summarise(rows, slots), "slots": rows}
-        print(proposer, json.dumps(report["runs"][proposer]["summary"]), flush=True)
+    for deadline in args.http_deadline_ms or [HTTP_DEADLINE_MS]:
+        for proposer in args.proposer or ["campaign", "lab"]:
+            name = proposer if deadline == HTTP_DEADLINE_MS else f"{proposer}@http_{deadline:g}ms"
+            rows = [replay_slot(inputs, s, proposer, start_weight=args.start_weight, deadline_ms=deadline)
+                    for s in slots]
+            gaps = [replay_slot(inputs, g, proposer, start_weight=args.start_weight, deadline_ms=deadline)
+                    for g in healthy_gaps(inputs)]
+            healthy = {"gaps": len(gaps), "hours": round(sum(g["ticks_by_stage"][st] for g in gaps for st in STAGES)
+                                                         * TICK_SEC / 3600, 2),
+                       "actions": [g["action"] | {"gap": g["slot"]} for g in gaps if g["action"]],
+                       "note": "an action flagged before_fault happened in the 10 min warm-up, not in the gap"}
+            report["runs"][name] = {"http_deadline_ms": deadline, "summary": summarise(rows, slots),
+                                    "healthy_gaps": healthy, "slots": rows}
+            print(name, json.dumps(report["runs"][name]["summary"]),
+                  f"healthy gaps: {healthy['hours']} h, {len(healthy['actions'])} actions", flush=True)
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(report, indent=1, default=str))
