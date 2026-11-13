@@ -172,7 +172,7 @@ For group members with access:
 
 ## 7. Results
 
-All numbers come from the linked documents; each states its data, method and limits.
+All numbers come from the linked documents; each states its data, method and limits. A one-page overview of every experiment with its limits is in [docs/EXPERIMENT_SUMMARY.md](docs/EXPERIMENT_SUMMARY.md).
 
 | Result | Number | Source |
 |---|---|---|
