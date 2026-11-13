@@ -8,7 +8,10 @@ Every tick:
    (scale / failover / no-op) behind the independent safety reviewer;
 4. execute ONLY a ``failover`` and ONLY on the local lab gateway, through the
    unchanged ``SafetyController(mode="local")`` (3 fresh observations, journal,
-   bounded 25-point steps, client recovery verification, cooldown).
+   bounded 25-point steps, client recovery verification, cooldown), but only
+   after the confidence rules in ``adaptivenet.controller.confidence`` agree
+   (2 of AWS / RIPE / client HTTP bad for 3 windows in a row, no reversal
+   within 120 s). Those rules read raw measurements only, never the ML output.
    ``scale`` is never executed here: the plan is shown, and live HPA writes stay
    behind ``scripts/end_to_end.py execute --approve-live-write``.
 
@@ -18,7 +21,7 @@ Must share the gateway's network namespace: the route adapter is loopback-only.
 """
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import json
 import logging
 import os
@@ -28,6 +31,9 @@ import uuid
 
 import httpx
 
+from adaptivenet.controller.confidence import (
+    RIPE_TOTAL_LOSS_RULE, RULES_VERSION, ConfidenceRules, ConfidenceTracker, Verdict,
+)
 from adaptivenet.controller.end_to_end import ALLOWLIST, decide
 from adaptivenet.controller.journal import ActionJournal
 from adaptivenet.controller.local_gateway import GatewayRoute
@@ -44,9 +50,17 @@ FAILOVER_STEP = 25
 SHIFT_CONDITIONS = ("network_degradation", "application_failure", "region_down")
 MAX_LOG_BYTES = 2 * 1024 * 1024
 # Failback: return traffic to the primary (Singapore) only after it has looked
-# healthy on all signals for this long, one 25-point step at a time.
-FAILBACK_HEALTHY_SEC = float(os.environ.get("FAILBACK_HEALTHY_SEC", "120"))
+# healthy on all signals for FAILBACK_HEALTHY_SEC (confidence rule B1), one
+# 25-point step at a time, then FAILBACK_CHECKS controller probes.
 FAILBACK_CHECKS = 3
+BASELINE_MIN_REPLICAS = 2
+
+
+def confidence_rules(env=os.environ) -> ConfidenceRules:
+    rules = ConfidenceRules.from_env(env)
+    if "FAILBACK_HEALTHY_SEC" in env:  # older lab setting, kept working
+        rules = replace(rules, failback_healthy_sec=float(env["FAILBACK_HEALTHY_SEC"]))
+    return rules
 
 
 def build_proposal(assessment: dict, group: str, current_region_a_percent: int) -> dict:
@@ -112,7 +126,7 @@ class DemoLoop:
             self._new_controller()
         # Review mode has no gateway to read; assume an even split unless told otherwise.
         self.weight_fallback = int(os.environ.get("DEMO_REVIEW_REGION_A_PERCENT", "50"))
-        self.healthy_since: float | None = None
+        self.confidence = ConfidenceTracker(confidence_rules())
         self.failback_checks = 0
         self.failback_started = False
 
@@ -180,6 +194,11 @@ class DemoLoop:
             weight = self.route.read_weight() if self.route else self.weight_fallback
         except OSError:
             return {"at": now, "state": "route_read_failed"}
+        # Controller-owned client probes are the third confidence signal. Review
+        # mode (replay) has no lab path that matches the data, so HTTP is unknown.
+        samples = {r: self.probe(r) for r in REGIONS} if self.route is not None else {}
+        http_ok = {r: s.met_deadline() and s.region == r for r, s in samples.items()}
+        self.confidence.observe(snapshot, now=now, http_ok=http_ok)
         proposal = build_proposal(assessment, self.group, weight)
         hpa = {r: emulated_hpa(r, snapshot, now) for r in REGIONS}
         decision = decide(snapshot, proposal, current_region_a_percent=weight, hpa_observations=hpa, now=now)
@@ -187,44 +206,71 @@ class DemoLoop:
                   "region_a_percent": weight, "condition": assessment["detectors"][self.group]["condition"],
                   "all_groups": {g: d.get("condition") for g, d in assessment["detectors"].items()},
                   "proposal": proposal, "decision": decision["decision"], "reasons": decision["reasons"],
-                  "plan": decision.get("plan"), "executed_locally": None}
-        if decision["decision"] == "failover" and self.safety is not None:
-            record["executed_locally"] = self.execute_failover(snapshot, decision["proposal"], decision["plan"])
+                  "plan": decision.get("plan"), "executed_locally": None,
+                  "confidence": self.confidence_record(now)}
+        if decision["decision"] == "failover":
+            verdict = self.confidence.failover(decision["plan"]["from_region"], now)
+            record["confidence"]["failover"] = asdict(verdict)
+            if self.safety is not None:
+                record["executed_locally"] = self.execute_failover(
+                    snapshot, decision["proposal"], decision["plan"], confident=verdict, samples=samples)
+                self.note_traffic_change(weight, towards=decision["plan"]["to_region"])
+            elif not verdict.ok:
+                record["executed_locally"] = {"step": {"state": "confirming_signals", "reasons": [verdict.reason]}}
         elif decision["decision"] == "scale":
+            verdict = self.confidence.scale_up(decision["plan"]["region"], now)
+            record["confidence"]["scale_up"] = asdict(verdict)
             record["executed_locally"] = {"state": "not_executed",
-                                          "reason": "eks_scale_requires_approve_live_write"}
+                                          "reason": "eks_scale_requires_approve_live_write"
+                                          if verdict.ok else verdict.reason}
         failback = self.failback(snapshot, assessment, weight, decision["decision"], now)
         if failback is not None:
             record.update(failback)
         return record
 
+    def confidence_record(self, now: float) -> dict:
+        out = {"rules_version": RULES_VERSION, "ripe_extra_rule": RIPE_TOTAL_LOSS_RULE,
+               "rules": asdict(self.confidence.rules), "regions": self.confidence.summary()}
+        # Scale-down is a recommendation only; the lab HPA always sits at its baseline.
+        out["scale_down"] = {r: asdict(self.confidence.scale_down(
+            r, now, current_min=BASELINE_MIN_REPLICAS, baseline_min=BASELINE_MIN_REPLICAS)) for r in REGIONS}
+        return out
+
+    def note_traffic_change(self, before: int, *, towards: str) -> None:
+        try:
+            if self.route is not None and self.route.read_weight() != before:
+                self.confidence.record_traffic_change(time.time(), towards=towards)
+        except OSError:
+            pass
+
     def failback(self, snapshot: dict, assessment: dict, weight: int, decided: str, now: float) -> dict | None:
         """Gated, stepped return of traffic to Singapore (region-a) once it is healthy again.
 
-        Gates: every region healthy on the selected feature group for
-        FAILBACK_HEALTHY_SEC; the independent safety reviewer approves a
+        Gates: confidence rules B1/B2 (Singapore has no bad signal and at
+        least two good ones for 120 s, and 120 s since the last failover
+        step); no failover decision this tick; the independent safety reviewer approves a
         25-point shift towards Singapore; three consecutive controller probes of
         Singapore meet the client deadline; then real client requests are checked
         and the step is rolled back if Singapore does not serve them in time.
         """
         if self.safety is None or self.route is None:
             return None
-        healthy = assessment["detectors"][self.group].get("condition") == "healthy" and decided == "no-op"
-        if weight >= 100 or not healthy:
-            self.healthy_since, self.failback_checks = None, 0
+        if weight >= 100 or decided != "no-op":
+            self.failback_checks = 0
             if weight >= 100:
                 self.failback_started = False
             return None
-        if self.healthy_since is None:
-            self.healthy_since = now
-        waited = now - self.healthy_since
+        verdict = self.confidence.failback(now)
+        if not verdict.ok and verdict.reason.startswith("primary_not_clean"):
+            self.failback_checks = 0
+            return None
         target = min(100, weight + 25)
         base = {"decision": "failback", "proposal": {"action": "shift_traffic", "target_region_a_percent": target,
                                                       "affected_region": "region-b", "failback": True}}
-        if waited < FAILBACK_HEALTHY_SEC:
+        if not verdict.ok:
             return {**base, "reasons": ["primary_must_stay_healthy"],
-                    "executed_locally": {"step": {"state": "waiting_healthy",
-                                                  "reasons": [f"{int(waited)}/{int(FAILBACK_HEALTHY_SEC)} s healthy"]}}}
+                    "executed_locally": {"step": {"state": "waiting_healthy", "reasons": [verdict.reason]}}}
+        waited = now - self.confidence.regions["region-a"].healthy_since
         proposal = {"contract_version": "adaptivenet.proposal.v1", "snapshot_id": snapshot.get("snapshot_id"),
                     "action": "shift_traffic", "target_region_a_percent": target, "confidence": 0.9,
                     "model_id": f"failback:{self.group}", "affected_region": "region-b",
@@ -261,20 +307,32 @@ class DemoLoop:
                 self.route.request_weight(original=target, target=weight)
             except OSError:
                 reason += "; rollback_failed"
-            self.healthy_since = None
+            self.confidence.record_traffic_change(time.time(), towards="region-b")
+            self.confidence.restart_failback_clock()
             return {**base, "reasons": [reason],
                     "executed_locally": {"verify": {"state": "rolled_back", "reasons": [reason]}}}
+        self.confidence.record_traffic_change(time.time(), towards="region-a")
         return {**base, "reasons": ["reviewer_eligible_shift"], "region_a_percent": target,
                 "executed_locally": {"verify": {"state": "failback_step_ok", "reasons": [reason]}}}
 
-    def execute_failover(self, snapshot: dict, proposal: dict, plan: dict) -> dict:
+    def execute_failover(self, snapshot: dict, proposal: dict, plan: dict, *,
+                         confident: Verdict | None = None, samples: dict | None = None) -> dict:
+        """Run one SafetyController step. Without confidence the step still runs
+        (it reconciles pending work and resets its own 3-probe streak) but is
+        told the source is not degraded, so it can never move traffic."""
         source, destination = plan["from_region"], plan["to_region"]
-        sample = self.probe(source)
+        samples = samples or {}
+        sample = samples.get(source) or self.probe(source)
         degraded = not sample.met_deadline() or sample.region != source
-        dest = self.probe(destination)
+        if confident is not None and not confident.ok:
+            degraded = False
+        dest = samples.get(destination) or self.probe(destination)
         result = self.safety.step(snapshot, proposal, observed_at=sample.completed_at,
                                   source_degraded=degraded, destination_responsive=dest.met_deadline())
-        out = {"step": asdict(result), "source_probe_ms": round((sample.completed_at - sample.started_at) * 1000, 1),
+        step = asdict(result)
+        if confident is not None and not confident.ok and result.state == "observing":
+            step = {**step, "state": "confirming_signals", "reasons": [confident.reason]}
+        out = {"step": step, "source_probe_ms": round((sample.completed_at - sample.started_at) * 1000, 1),
                "source_probe_status": sample.status_code}
         if result.state == "verifying" and result.action_id:
             verified = self.safety.verify(self.recovery_window(result.action_id, destination))

@@ -37,14 +37,24 @@ const DECIDED:Record<string,string>={"no-op":"No action",failback:"Move traffic 
 const CTRL:Record<string,string>={idle:"Idle",observing:"Watching",qualifying:"Confirming",verifying:"Checking customers",
   continue_candidate:"Better, next step",recovered:"Customers recovered",blocked:"Stopped by a safety rule",cooldown:"Cooling down",
   action_pending:"Applying",disabled:"Off",waiting_healthy:"Waiting: Singapore must stay healthy",
-  failback_step_ok:"Moved back, customers fine",rolled_back:"Undone: Singapore not ready"};
+  failback_step_ok:"Moved back, customers fine",rolled_back:"Undone: Singapore not ready",
+  confirming_signals:"Confirming: 2 signals must agree"};
 const WHY:Record<string,string>={primary_must_stay_healthy:"Singapore looks healthy; waiting to be sure",no_action_requested:"nothing wrong",degradation_evidence_missing_or_stale:"not confirmed by its own check yet",
   reviewer_eligible_shift:"passed every safety check",source_still_missing_deadline:"some customers still slow",
   client_window_met_deadline:"all customer requests fast",telemetry_quality_gate_failed:"data too incomplete to act",
   destination_not_confirmed_healthy:"other region not confirmed healthy",route_already_at_limit:"no traffic left to move",
   recent_recovery:"waiting 2 min after the last fix",target_observed:"route change confirmed",insufficient_recovery_evidence:"collecting customer requests",
   route_changed_since_verification:"someone changed the route by hand (press Reset demo)",fresh_destination_probe_required:"checking the other region first"};
-const why=(r?:string)=>r?(WHY[r]??r.replaceAll("_"," ")):undefined;
+// Confidence-rule reasons carry numbers, e.g. "bad_windows:2/3" (services/adaptivenet/controller/confidence.py).
+const CONF:[RegExp,(m:RegExpMatchArray)=>string][]=[
+  [/^bad_windows:(\d+)\/(\d+)$/,m=>`${m[1]} of ${m[2]} bad checks in a row`],
+  [/^signals_disagree:(\d+)\/(\d+)_bad\((.*)\)$/,m=>`only ${m[3]==="none"?"no signal":m[3].replace("+"," + ")} says bad; ${m[2]} must agree`],
+  [/^primary_healthy:(\d+)\/(\d+)s$/,m=>`Singapore healthy for ${m[1]} of ${m[2]} s`],
+  [/^cooldown_reversal:(\d+)\/(\d+)s$/,m=>`no reversing within ${m[2]} s (${m[1]} s so far)`],
+  [/^confident:(.*)_bad_for_(\d+)_windows$/,m=>`${m[1].replace("+"," + ")} agree for ${m[2]} checks`],
+];
+const why=(r?:string)=>{if(!r)return undefined;for(const[re,f]of CONF){const m=r.match(re);if(m)return f(m);}
+  return WHY[r]??r.replaceAll("_"," ");};
 const tone=(c?:string)=>!c?"muted":c==="healthy"?"ok":c==="unknown"?"muted":c==="network_degradation"||c==="compute_saturation"?"warn":"bad";
 const fmt=(v:number|null|undefined,d=0)=>v===null||v===undefined?"—":v.toFixed(d);
 const clock=(t:number)=>new Date(t*1000).toLocaleTimeString();
