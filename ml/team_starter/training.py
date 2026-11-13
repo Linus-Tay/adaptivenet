@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 import pickle
 
-from .evaluation import fixed_rule, metrics, split_episodes
+from .evaluation import fixed_rule, metrics, split_by
 from .feature_views import GROUPS
 
 MIN_TRAIN_ROWS = 10
@@ -26,7 +26,8 @@ def vector(row: dict, group: str, feature_names: list[str]) -> list[float]:
 
 
 def train_and_evaluate(dataset: dict, out: Path, *, group: str = "aws_ripe",
-                       embargo_seconds: float = 900, min_confidence: float = .55) -> dict:
+                       embargo_seconds: float = 900, min_confidence: float = .55,
+                       split_strategy: str = "chronological") -> dict:
     if group not in GROUPS:
         raise ValueError("unknown feature group")
     if dataset.get("contract_version") != "adaptivenet.offline_dataset.v1":
@@ -35,7 +36,7 @@ def train_and_evaluate(dataset: dict, out: Path, *, group: str = "aws_ripe",
     result = {"report_version": "adaptivenet.ml_evaluation.v1", "group": group,
               "status": "not_trained", "model_artifact": None,
               "limitations": dataset.get("limitations", []) + ["one_http_witness_vantage"],
-              "forecasting_horizon_seconds": 0, "task": "current_condition_detection"}
+              "forecasting_horizon_seconds": 0, "task": "current_condition_detection", "split_strategy": split_strategy}
     if not rows:
         result["blockers"] = ["no_independently_verified_labeled_snapshots"]
         return result
@@ -46,7 +47,7 @@ def train_and_evaluate(dataset: dict, out: Path, *, group: str = "aws_ripe",
         result["blockers"] = ["verified episodes require explicit experiment_run_id for training"]
         return result
     try:
-        split = split_episodes(dataset["episodes"], embargo_seconds=embargo_seconds)
+        split = split_by(split_strategy, dataset["episodes"], embargo_seconds=embargo_seconds)
     except ValueError as exc:
         result["blockers"] = [str(exc)]
         return result
@@ -128,7 +129,8 @@ def train_and_evaluate(dataset: dict, out: Path, *, group: str = "aws_ripe",
                                                    / sum(v is not None for v in test_confidence)
                                                    if any(v is not None for v in test_confidence) else None)
     model_id = sha256(json.dumps({"group": group, "columns": names, "classes": classes,
-                                  "train_episodes": split["train"], "version": "v1"},
+                                  "train_episodes": split["train"], "version": "v1",
+                                  **({} if split_strategy == "chronological" else {"split": split_strategy})},
                                  sort_keys=True).encode()).hexdigest()[:16]
     artifact = {"artifact_version": "adaptivenet.offline_model.v1", "model_id": f"logreg-{group}-{model_id}",
                 "group": group, "feature_names": names, "classes": classes,

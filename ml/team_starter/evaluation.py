@@ -68,6 +68,81 @@ def split_episodes(episodes: list[dict], *, embargo_seconds: float = 900) -> dic
     return parts
 
 
+SPLIT_STRATEGIES = ("chronological", "class_stratified")
+
+
+def split_episodes_class_stratified(episodes: list[dict], *, embargo_seconds: float = 900) -> dict:
+    """Episode-grouped split that holds out the LATEST runs of every class.
+
+    Use when experiments were run in class blocks (e.g. all service-stop runs on
+    one day, all network trials the next), so a single global time cut puts
+    each class entirely in one partition. Within each class, runs are ordered by
+    time: the latest run is test, the one before is validation when the class
+    has >=4 runs, the rest are train. Whole runs stay together.
+
+    Weaker than ``split_episodes``: training may contain runs of another class
+    recorded AFTER a test run. Features are still as-of (no future observation
+    enters a row), but the result must be reported as class-stratified, not as
+    forward-in-time. Any train/validation run whose window is within
+    ``embargo_seconds`` of a run in a later-used partition is excluded.
+    """
+    if embargo_seconds < 0:
+        raise ValueError("embargo must be nonnegative")
+    runs = {}
+    for e in episodes:
+        ident = e["episode_id"]
+        run_id = e.get("experiment_run_id", ident)
+        if not isinstance(run_id, str) or not run_id.strip():
+            raise ValueError(f"episode {ident} has invalid experiment_run_id")
+        if e["end_unix"] <= e["start_unix"]:
+            raise ValueError(f"episode {ident} has invalid interval")
+        run = runs.setdefault(run_id, {"start": e["start_unix"], "end": e["end_unix"], "ids": [], "labels": set()})
+        run["start"], run["end"] = min(run["start"], e["start_unix"]), max(run["end"], e["end_unix"])
+        run["ids"].append(ident)
+        run["labels"].add(e["label"])
+    by_class = defaultdict(list)
+    for run in runs.values():
+        # A run is stratified by its incident class; healthy only if nothing else.
+        incident = sorted(run["labels"] - {"healthy", "transient", "recovery"})
+        by_class[incident[0] if incident else sorted(run["labels"])[0]].append(run)
+    assigned = {"train": [], "validation": [], "test": []}
+    for label, group in sorted(by_class.items()):
+        group.sort(key=lambda r: (r["start"], r["end"]))
+        if len(group) < 2:
+            raise ValueError(f"class {label} needs >=2 runs to hold one out")
+        assigned["test"].append(group[-1])
+        rest = group[:-1]
+        if len(group) >= 4:
+            assigned["validation"].append(rest.pop())
+        assigned["train"].extend(rest)
+    removed = []
+    near = lambda a, b: a["start"] - b["end"] < embargo_seconds and b["start"] - a["end"] < embargo_seconds
+    for name, later in (("validation", ("test",)), ("train", ("validation", "test"))):
+        keep = []
+        for run in assigned[name]:
+            if any(near(run, other) for part in later for other in assigned[part]):
+                removed += run["ids"]
+            else:
+                keep.append(run)
+        assigned[name] = keep
+    if not assigned["train"] or not assigned["test"]:
+        raise ValueError("not enough time-separated runs after embargo")
+    parts = {name: sorted(i for run in group for i in run["ids"]) for name, group in assigned.items()}
+    parts["excluded_for_embargo"] = sorted(removed)
+    parts["strategy"] = "class_stratified"
+    if any(set(parts[a]) & set(parts[b]) for a, b in (("train", "validation"), ("train", "test"), ("validation", "test"))):
+        raise AssertionError("group leakage")
+    return parts
+
+
+def split_by(strategy: str, episodes: list[dict], *, embargo_seconds: float = 900) -> dict:
+    if strategy == "chronological":
+        return split_episodes(episodes, embargo_seconds=embargo_seconds)
+    if strategy == "class_stratified":
+        return split_episodes_class_stratified(episodes, embargo_seconds=embargo_seconds)
+    raise ValueError(f"unknown split strategy {strategy}")
+
+
 def fixed_rule(row: dict, group: str) -> str | None:
     """A reproducible, untrained baseline; not an outage root-cause oracle."""
     if group not in GROUPS:
