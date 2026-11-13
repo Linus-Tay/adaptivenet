@@ -36,7 +36,7 @@ demo/run.sh lab-up
 
 The overlay adds `lab-collector`, `lab-feature-worker`, `lab-ml`, `lab-controller`, `lab-view` and `lab-users`. It also runs `demo-a` / `demo-b` from the demo image, which serves the same catalogue plus `/lab/metrics` so the internal view has measured CPU and memory values. External observers go through the group's gateway (`PATH_MODE=gateway`), so the dashboard's fault buttons are exactly what they see. In this mode, the RIPE stand-in measures gateway-path reachability: an HTTP error counts as a lost probe, which real ICMP loss would not.
 
-Press **Reset demo**, then **Inject +1.5 s latency** (Singapore, 120 s) on the dashboard. Within about 10 s, AWS+RIPE+HTTP reports `network_degradation` in region-a while AWS-only stays healthy. About 20 s after the press, the controller moves the gateway from 100% to 75% region-a after three fresh checks, then 50% and 25% while the fault lasts. The same faults are also available from the command line:
+Press **Reset demo**, then **Inject +1.5 s latency** (Singapore, 120 s) on the dashboard. Within about 15 s, AWS+RIPE+HTTP reports `network_degradation` in region-a while AWS-only stays healthy. After 3 confidence windows plus three fresh controller checks (about 90 s in the 13 Nov run), the controller moves the gateway from 100% to 75% region-a, then 50% and 25% if the fault lasts long enough. When the fault ends, failback returns traffic to 100% region-a. The same faults are also available from the command line:
 
 ```bash
 PYTHONPATH=services:. python3 -m demo.faultctl lab-latency --region sg --ms 1500 --duration 120
@@ -131,7 +131,7 @@ The first row is the point of the demo: the same telemetry, viewed only through 
 Use an archive folder made by `python -m ml.team_starter.archive` (containing `feature_snapshots.jsonl` and `http_witness.jsonl`), or an ingestion `.db`. These files are private, so keep them under `data/` and never commit them.
 
 ```bash
-REPLAY_SOURCE=/Users/my/Project/adaptivenet-evidence/adaptivenet/data/ml-archive \
+REPLAY_SOURCE=/absolute/path/to/data/ml-archive \
 REPLAY_START_AT=2026-11-09T14:27:00Z REPLAY_SPEED=10 demo/run.sh replay
 ```
 

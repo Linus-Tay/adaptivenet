@@ -57,7 +57,7 @@ ML teammate: independently verified episode labels, source-time joining, missing
 
 Independent safety boundary: services/adaptivenet/ingestion/decisions.py always has executed=false. No model-driven AWS changes are authorized.
 
-Read ARCHITECTURE.md, EPISODE_LABELS.md, FRIEND_PROMPT.md, docs/prediction/README.md and docs/ARCHITECTURE_AND_ML_2026.md.
+Read ARCHITECTURE.md, EPISODE_LABELS.md, docs/ml/PREDICTION_GUIDE.md and docs/ARCHITECTURE_AND_ML_2026.md.
 
 Acceptance: tests green; no fake training samples, no RIPE leakage into AWS-only, no future information in features, no automatic routing/scale actions; compare AWS-only / AWS+RIPE / AWS+RIPE+HTTP on identical held-out episode groups and report false alarms/day, F1, delay, misses and abstentions.
 

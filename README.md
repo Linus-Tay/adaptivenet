@@ -1,200 +1,202 @@
-# AdaptiveNet — Multi-Region Resilience Laboratory
+# AdaptiveNet
 
-**Real AWS telemetry + bounded experiments + ML-ready features.**\n\n**Canonical three-layer architecture and exact Docker-vs-native runtime:** [Architecture and ML 2026](docs/ARCHITECTURE_AND_ML_2026.md). The 15-second HTTP fast-signal endpoint is independent from the 60-second AWS/RIPE/CloudWatch poll. AdaptiveNet monitors two regional EC2 catalogue APIs through AWS Managed Prometheus (AMP), RIPE Atlas, and CloudFront CloudWatch. A collector can publish timestamped telemetry polls through SQS to a separate SQLite feature worker (with direct-SQLite fallback); three *separate* interfaces make it possible to see the workload, observe metrics, and control authorized experiments.
+AdaptiveNet watches a two-region web service (Singapore `region-a`, Virginia `region-b`) from inside AWS and from the internet, decides whether a region is degraded, and moves traffic or scales only after independent safety checks pass.
 
-> **Current stage (October 2026):** CloudFront is deployed, both regional API origins and AMP/RIPE data have been observed live, and six CloudFront metrics have been collected. The SQS queue/DLQ and a live publish→consume→SQLite cycle have been verified previously; this new 15s fast-signal/Docker variant awaits CI and Mac validation. EKS/HPA, trained ML and automatic mitigation are not running. See the status table.
+The main question it answers: **do outside network signals (RIPE Atlas probes, real HTTP requests) catch failures that AWS's own metrics miss?** In a pre-registered 20-trial packet-loss campaign, AWS metrics alone caught 0 of 20 faults and AWS+RIPE caught 13 of 20, with no false alarms in 20 healthy controls (see [Results](#7-results)).
 
-## 1. What runs and how it works
+```
+AWS metrics (Prometheus) + RIPE Atlas probes + HTTP witness + CloudFront
+  -> collector -> outbox -> SQS queue (+ dead-letter queue) -> feature worker -> SQLite snapshots
+  -> ML detector (shadow only) -> proposal
+  -> confidence rules (2 of 3 signals agree for 3 windows)
+  -> independent safety reviewer
+  -> decision: failover / failback / scale / no-op
+  -> safety controller (bounded steps, verified, journaled, reversible)
+```
 
-~~~text
-Clients / local witness and workload test (:3001)
-          │ HTTP GET /api/catalog
-          ▼
-CloudFront CDN (HTTPS, SG primary → Virginia origin failover)
-          │                                  │
-     SG EC2 /api/catalog               VA EC2 /api/catalog
-          │                                  │
-     AMP Prometheus/node metrics       AMP Prometheus/node metrics
-          └────────────────┬─────────────────┘
-        RIPE Atlas ICMP probes + CloudFront global CloudWatch
-                           │
-     Existing source collector (60s default fetch interval)
-                           │
-    SQS mode: local outbox → SQS → detector
-                           │
-          SQLite WAL: deduplicated events + snapshots
-        (direct SQLite is still a fallback)
-                           │
-       GET-only observability UI :8766 / JSON APIs
-                           │
-         model_input.v1 + 15s HTTP fast signals → future trained model
-                           │
-       proposal.v1 → independent shadow reviewer
-                           │
-            live mitigator NOT IMPLEMENTED
+Everything below can be run on a laptop **without any AWS or RIPE account**. The real cloud parts are described in [section 6](#6-real-aws-and-ripe-atlas-access).
 
-SEPARATE OPERATOR :3000 (localhost only)
-    └─ manually confirmed EC2 service-stop fault via
-       AWS SSM, with restoration timer scheduled first
-PUBLIC WORKLOAD TEST :3001
-    └─ real CloudFront/SG/VA API reads; no fault controls
-~~~
+---
 
-| Interface | URL | Purpose |
+## 1. What to download
+
+| Tool | Version used | Needed for |
 |---|---|---|
-| **Network Observatory** | http://127.0.0.1:8766 | Read-only CloudFront, regional Prometheus, RIPE, history, data-quality gates, HTTP witness |
-| **Experiment Operator** | http://127.0.0.1:3000 | Real AWS fault button for the fixed demo instances; local simulator controls in local mode |
-| **Workload Test** | http://127.0.0.1:3001 | CloudFront-served catalogue and direct SG/VA responses, latency, origin and request timeline |
-| **Deployed backend** | https://d2zsecrmlm6eiu.cloudfront.net/api/catalog | CloudFront HTTPS API with SG primary and VA failover |
+| Git | any recent | getting the code |
+| Docker Desktop (Engine + Compose v2) | Engine 29.9, Compose 5.7 (any Compose v2 works) | the demo (required) |
+| Python | 3.11 or newer (CI uses 3.12; also tested on 3.14) | tests and the fault command line |
+| Node.js + npm | Node 24 | only to build or type-check the dashboards outside Docker |
+| Terraform | 1.13.5 (`.terraform-version`) | only for the AWS infrastructure (group members) |
+| Helm, kubectl, AWS CLI v2 | Helm 3, any recent kubectl / AWS CLI | only for EKS and AWS work (group members) |
 
-The CloudFront domain is **not** hosting the Next.js pages. Those are local research UI processes. The observer does not inject or mitigate faults. Closing the Mac stops local ingestion, not AWS or RIPE.
+Get the code:
 
-## 2. What is verified, defined, and unfinished
-
-| Component | Current status | Gap |
-|---|---|---|
-| CloudFront | Distribution `E3BJ0HVVT3JBMT` deployed and previously returned HTTP 200 from Singapore | Real Virginia failover/recovery still needs a verified experiment |
-| Prometheus | SG/US AMP CPU, memory, app signals previously fresh | Optional catalogue p95 histogram can return `no_series` |
-| RIPE Atlas | Previously 3 SG + 5 VA live ping probes | Confirm current IDs, target and freshness before experiments |
-| CloudFront metrics | Six standard CloudWatch metrics previously observed in `us-east-1` | Quiet traffic means no new per-minute points; live reading expires after 15 min |
-| Ingestion worker | Direct SQLite or SQS-backed source polling → detector → SQLite | Cloud SQS runtime and IAM not verified |
-| Continuous HTTP witness | Implemented, **off unless `--traffic`**; logs real per-endpoint status/latency | Witness data is not the same as RIPE or AMP data |
-| AWS fault injection | Fixed tagged-EC2 SSM service-stop command, 10–60s, restore-timer-first; button is available in local AWS mode | Live SSM execution and automatic recovery still require verification |
-| SQS + DLQ | SQS/DLQ Terraform, producer, consumer, outbox, tests, IAM policies and alarms | Verify queue and permissions live; EKS hosting later |
-| EKS / Helm | Terraform/Helm scaffolding exists; `enable_eks=false` default | Cluster deployment, HPA, node scaling, ingress and evaluation unfinished |
-| Route 53 | Weighted DNS/health-check Terraform exists, off by default | No model-controlled route-weight adapter |
-| ML / controller | Feature and proposal contracts + rule baseline + shadow safety reviewer | Train/evaluate predictive model and later build audited actuator |
-
-**CloudFront, RIPE and AMP are independent.** CloudFront viewer metrics are *global*; AMP is per-region; RIPE measures ICMP network reachability (an HTTP service failure can leave RIPE ping healthy). This difference should be recorded as experimental evidence, not treated as a broken sensor.
-
-## 3. Installation: choose the right Git checkout
-
-For an existing Git working tree, first run `pwd`, `git rev-parse --show-toplevel` and `git status --short`. Don't assume any particular Downloads folder still exists. If local modifications block checkout, stash or commit **only your own changes**; do not use `git reset --hard`.
-
-Fresh clone:
-
-~~~bash
+```bash
 git clone https://github.com/Linus-Tay/adaptivenet.git
-cd adaptivenet
-git fetch origin
-git switch --track origin/feature/sqs-telemetry-ingestion
+```
+
+```bash
+cd adaptivenet && git checkout submission/final
+```
+
+## 2. Install
+
+From the repository root:
+
+```bash
 python3 -m venv .venv
+```
+
+```bash
 source .venv/bin/activate
-python -m pip install -e '.[dev]' awscurl certifi
-npm ci
-aws sso login --profile adaptivenet-admin
-export AWS_PROFILE=adaptivenet-admin
-export SSL_CERT_FILE="$(python -c 'import certifi; print(certifi.where())')"
-python -m pytest -q
-npm run build
-npm run typecheck
-~~~
+```
 
-On an existing checkout, use `git switch feature/sqs-telemetry-ingestion` then `git pull --ff-only` (or main once the PR is merged). In each new terminal, activate the virtualenv before invoking `python`. The Python.org macOS CA store can require a certifi bundle: **never disable TLS verification**.
+```bash
+pip install -r requirements-dev.lock -r ml/team_starter/requirements-ml-inference.lock && pip install --no-deps -e .
+```
 
-### Local config (ignored by Git)
+The first lock file holds the runtime and test packages (FastAPI, Uvicorn, httpx, pytest). The second holds the ML packages (scikit-learn 1.8.0, numpy 2.3.5, scipy 1.17.0) with pinned hashes. Docker Desktop must be running before you start the demo. If `docker` is not on your PATH on a Mac, run `export PATH=/Applications/Docker.app/Contents/Resources/bin:$PATH` first.
 
-Keep an existing `.env`. Only create it when absent: `test -f .env || cp .env.example .env`, then `chmod 600 .env`. The values below are the **previously working** configuration, not a guarantee that RIPE measurements are still active:
+## 3. Run the demo
 
-~~~dotenv
-ATLAS_MEASUREMENTS=region-a=222874954,region-b=222874912
-CLOUDFRONT_DISTRIBUTION_ID=E3BJ0HVVT3JBMT
-~~~
+The demo runs the full loop in local containers. It makes no AWS calls and needs no credentials.
 
-Use `python scripts/ripe_measurements.py status` to verify targets and current results. When cloning measurements, `python scripts/ripe_measurements.py set --region-a NEW_ID --region-b NEW_ID` updates just the IDs with a backup. No RIPE API secret is needed to read public results; `ATLAS_API_KEY` is only for creating new measurements. Shell-exported `ATLAS_MEASUREMENTS` overrides `.env`; `unset ATLAS_MEASUREMENTS` if necessary. AWS SSO profiles and RIPE API keys are unrelated.
+```bash
+demo/run.sh lab-up
+```
 
-**Do not redeploy CloudFront** merely to monitor it; the distribution already exists and its Terraform state is isolated under `infra/terraform/environments/cloudfront`. Any Terraform change requires review.
+The first build takes a few minutes. Then open **http://127.0.0.1:3000**.
 
-## 4. Run the real continuous experiment environment
-
-From the **same checkout**, after stopping other servers on ports 8766/3000/3001:
-
-~~~bash
-source .venv/bin/activate
-export AWS_PROFILE=adaptivenet-admin
-export SSL_CERT_FILE="$(python -c 'import certifi; print(certifi.where())')"
-python scripts/ripe_measurements.py status
-python scripts/cloudfront_doctor.py --lookback-minutes 180
-python scripts/live_monitor.py --sqs --traffic --with-ui
-~~~
-
-`live_monitor.py --sqs` supervises: (1) real AMP/RIPE/CloudWatch polling every 120s, a durable SQS producer and an independent SQLite detector consumer; (2) read-only observer on 8766; (3) **explicitly opted-in** one GET/minute to CloudFront + each EC2 origin, saved in `data/probe-events.jsonl`; (4) separate workload page on 3001; and (5) separate operator page on 3000. Ctrl+C stops these children. The `--traffic` flag generates actual chargeable HTTP requests but **never faults**, and may help maintain CloudFront request samples. Without `--traffic`, there is no witness generator; idle CloudFront live samples eventually expire and their last real values are shown amber as **STALE**.
-
-Run `python scripts/live_monitor.py` for **telemetry + observer only**; omit `--with-ui` and `--traffic` if those components are not wanted. If SSO expires, run `aws sso login --profile adaptivenet-admin` again.
-
-### Real fault injection via the operator button
-
-The existing AWS-mode operator is independent of SQS. No separate UI arming flag is needed. After confirming the origins are responding, open localhost:3000 to choose the fixed demo region and bounded duration; the service-restoration timer is scheduled first. A submitted SSM request is **not proof** of execution or recovery. Real latency/packet-loss injection, EKS scaling and model-driven mitigation remain future team work.
-
-## 5. Data, freshness and troubleshooting
-
-Observer API endpoints (GET only): `/v1/features/latest`, `/v1/features/history?limit=120`, `/v1/ingestion/status`, `/v1/experiments/probes`.
-
-| Signal | Meaning | Boundaries |
-|---|---|---|
-| AWS AMP | Region-level CPU/memory/app health, HTTP RPS, 5xx and p95 histogram | Approx. 180s live freshness; optional HTTP p95 can be missing |
-| RIPE Atlas | Independent ICMP RTT, packet loss, 3+ probe quorum | 2100s max age; not HTTP availability |
-| CloudFront CloudWatch | Global requests/4xx/5xx/total error/bytes | 900s live freshness; `last_known` retained **display-only** and excluded from ML |
-| HTTP witness | Bounded real client GETs: HTTP status, origin and duration | Local journal, not Prometheus, not fake RIPE events |
-
-**`null` is unavailable, not zero**. Source timestamps are never refreshed just because data is re-polled. An old snapshot marked READY historically is not live inference-ready: the adapter rechecks wall-clock age. The viewer's 30-second auto-refresh reads SQLite; only `watch` polls cloud sources.
-
-~~~bash
-python scripts/ingestion_doctor.py --profile adaptivenet-admin
-python scripts/amp_metric_doctor.py --profile adaptivenet-admin
-python scripts/cloudfront_doctor.py --lookback-minutes 180
-python scripts/ripe_measurements.py status
-python scripts/ingestion.py once --profile adaptivenet-admin
-~~~
-
-If a CloudFront metric vanishes from the **live input**, that is the intentional freshness rule. The observatory still displays last-known real values (and their original timestamps) as **STALE**. Do not increase freshness thresholds or fabricate measurements to fill the dashboard.
-
-## 6. Group handoff: predictive modelling
-
-**Train and evaluate a model now, without waiting for EKS.** The existing `ml/predictor.py` is only a conservative rule example. What is needed next is a verified labeled dataset, temporal evaluation and a model proposal—not cloud permission.
-
-~~~bash
-# Versioned, wall-clock-validated inference input:
-python scripts/model_handoff.py input --mode combined --out data/model-input.json
-python scripts/model_handoff.py input --mode internal_only --out data/model-input-internal.json
-
-# Up to 500 real historical feature snapshots; NO invented fault labels:
-python scripts/export_ml_dataset.py --mode combined --limit 500 --out data/ml-snapshots.jsonl
-
-# Demonstration baseline and independent shadow review:
-python scripts/model_handoff.py demo --mode combined
-~~~
-
-Tasks for modelling teammates:
-1. **Verified labels:** record fault *actual start*, *actual end*, affected region, category, whether SSM command executed, and confirmed recovery. An `aws_fault_requested` event is not a ground-truth failure. Include many healthy and varied experiment windows.
-2. **Feature integrity:** preserve UTC observation timestamps, per-region provenance, missingness masks and freshness; `cloudfront.last_known` is UI-only and deliberately excluded from model input.
-3. **Evaluation:** use time/experiment-run-disjoint splits; compare internal-only vs combined AMP+RIPE features; report coverage, precision, recall/F1, false-positive rate, detection delay, recovery time and model confidence calibration.
-4. **Contract:** implement `predict(model_input)` in `ml/`; return `adaptivenet.proposal.v1` with exact snapshot ID, action (`hold`/`investigate`/`shift_traffic`/`scale_out`), confidence and evidence. **No direct AWS calls from ML.**
-5. **Shadow first:** pass proposals to `services/adaptivenet/ingestion/decisions.py`. The reviewer always sets `executed=false`. Controllers need independent health/capacity gates and authorized, audited, reversible route/scale adapters later.
-
-Read `docs/TEAM_HANDOFF.md`, `docs/DATA_DICTIONARY.md` and `packages/contracts/src/model_handoff.ts`. Coordinate with the team's separate ML branch instead of overwriting it. A handful of idle snapshots is not sufficient for reliable supervised prediction.
-
-## 7. Infrastructure still to build
-
-**SQS is now an optional implemented transport.** `--sqs` replaces the direct polling path with producer → SQS → consumer → the same SQLite feature contract. The old direct collector remains a fallback; do not run both simultaneously. SQS queue existence, IAM attachment, live end-to-end delivery and EKS deployment still require verification. See [SQS ingestion setup](docs/SQS_INGESTION.md).
-
-**EKS/HPA** Terraform/Helm scaffolding exists but cluster deployment is unverified and `enable_eks=false` by default. First implement conventional Kubernetes resource requests, Metrics Server, HPA and node scaling as a **non-ML baseline**. You do not need a trained model to set that up.
-
-**Route 53** weighted records and health-check Terraform exist but `enable_route53=false`; no safe live route-weight adapter is connected. CloudFront's SG-primary/VA-failover behavior is not a 50/50 weighted DNS experiment.
-
-After model evaluation, design a separately authorized controller with idempotency, cooldown, max change per step, destination health/capacity verification, before/after snapshots, monitoring and rollback tests. Neither the observer nor the predictor changes AWS.
-
-## 8. Safety, checks and code ownership
-
-| Area | Main code |
+| Address | What it is |
 |---|---|
-| Telemetry | `services/adaptivenet/ingestion/`, `scripts/ingestion.py`, `scripts/live_monitor.py` |
-| CloudFront/real witnesses | `scripts/cloudfront_doctor.py`, `scripts/continuous_probe.py` |
-| Faults | `scripts/aws_fault.py`, `apps/dashboard/` (local, opt-in) |
-| Workload | `apps/demo-web/` (read-only GET against real endpoints) |
-| ML | `ml/`, `scripts/export_ml_dataset.py`, `scripts/model_handoff.py` |
-| Safety/infra | `services/adaptivenet/ingestion/decisions.py`, `infra/terraform/` |
+| http://127.0.0.1:3000 | **Main demo page**: fault buttons, traffic split, AWS-only vs AWS+RIPE vs AWS+RIPE+HTTP verdicts with detection times, the pipeline stages and the decision log |
+| http://127.0.0.1:3001 | The demo web site (product catalogue served through the gateway) |
+| http://127.0.0.1:8190 | Raw decision-service view, for debugging |
 
-Run `python -m pytest -q`, `npm run build`, `npm run typecheck`, `npm audit --omit=dev`, `git diff --check` and `python scripts/check_push_safety.py --staged` before pushing. CI is enabled on the feature branch. Do not commit `.env`, SQLite databases, AWS credentials, Terraform state or unreviewed experiment data. Node dependency vulnerabilities require deliberate investigation before any public deployment; never blindly run a forced audit upgrade. The currently deployed CloudFront origins use **HTTP to EC2** (not end-to-end TLS), another reason this remains research-only.
+What to try:
 
-**Validation boundary:** passing local tests and cloud diagnostics does not prove an SSM fault, successful origin failover, reliable service recovery, or an active SQS consumer. Capture and publish those as distinct experimental evidence.
+1. Press **Reset demo**.
+2. Press **Inject +1.5 s latency** (Singapore, 120 s).
+3. Within about 15 s, AWS+RIPE+HTTP reports `network_degradation` in region-a while AWS-only stays healthy. This is the core finding: internal metrics cannot see a network-path fault.
+4. After 3 confidence windows plus 3 controller probes (about 90 s in our run), the gateway moves Singapore's traffic share from 100% to 75%. A longer fault takes further 25-point steps.
+5. When the fault ends and Singapore stays clean, traffic returns to 100% Singapore (failback; about 100 s after the fault ended in our run).
+
+What we saw on 13 Nov 2026 with a 120 s, +1.5 s latency fault: AWS-only stayed healthy the whole time; AWS+RIPE+HTTP flagged region-a after about 15 s; the gateway went 100→75 at about 93 s; and failback brought it back to 100 about 100 s after the fault ended.
+
+The same faults from the command line:
+
+```bash
+PYTHONPATH=services:. python -m demo.faultctl lab-latency --region sg --ms 1500 --duration 120
+```
+
+```bash
+PYTHONPATH=services:. python -m demo.faultctl lab-errors --region sg --rate 1.0
+```
+
+Reset and stop:
+
+```bash
+demo/run.sh lab-reset
+```
+
+```bash
+demo/run.sh lab-down
+```
+
+Port 8080 must be free (the gateway uses it). Demo data goes to `data/`, which git ignores.
+
+Other modes are in [demo/DEMO.md](demo/DEMO.md): a standalone stack with an emulated internet path for packet-loss faults (`demo/run.sh up`), replay of recorded real telemetry (`demo/run.sh replay`), and plugging in trained models.
+
+## 4. Run the tests
+
+With the virtual environment active, from the repository root:
+
+```bash
+PYTHONPATH=services:. python -m pytest -q tests demo/tests ml/team_starter/tests step7_finish step8_finish
+```
+
+This runs all Python test suites: services and controller (`tests/`), demo (`demo/tests/`), ML (`ml/team_starter/tests/`) and the ML shadow service (`step7_finish/`, `step8_finish/`). None of them call AWS. On this branch (13 Nov 2026, Python 3.14) the result was **471 passed, 1 failed**; `tests/` alone is 304 passed. The one failure is the ML test `test_shadow_masks_future_ripe_even_when_old_quality_flag_is_fresh`, a known failure that came over from the ML branch.
+
+A no-Docker end-to-end smoke of the demo:
+
+```bash
+PYTHONPATH=services:. python -m demo.smoke_local
+```
+
+CI (`.github/workflows/ci.yml`) also runs `python scripts/smoke.py`, `npm ci && npm run build && npm run typecheck`, `terraform fmt -check` and `helm lint infra/helm/demo`.
+
+## 5. Repository layout
+
+| Path | What is there |
+|---|---|
+| `services/adaptivenet/ingestion/` | Collectors for AWS Prometheus (AMP), RIPE Atlas, CloudFront; SQS producer/consumer with outbox, dedup and DLQ; feature snapshots; safety reviewer (`decisions.py`) |
+| `services/adaptivenet/controller/` | Confidence rules (`confidence.py`), safety controller, end-to-end decision (`end_to_end.py`), failback/recovery, read-only EKS HPA access, action journal |
+| `services/adaptivenet/gateway.py` | Local traffic-split gateway (the only thing the demo controller may change) |
+| `ml/team_starter/` | ML datasets, training, evaluation, RIPE value study, campaign analysis, shadow prediction |
+| `ml/predictor.py` | Shadow predictor used by the demo |
+| `step5_finish/`, `step7_finish/`, `step8_finish/` | Frozen-model shadow inference service, its container and EKS manifest, and the final ML checks |
+| `demo/` | One-command Docker demo, fault CLI, replay, smoke test |
+| `apps/dashboard/`, `apps/demo-web/` | Next.js demo page (:3000) and demo web site (:3001) |
+| `packages/contracts/` | Shared TypeScript data contracts |
+| `scripts/` | Operator tools: telemetry pipeline (`live_monitor.py`, `ingestion.py`, `sqs_ingestion.py`), probes, guarded AWS fault injection, RIPE campaign, EKS checks, push safety check |
+| `infra/terraform/`, `infra/helm/` | AWS infrastructure (EC2, CloudFront, AMP, SQS, IAM, alarms, EKS) and the Helm chart with HPA |
+| `docs/` | Design and results documents (list below) |
+| `tests/` | Python tests for services, controller, ingestion, scripts |
+
+## 6. Real AWS and RIPE Atlas access
+
+The repository holds **no credentials, keys or tokens**. The real system runs on the group's AWS account (EC2 in Singapore and Virginia, CloudFront, Amazon Managed Prometheus, SQS, EKS) and uses the group's RIPE Atlas measurements.
+
+**AWS and RIPE Atlas access is held by the group. To run anything against the real cloud, contact the group (CSC3104 Group 03) to request access.** You do not need it for the demo or the tests.
+
+For group members with access:
+
+- Copy `.env.example` to `.env` and fill in values. `.env` is git-ignored; never commit it.
+- Real telemetry pipeline: `python scripts/live_monitor.py --sqs` (dashboard at http://127.0.0.1:8766). Setup and checks: [docs/SQS_INGESTION.md](docs/SQS_INGESTION.md).
+- Guarded real fault injection (SSM, restore timer set first): `scripts/aws_fault.py`.
+- RIPE campaign tools: `scripts/campaign/` (written for the Mac that ran the campaign; edit the folder paths at the top before reuse) and [docs/ml/RIPE_TRIALS_PROTOCOL.md](docs/ml/RIPE_TRIALS_PROTOCOL.md).
+- EKS checks: [docs/SAFETY_CONTROLLER_TASK4.md](docs/SAFETY_CONTROLLER_TASK4.md). Live HPA writes need `scripts/end_to_end.py execute --approve-live-write <site>`.
+- Before pushing: `python scripts/check_push_safety.py --staged`.
+
+## 7. Results
+
+All numbers come from the linked documents; each states its data, method and limits.
+
+| Result | Number | Source |
+|---|---|---|
+| 20-trial packet-loss campaign, faults detected | AWS-only **0/20**, AWS+RIPE **13/20** (65%, 95% CI 41–85%) | [RIPE_CAMPAIGN_RESULTS.md](docs/ml/RIPE_CAMPAIGN_RESULTS.md) |
+| Same campaign, healthy controls alarmed | AWS+RIPE **0/20** | same |
+| Paired test (exact McNemar) | **p = 0.00024** | same |
+| Detection delay, RIPE (detected trials) | median **459 s** (22–892 s), about 2 RIPE rounds | same |
+| Same-day ML retrain (shadow only) | anomaly model AWS+RIPE: 17/20 detected, about 14 false alarms/day; frozen rule: 13/20, 0 false alarms | [CAMPAIGN_SAME_DAY_ML.md](docs/ml/CAMPAIGN_SAME_DAY_ML.md) |
+| Earlier reviewed loss trials | AWS-only 0/6, AWS+RIPE 6/6 | [RIPE_VALUE_STUDY.md](docs/ml/RIPE_VALUE_STUDY.md) |
+| Models trained on a different day | 58–150 false alarms/day (host memory drift) | [SIX_CLASS_AND_FALSE_ALARM_STUDY.md](docs/ml/SIX_CLASS_AND_FALSE_ALARM_STUDY.md) |
+| Decision path and confidence rules | failover, failback and scale rules with lab checks | [END_TO_END.md](docs/END_TO_END.md) |
+
+Limits stated in those documents still apply: one HTTP witness vantage, RIPE results arrive every few minutes, ML stays shadow-only, and the demo never executes a scale action.
+
+## 8. More documents
+
+| Document | Topic |
+|---|---|
+| [docs/ARCHITECTURE_AND_ML_2026.md](docs/ARCHITECTURE_AND_ML_2026.md) | Architecture, data rates, Docker vs native runtime |
+| [docs/SQS_INGESTION.md](docs/SQS_INGESTION.md) | Queue, outbox, dedup, DLQ, alarms, Terraform setup |
+| [docs/END_TO_END.md](docs/END_TO_END.md) | Proposal → reviewer → EKS decision, confidence rules |
+| [docs/SAFETY_CONTROLLER_TASK4.md](docs/SAFETY_CONTROLLER_TASK4.md) | Safety controller and EKS integration tests |
+| [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) | Feature fields |
+| [docs/TEAM_HANDOFF.md](docs/TEAM_HANDOFF.md) | Model input/output contracts |
+| [docs/ml/PREDICTION_GUIDE.md](docs/ml/PREDICTION_GUIDE.md) | Prediction handoff and feature rules |
+| [ml/team_starter/TEAM_STARTER.md](ml/team_starter/TEAM_STARTER.md), [ML_FOUNDATION.md](ml/team_starter/ML_FOUNDATION.md) | ML commands: archive, labels, training, evaluation |
+| [docs/ml/STEP7_SHADOW_SERVICE.md](docs/ml/STEP7_SHADOW_SERVICE.md), [STEP8_FINALIZER.md](docs/ml/STEP8_FINALIZER.md) | Shadow inference service, container, EKS handoff, final checks |
+| [docs/ml/](docs/ml/) | All ML and RIPE study reports |
+| [demo/DEMO.md](demo/DEMO.md) | Full demo guide |
+
+`ml/team_starter/examples/` holds label templates only. The repository ships no training data: real evidence is private and stays under the git-ignored `data/` folder.
+
+## 9. Safety rules built into the code
+
+- ML output is untrusted. Every proposal goes through the confidence rules and the independent reviewer; the reviewer never executes anything itself.
+- Traffic moves in steps of at most 25 points, only after fresh probes confirm the destination is healthy, with cooldowns and a journal of every action.
+- Failback waits for 120 s of clean signals in Singapore (the lab shortens this to 60 s; set `FAILBACK_HEALTHY_SEC` to change it).
+- Scaling never goes below baseline replicas, and live EKS writes need an explicit operator flag.
+- Real AWS fault injection schedules its own recovery before it starts the fault.

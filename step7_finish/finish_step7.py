@@ -151,7 +151,7 @@ def run(out_root:Path=OUT, context:Path=CONTEXT):
            'docker build -t adaptivenet-shadow-ml:step7 data/ml-results/native/step7-container-context',
            '```',
            'Build only from the allowlisted generated context. Do **not** run `docker build .` (which could package `.env`, raw data and private files).',
-           'See `step7_finish/README_STEP7.md` for local smoke, security and EKS handoff instructions.',
+           'See `docs/ml/STEP7_SHADOW_SERVICE.md` for local smoke, security and EKS handoff instructions.',
            '']
     (out_root/'STEP7_REPORT.md').write_text('\n'.join(lines),encoding='utf-8')
     print('STEP 7 STATUS:',report['status'])

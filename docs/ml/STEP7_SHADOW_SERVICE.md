@@ -4,7 +4,7 @@
 
 ## Minimum Windows commands
 
-From `C:\Users\User\Documents\CSC3104\adaptivenet`:
+From the repository root (PowerShell shown; the same Python commands work on macOS and Linux):
 
 ```powershell
 python -m unittest discover -s step7_finish -p test_step7.py -v
