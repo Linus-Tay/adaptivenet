@@ -99,7 +99,7 @@ PYTHONPATH=services:. python -m pytest -q tests demo/tests ml/team_starter/tests
 **Expected:** after a few seconds the last line is
 
 ```
-475 passed, 1 warning, 4 subtests passed in 3.18s
+486 passed, 1 warning, 4 subtests passed in 3.49s
 ```
 
 The time will differ. The one warning is a deprecation notice from a library and does not affect the result. **0 tests should fail.** None of these tests call AWS or the internet.
@@ -108,12 +108,12 @@ What the suites cover:
 
 | Folder | Tests | What they check |
 |---|---|---|
-| `tests/` | 307 | data collection (AWS Prometheus, RIPE Atlas, CloudFront), SQS queue with outbox and dead-letter queue, feature snapshots, safety reviewer, confidence rules, safety controller, failover/failback/scaling, EKS HPA access (mocked) |
+| `tests/` | 318 | data collection (AWS Prometheus, RIPE Atlas, CloudFront), SQS queue with outbox and dead-letter queue, feature snapshots, safety reviewer, confidence rules, safety controller, failover/failback/scaling, EKS HPA access (mocked) |
 | `demo/tests/` | 16 | demo services, fault CLI, failback |
 | `ml/team_starter/tests/` | 127 | datasets, training, evaluation, RIPE value study, shadow prediction |
 | `step7_finish/`, `step8_finish/` | 25 | ML shadow inference service and final ML checks |
 
-To run only the main suite: `PYTHONPATH=services:. python -m pytest -q tests` (expected: `307 passed`).
+To run only the main suite: `PYTHONPATH=services:. python -m pytest -q tests` (expected: `318 passed`).
 
 ### 3.2 End-to-end smoke test without Docker
 
@@ -240,7 +240,7 @@ In our run the full cycle (fault, two traffic steps, failback to 100%) took abou
 1. Press **Reset demo** and wait about 30 seconds.
 2. Press **Inject HTTP 503** (Singapore, 120 s).
 
-**Expected:** within about a minute, **AWS + RIPE Atlas** and **AWS + RIPE + HTTP** show **Network degradation** for Singapore, while **AWS only** stays **Healthy**. In this lab the 503 errors are injected on the gateway path that outside users take, so the servers' own metrics stay clean. *We verified the detection. We did not time a traffic move for this fault.*
+**Expected:** within about a minute, **AWS + RIPE Atlas** and **AWS + RIPE + HTTP** show **Network degradation** for Singapore, while **AWS only** stays **Healthy**. In this lab the 503 errors are injected on the gateway path that outside users take, so the servers' own metrics stay clean. Every probe to Singapore loses every packet here, so RIPE has loss but no RTT; the safety reviewer accepts that for the region traffic leaves. The pipeline row then shows Safety review **Approved: move traffic**, and the traffic bar moves to **75% Singapore · 25% Virginia** after about 45 s and to **50% · 50%** after about 85 s (our run on 13 Nov). After the fault ends, traffic returns to 100% Singapore within a few minutes.
 
 ### 4.5 The same faults from the command line (optional)
 
@@ -339,7 +339,7 @@ In both tests AWS's own mechanisms (CloudFront origin failover, the Kubernetes H
 
 On 13 Nov 2026 we followed these steps on a clean Linux machine (x86_64, Docker Engine 29.9.2, Compose 5.6.1, Python 3.12) with a fresh copy of `submission/final` (commit `2a886a4`; that work is now on `main`):
 
-- Section 3: 472 passed, 0 failed (the 3 action-replay tests added later bring the total to 475); `demo.smoke_local` and `scripts/smoke.py` both printed PASS.
+- Section 3: 472 passed, 0 failed (the 3 action-replay tests and 11 reviewer tests added later bring the total to 486); `demo.smoke_local` and `scripts/smoke.py` both printed PASS.
 - Section 4: `lab-up` started all 13 containers; the latency test produced the sequence in 4.3 (HTTP view 11 s, RIPE view 21 s, 100→75% at about 65 s, 75→50% at about 120 s, back to 100% at about 286 s); the HTTP 503 test was detected by the two external views; `lab-reset` and `lab-down` worked.
 - Section 5.1: the standalone stack detected the 700 ms latency fault in about 20 s and moved region-a to 50%.
 - The group also ran `lab-up` on macOS with Docker Desktop.

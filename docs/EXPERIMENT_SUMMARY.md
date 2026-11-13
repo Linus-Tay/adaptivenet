@@ -15,9 +15,9 @@ This page brings together every experiment run for AdaptiveNet, with the main nu
 | 5 | Live CloudFront failover check | 13 Nov | **108/108 HTTP 200**; all 27 requests during the stop served by Virginia | Done, single run |
 | 6 | Earlier ML studies | Oct–12 Nov | 85.7% accuracy on 118 rows; 50% recall tie from a memory confound; **58–150 false alarms/day** | Superseded by #7 |
 | 7 | ML same-day retrain (shadow) | 12–13 Nov | Best model **16–17/20** at **~14 false alarms per region per day** (95% CI 4.6–33); AWS-only ML without host features 0/20 (anomaly) or 2/20 (supervised) | Done, shadow-only |
-| 8 | Confidence rules, lab runs | 13 Nov | Latency fault: detected in ~11–15 s, 100→75 at ~65–93 s (two runs), failback to SG. Application-error fault: confident in ~30 s, **blocked by the safety reviewer** | Done, design question open |
+| 8 | Confidence rules, lab runs | 13 Nov | Latency fault: detected in ~11–15 s, 100→75 at ~65–93 s (two runs), failback to SG. Application-error fault: first blocked by the safety reviewer (no RIPE RTT); after the reviewer change (option B), 100→75 at ~45 s, 75→50 at ~85 s | Done |
 | 9 | Local Docker demo | 12 Nov | 700 ms SG latency: AWS-only healthy, AWS+RIPE flags in ~20 s, 4 steps to Virginia | Demonstration, not evidence |
-| 10 | Test suite | 13 Nov | **475/475** pass on `main` | Done |
+| 10 | Test suite | 13 Nov | **486/486** pass on `main` | Done |
 | 11 | Live EKS scale test (SG) | 13 Nov | CPU 2% → 97% peak; HPA scaled pods **2→3 about 40 s after load start, →4 about 30 s later**; controller held; 0 of 10,762 requests failed | Done, single run |
 | 12 | Offline action replay of the 20 campaign trials | 13 Nov | At the controller's 500 ms HTTP deadline: **1/20** trials would fail over (slot 0, Virginia 35%, 210 s); **0 false actions** in 20 controls and 1.6 h healthy gaps; held by the confidence rule (10) and 3-fresh-checks (2) | Done, offline |
 
@@ -137,7 +137,7 @@ Details: `docs/ml/RIPE_CAMPAIGN_RESULTS.md`.
 
 **Lab results.**
 - **Latency fault on Singapore:** the AWS-only view stayed healthy, AWS+RIPE+HTTP detected the fault in about 15 s, traffic moved from 100% to 75% at about 65–93 s across two runs, and it returned to Singapore after sustained recovery.
-- **Application-error fault (100% gateway errors):** the rules reached a confident decision in about 30 s, but the safety reviewer blocked the move because no RIPE RTT was available.
+- **Application-error fault (100% gateway errors):** the rules reached a confident decision in about 30 s, but the safety reviewer first blocked the move because no RIPE RTT was available (every probe lost every packet, so RIPE quality was `loss_only`). The team then chose option B: the reviewer accepts `loss_only` RIPE data for the region traffic moves away from, and only there (`reviewer_source_loss_only_v1`). In a lab run with that rule, traffic moved 100→75 at about 45 s and 75→50 at about 85 s, and returned to 100% at about 250 s after the fault ended. The offline campaign replay is unchanged (1/20, 0 false actions).
 
 Details: `docs/END_TO_END.md`.
 
@@ -152,7 +152,7 @@ Details: `docs/END_TO_END.md`.
 
 ## 10. Test suite
 
-- All 475 automated tests pass on `main`, including replays of the recorded SSM outages.
+- All 486 automated tests pass on `main`, including replays of the recorded SSM outages.
 
 **Limitations.** The tests cover the scaling rules as unit tests. Live EKS behaviour is covered separately in #11.
 
