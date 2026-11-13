@@ -34,7 +34,7 @@ jobs:
       run:
         working-directory: infra/terraform/environments/dev
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
       - uses: hashicorp/setup-terraform@v3
@@ -80,7 +80,7 @@ jobs:
       run:
         working-directory: infra/terraform/environments/dev
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
       - uses: hashicorp/setup-terraform@v3
