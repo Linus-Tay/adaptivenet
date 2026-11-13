@@ -111,7 +111,8 @@ overridden for the lab with `CONFIDENCE_<FIELD>` environment variables (for exam
 * **1.5 s latency on Singapore for 120 s.** For the first four ticks the detector already said
   `network_degradation` but no signal had turned bad, so the controller held. RIPE + HTTP then turned bad,
   and after 3 bad windows the controller's own 3 probes ran and moved the gateway from 100% to 75% about
-  70 s after the fault started. The next step began collecting fresh windows, but the fault ended first,
+  70 s after the fault started (this run; a later run on `submission/final`, the one quoted in the README,
+  took about 93 s, because the timing depends on when the snapshot windows and probes line up). The next step began collecting fresh windows, but the fault ended first,
   so no further step was taken. Singapore stayed clean for 60 s, the failback then waited for the 120 s
   no-reversal rule, made its 3 probes and went from 75% back to 100%.
 * **100% gateway errors on Singapore for 120 s.** With `ripe_loss_only_v1`, RIPE + HTTP agreed for 3 windows

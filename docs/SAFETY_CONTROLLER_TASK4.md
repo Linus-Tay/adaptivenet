@@ -78,7 +78,7 @@ A blocked capacity recommendation can coexist with a successful connection.
 This check does not establish live scaling execution. HPA writes require the separate `scale` command described below. The generated workspace-only pasteable commands
 are `data/eks-connection-check/check-sg.txt` and `check-us.txt`.
 
-## EKS scaling adapter (local tests passed; live write not yet verified)
+## EKS scaling adapter (local tests passed; controller live write not yet exercised)
 
 `LiveHpa` connects `SafetyController(mode="eks")` to the pinned EKS workload.
 It raises only `HPA.spec.minReplicas` by one, within the existing 2..6 bounds.
@@ -142,17 +142,20 @@ can prevent HPA-floor cleanup, even though the Job deadline bounds the load.
 
 Build a dependency-free pasteable bundle locally with
 `python -m scripts.package_eks_load_test`. The generated command is
-`data/eks-controller-load-test/run-sg.txt`. Successful execution against live EKS
-has not yet been verified. Existing ML code has not been changed for this test.
+`data/eks-controller-load-test/run-sg.txt`. **Update 13 Nov 2026:** this load test ran
+live on `adaptivenet-sg` (see `docs/LIVE_TESTS_20261113.md`). Kubernetes' own HPA scaled
+2→3→4 pods with 0 of 10,762 requests failed, while the controller correctly held (it saw
+CPU at or above target in only one reading, not three). The controller's own HPA write
+was therefore not exercised live. Existing ML code has not been changed for this test.
 
 ## Branch checkpoint: 12 November 2026
 
 Focused controller/EKS validation passed 115 tests before this checkpoint.
 The separately rerun ML regression
-`test_shadow_masks_future_ripe_even_when_old_quality_flag_is_fresh` still fails:
-inference proceeds where the test expects abstention after masking future RIPE
-observations. This existing ML issue is intentionally unchanged and assigned to
-the ML owner. The branch is a progress checkpoint, not production acceptance.
+`test_shadow_masks_future_ripe_even_when_old_quality_flag_is_fresh` failed at this
+checkpoint; it was fixed on `submission/final` on 13 Nov 2026 (`ml/team_starter/shadow.py`
+now abstains when RIPE data is future-dated). The branch is a progress checkpoint, not production acceptance.
 Manual Singapore HPA scaling from two to three ready replicas and restoration
 to two were verified by the operator. Controller-driven live scaling and client
-recovery remain unverified.
+recovery remain unverified (the 13 Nov live test above showed HPA scaling with the
+controller holding).
