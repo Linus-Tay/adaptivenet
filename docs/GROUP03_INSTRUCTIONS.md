@@ -52,7 +52,7 @@ Start Docker Desktop and wait until it says it is running.
 >
 > **Windows:** the scripts are bash scripts. Use WSL 2 (Ubuntu) with Docker Desktop's WSL integration turned on, and run every command inside the WSL terminal. *We have not tested Windows ourselves.*
 
-**Ports.** The demo uses these local ports: 3000, 3001, 8000, 8001, 8080 and 8190. Close any program that uses them (for example a local LM Studio server on 8080).
+**Ports.** The demo uses these local ports: 3000, 3001, 8000, 8001, 8080, 8101, 8102, 8190 and 8192. Close any program that uses them (for example a local LM Studio server on 8080).
 
 ---
 
@@ -157,12 +157,12 @@ The demo runs the full loop in local Docker containers:
 ```
 local probes (stand-ins for AWS metrics, RIPE Atlas, HTTP witness)
   -> collector -> outbox -> queue -> feature worker -> snapshots
-  -> ML detector (shadow only) -> proposal -> confidence rules
+  -> rule detector -> proposal -> confidence rules
   -> independent safety reviewer -> decision
   -> safety controller moves traffic on the LOCAL gateway only
 ```
 
-It uses no AWS calls and no credentials. The values are real measurements of local containers, labelled as lab data.
+It uses no AWS calls and no credentials. The values are real measurements of local containers, labelled as lab data. The detector in this demo is a set of transparent threshold rules (`demo/lab/detectors.py`), not a trained model: the trained ML models are shadow-only, are not shipped in the repository, and never drive the controller.
 
 ### 4.1 Start the demo
 
@@ -182,7 +182,7 @@ demo/run.sh lab-up
 
 ```
 Group lab: dashboard http://127.0.0.1:3000  site http://127.0.0.1:3001
-ML + safety decisions: http://127.0.0.1:8190
+Detector + safety decisions: http://127.0.0.1:8190
 ```
 
 Check that all containers are up:
@@ -203,7 +203,7 @@ Wait about 30 seconds after start-up, then open these in your browser:
 | http://127.0.0.1:3001 | The demo web site (product catalogue served through the gateway) |
 | http://127.0.0.1:8190 | Raw decision-service view, for debugging |
 
-On the main page, the "What AdaptiveNet is doing about it" row should read: Data in "a few s old", ML sees **Healthy**, ML suggests **Do nothing**, Safety review **No action**, Controller **Idle**.
+On the main page, the "What AdaptiveNet is doing about it" row should read: Data in "a few s old", Detector sees **Healthy**, Detector suggests **Do nothing**, Safety review **No action**, Controller **Idle**.
 
 ### 4.3 Test 1: a network fault that AWS cannot see (the main test)
 
@@ -223,7 +223,7 @@ This adds 1.5 seconds of delay on the network path to Singapore. The servers the
 | about 10–15 s | **AWS + RIPE + HTTP** card turns to **Network degradation** (Singapore: "high RTT, slow HTTP"). Text under it: "Detected *N* s after the fault started" |
 | about 20 s | **AWS + RIPE Atlas** card also shows **Network degradation** |
 | the whole time | **AWS only** stays **Healthy** and says "Not detected during this fault". A yellow banner says "AWS-only says healthy, but the external signals see a problem." |
-| about 20–60 s | Pipeline row: ML suggests **Move 25% of traffic**, Safety review **Approved: move traffic**, Controller **Confirming** (it needs 2 of 3 signals to agree and then 3 checks of its own) |
+| about 20–60 s | Pipeline row: Detector suggests **Move 25% of traffic**, Safety review **Approved: move traffic**, Controller **Confirming** (it needs 2 of 3 signals to agree and then 3 checks of its own) |
 | about 1 minute | Traffic bar moves to **75% Singapore · 25% Virginia** |
 | about 2 minutes | If the fault is still active, a further step to **50% Singapore · 50% Virginia** |
 | after the fault ends | The cards return to **Healthy**. Controller shows "Waiting: Singapore must stay healthy" |
@@ -327,7 +327,7 @@ In both tests AWS's own mechanisms (CloudFront origin failover, the Kubernetes H
 |---|---|
 | `docker: command not found` on macOS | `export PATH=/Applications/Docker.app/Contents/Resources/bin:$PATH` |
 | `Cannot connect to the Docker daemon` | Start Docker Desktop (or `sudo systemctl start docker` on Linux) and wait until it is running |
-| `port is already allocated` | Another program uses 3000, 3001, 8000, 8001, 8080 or 8190. Stop it, run `demo/run.sh lab-down`, then `demo/run.sh lab-up` again |
+| `port is already allocated` | Another program uses 3000, 3001, 8000, 8001, 8080, 8101, 8102, 8190 or 8192. Stop it, run `demo/run.sh lab-down`, then `demo/run.sh lab-up` again |
 | Containers keep `Restarting`, logs show `Permission denied: '/app/data/...'` (Linux) | Run the `chmod` command in section 4.1, then `demo/run.sh lab-down` and `demo/run.sh lab-up` |
 | `ModuleNotFoundError` when running tests | Activate the environment (`source .venv/bin/activate`), run from the repository root, and keep the `PYTHONPATH=services:.` prefix |
 | Cards say "unknown" or "Data in" is old right after start | Wait 30–60 seconds for the first probe rounds |

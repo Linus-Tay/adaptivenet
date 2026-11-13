@@ -120,9 +120,9 @@ export default function Page(){
   const ex=latest?.executed_locally;const step=ex?.verify??ex?.step;
   const stage:{k:string;v:string;c?:string;sub?:string}[]=[
     {k:"Data in",v:ad.assessment?`${fmt(ad.assessment.snapshot_age_seconds)} s old`:"waiting",c:ad.assessment?.ready_for_shadow_assessment?"healthy":"unknown"},
-    {k:"ML sees (all signals)",v:LABEL[dets.aws_ripe_http?.condition??""]??"—",c:dets.aws_ripe_http?.condition,
+    {k:"Detector sees (all signals)",v:LABEL[dets.aws_ripe_http?.condition??""]??"—",c:dets.aws_ripe_http?.condition,
       sub:dets.aws_ripe_http?.affected_region?REGION_NAME[dets.aws_ripe_http.affected_region]:undefined},
-    {k:"ML suggests",v:ACTION[latest?.proposal?.action??""]??"—",c:latest?.proposal?.action==="hold"?"healthy":latest?.proposal?.action?"network_degradation":undefined,
+    {k:"Detector suggests",v:ACTION[latest?.proposal?.action??""]??"—",c:latest?.proposal?.action==="hold"?"healthy":latest?.proposal?.action?"network_degradation":undefined,
       sub:latest?.proposal?.target_region_a_percent!==undefined?`→ ${latest.proposal.target_region_a_percent}% Singapore`:undefined},
     {k:"Safety review",v:DECIDED[latest?.decision??""]??"—",c:latest?.decision==="no-op"?"healthy":latest?.decision?"network_degradation":undefined,
       sub:latest?.decision==="no-op"?why((latest.reasons??[])[0]):latest?.decision==="scale"?"shown as a plan, never executed here":why((latest?.reasons??[])[0])},
@@ -191,7 +191,7 @@ export default function Page(){
         <span className="operator-badge">{fw?`last fault: ${REGION_NAME[fw.region]} ${fw.kind} at ${clock(fw.start)}${seen.shift!==undefined?` · first traffic shift after ${Math.round(seen.shift)} s`:""}`:"no fault yet"}</span></div>
       <div className="an-flow">{stage.map((s,i)=><div key={s.k} className="an-stage">
         <small>{i+1}. {s.k}</small><Pill c={s.c}>{s.v}</Pill>{s.sub&&<span>{s.sub}</span>}</div>)}</div>
-      <p className="muted">The ML only suggests. An independent safety reviewer must approve, then the controller confirms the problem with three of its own checks before moving 25% of traffic, and checks real customer requests before moving more. Adding servers on EKS is shown as a plan only.</p>
+      <p className="muted">The rule detector only suggests (the trained ML models are shadow-only and not used here). An independent safety reviewer must approve, then the controller confirms the problem with three of its own checks before moving 25% of traffic, and checks real customer requests before moving more. Adding servers on EKS is shown as a plan only.</p>
     </section>
 
     <section className="an-two">

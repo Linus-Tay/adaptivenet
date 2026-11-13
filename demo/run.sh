@@ -22,7 +22,7 @@ stop_real() {
 case "${1:-up}" in
   lab-up)   live down 2>/dev/null || true; lab up --build -d
             echo "Group lab: dashboard http://127.0.0.1:3000  site http://127.0.0.1:3001"
-            echo "ML + safety decisions: http://127.0.0.1:8190";;
+            echo "Detector + safety decisions: http://127.0.0.1:8190";;
   lab-down) lab down; stop_real;;
   real-down) stop_real;;
   lab-logs) lab logs -f --tail 50 "${@:2}";;
