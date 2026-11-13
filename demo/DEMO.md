@@ -120,7 +120,7 @@ demo/run.sh reset
 | `loss --pct 50` | external path only | healthy | `path_loss` | same as above |
 | `app-5xx --rate 0.5` | inside the origin | `application_failure` | `application_failure` | failover away from that region |
 | `cpu` | inside the origin | `compute_saturation` | same | **scale** plan (HPA `minReplicas` 2→3) is shown and **not executed** |
-| `region-down` | origin returns 503 and the path drops all pings | `application_failure` | `region_down` | the reviewer usually refuses with `telemetry_quality_gate_failed`, because 100% loss leaves no RTT and RIPE quality falls to `loss_only`. This is the existing gate working as designed. |
+| `region-down` | origin returns 503 and the path drops all pings | `application_failure` | `region_down` | 100% loss leaves no RTT and RIPE quality falls to `loss_only`. Since `reviewer_source_loss_only_v1` (13 Nov) the reviewer accepts that for a shift away from the lossy region; before, it refused with `telemetry_quality_gate_failed`. |
 
 The first row is the point of the demo: the same telemetry, viewed only through the AWS-only feature projection, cannot see a path-only degradation.
 

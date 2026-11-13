@@ -84,6 +84,17 @@ any of the 20 campaign trial outcomes: those were scored by the frozen detector,
 code. Even if it had, 10-35% injected loss almost always leaves some RTT replies, so RIPE quality would
 stay `fresh` and this rule would not apply.
 
+**Reviewer rule (`reviewer_source_loss_only_v1`, added 13 Nov 2026, team decision option B).** Before this
+rule the safety reviewer (`ingestion/decisions.py`) refused every action unless the snapshot was
+`ready_for_model`, so a region whose probes all lost every packet (`loss_only`) blocked the move away
+from it with `telemetry_quality_gate_failed`. The reviewer now accepts `loss_only` RIPE data **only for
+the region traffic moves away from**, and only for a traffic shift. AWS data must still be fresh in both
+regions and RIPE must be fresh for the destination; scale-out gets no exemption; all other checks
+(25-point limit, destination health, memory, CPU, confidence, snapshot age) are unchanged. Ingestion,
+`ready_for_model`, the confidence rules and the frozen campaign detector are unchanged. Tests:
+`tests/test_reviewer_loss_only.py`. The offline campaign replay gives the same result as before
+(1/20 failover, 0 false actions), because no campaign snapshot was `loss_only`.
+
 | Action | Rule (defaults) |
 | --- | --- |
 | Failover (25 points away) | 2 of 3 signals bad, for 3 windows in a row; the other region has no bad vote and AWS says it is up; no reversal within 120 s of a failback step. Each further step needs 3 fresh bad windows. |
@@ -116,9 +127,8 @@ overridden for the lab with `CONFIDENCE_<FIELD>` environment variables (for exam
   so no further step was taken. Singapore stayed clean for 60 s, the failback then waited for the 120 s
   no-reversal rule, made its 3 probes and went from 75% back to 100%.
 * **100% gateway errors on Singapore for 120 s.** With `ripe_loss_only_v1`, RIPE + HTTP agreed for 3 windows
-  within about 30 s. The existing reviewer still refused with `telemetry_quality_gate_failed` (RIPE quality
-  is `loss_only`), so traffic did not move. This is the existing gate's documented behaviour and was not
-  changed. After the fault ended the detector kept saying `network_degradation` for about 45 s, while
+  within about 30 s. Before `reviewer_source_loss_only_v1` the reviewer then refused with
+  `telemetry_quality_gate_failed` (RIPE quality is `loss_only`), so traffic did not move. In a lab run on 13 Nov with this rule (100% gateway errors on Singapore for 120 s), the reviewer passed the shift, traffic moved 100→75 at about 45 s and 75→50 at about 85 s, and after the fault ended it returned to 100% at about 250 s. After the fault ended the detector kept saying `network_degradation` for about 45 s, while
   every signal was already clean, so the confidence rules held that stale failover.
 * Scale up and scale down were covered by unit tests only, because the lab never executes scaling and the
   lab HPA always sits at its baseline minimum.
