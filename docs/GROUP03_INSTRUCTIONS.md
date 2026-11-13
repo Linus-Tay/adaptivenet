@@ -6,7 +6,7 @@ subtitle: "CSC3104 Group 03 · GROUP03_INSTRUCTIONS"
 # AdaptiveNet: testing instructions
 
 **Course:** CSC3104, Group 03\
-**Repository:** https://github.com/Linus-Tay/adaptivenet, branch `submission/final`\
+**Repository:** https://github.com/Linus-Tay/adaptivenet, branch `main`\
 **Time needed:** about 20–30 minutes, most of it waiting for the first Docker build
 
 AdaptiveNet watches a two-region web service (Singapore `region-a`, Virginia `region-b`) from inside AWS and from the internet. It decides whether a region is degraded, and it moves traffic only after independent safety checks pass. These instructions let you run the whole loop on your own computer. **You do not need an AWS or RIPE Atlas account. Nothing in these steps contacts AWS.**
@@ -63,10 +63,10 @@ Start Docker Desktop and wait until it says it is running.
 ```bash
 git clone https://github.com/Linus-Tay/adaptivenet.git
 cd adaptivenet
-git checkout submission/final
+git checkout main
 ```
 
-**Expected:** `git checkout` prints `Switched to a new branch 'submission/final'` (or "Already on"). `ls` shows folders such as `demo`, `services`, `ml`, `tests` and the file `README.md`.
+**Expected:** `git checkout` prints `Already on 'main'`. `ls` shows folders such as `demo`, `services`, `ml`, `tests` and the file `README.md`.
 
 ### 2.2 Create a Python virtual environment
 
@@ -337,7 +337,7 @@ In both tests AWS's own mechanisms (CloudFront origin failover, the Kubernetes H
 
 ## Appendix: how we verified these instructions
 
-On 13 Nov 2026 we followed these steps on a clean Linux machine (x86_64, Docker Engine 29.9.2, Compose 5.6.1, Python 3.12) with a fresh copy of `submission/final` (commit `2a886a4`):
+On 13 Nov 2026 we followed these steps on a clean Linux machine (x86_64, Docker Engine 29.9.2, Compose 5.6.1, Python 3.12) with a fresh copy of `submission/final` (commit `2a886a4`; that work is now on `main`):
 
 - Section 3: 472 passed, 0 failed; `demo.smoke_local` and `scripts/smoke.py` both printed PASS.
 - Section 4: `lab-up` started all 13 containers; the latency test produced the sequence in 4.3 (HTTP view 11 s, RIPE view 21 s, 100→75% at about 65 s, 75→50% at about 120 s, back to 100% at about 286 s); the HTTP 503 test was detected by the two external views; `lab-reset` and `lab-down` worked.

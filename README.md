@@ -40,7 +40,7 @@ git clone https://github.com/Linus-Tay/adaptivenet.git
 ```
 
 ```bash
-cd adaptivenet && git checkout submission/final
+cd adaptivenet && git checkout main
 ```
 
 ## 2. Install
