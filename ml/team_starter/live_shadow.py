@@ -66,6 +66,10 @@ LIVE_PROTOCOL = {
     "witness_gap_seconds": 60,
     "witness_gap_rule": "a row is dropped (train and held-out) when the HTTP witness log has no "
                         "record in the 60 s up to the row; reported as a row count",
+    # Amendment 2 (2026-11-14 04:40 UTC, before any live scoring or snapshot): MY corrected the
+    # Mac's off time to Mon 16 Nov 03:00-14:00 SGT (not Sunday). Rules, split and held-out are
+    # unchanged; the witness-gap rule above is driven by the witness log, not by these times.
+    "amendment_2_expected_gap_sgt": "2026-11-16 03:00 to 2026-11-16 14:00",
 }
 MODELS = {  # name -> (feature names, persistence rows)
     "anomaly_aws_ripe_no_host": (tuple(n for n in cm.ARMS["aws_ripe"] if n not in cm.HOST_FEATURES), 1),

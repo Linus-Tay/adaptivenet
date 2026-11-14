@@ -44,3 +44,9 @@ published blocked detections for the current model (17/20 without host, 16/20 wi
 record in the 60 s before them are dropped from both training and held-out, using the
 witness log only. The held-out window (16 Nov 21:00 SGT onwards) falls after the Mac is
 back. Live training is then about 18 h on 14 Nov plus about 7 h on 16 Nov.
+
+**Amendment 2 (2026-11-14 04:40 UTC, before any snapshot or scoring).** MY corrected the
+Mac's off time: Monday 16 Nov 03:00 to 14:00 SGT, not from Sunday. No rule changes: the
+witness-gap rule works from the witness log alone, and the held-out window (16 Nov 21:00
+SGT onwards) still begins after the Mac is back. Live training becomes about 42 h
+(14 Nov 08:55 to 16 Nov 03:00 SGT) plus about 7 h on 16 Nov.
