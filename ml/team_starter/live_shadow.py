@@ -320,6 +320,176 @@ def retrain_markdown(rep: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
+# ------------------------------------------------------------------ candidate search
+# Held-out scoring of candidates (decided with the search code, 2026-11-14, before any live
+# scoring): each candidate is refit on all live rows before held_out_start - embargo (plus the
+# campaign healthy rows when its training_data is campaign+live), like the planned retrain.
+FEATURE_SETS = {
+    "aws_ripe_no_host": MODELS[PRIMARY][0],
+    "aws_ripe_no_host_no_rtt": tuple(n for n in MODELS[PRIMARY][0]
+                                     if n not in ("ripe_max_rtt_inflation_ms", "ripe_paths_inflated")),
+    "ripe_loss_only": ("ripe_window_loss_pct", "ripe_window_probes_with_loss", "ripe_loss_pct_reachable",
+                       "ripe_reachable_probes"),
+}
+
+
+def _raw_scores(train: list[dict], test: list[dict], feats: tuple, model: str, q: float) -> list[bool]:
+    """Unsupervised score fit on TRAIN healthy rows; alert above the q-quantile of train scores."""
+    import numpy as np
+    from sklearn.impute import SimpleImputer
+    from sklearn.preprocessing import StandardScaler
+    healthy = [r for r in train if r["label"] == "healthy"]
+    if not test or not healthy:
+        return [False] * len(test)
+    imp = SimpleImputer(strategy="median", keep_empty_features=True)
+    Xtr = imp.fit_transform(np.array(cm._matrix(healthy, feats), dtype=float))
+    Xte = imp.transform(np.array(cm._matrix(test, feats), dtype=float))
+    if model == "robust_z_max":
+        med = np.median(Xtr, axis=0)
+        mad = 1.4826 * np.median(np.abs(Xtr - med), axis=0)
+        mad[mad == 0] = np.inf  # a constant column cannot raise an alarm
+        str_, ste = (np.max(np.abs(X - med) / mad, axis=1) for X in (Xtr, Xte))
+    else:
+        sc = StandardScaler().fit(Xtr)
+        Xtr_s, Xte_s = sc.transform(Xtr), sc.transform(Xte)
+        if model == "isolation_forest":
+            from sklearn.ensemble import IsolationForest
+            m = IsolationForest(**cm.PROTOCOL["isolation_forest"]).fit(Xtr_s)
+        elif model == "elliptic_envelope":
+            from sklearn.covariance import EllipticEnvelope
+            keep = Xtr_s.std(axis=0) > 0
+            Xtr_s, Xte_s = Xtr_s[:, keep], Xte_s[:, keep]
+            # support_fraction=1.0: the RIPE columns are discrete (probe counts), so the robust
+            # MCD subset is often degenerate; 1.0 is the plain covariance (set before live data).
+            m = EllipticEnvelope(random_state=42, support_fraction=1.0).fit(Xtr_s)
+        else:
+            raise ValueError(model)
+        str_, ste = -m.score_samples(Xtr_s), -m.score_samples(Xte_s)
+    thr = float(np.quantile(str_, q))
+    return [bool(x > thr) for x in ste]
+
+
+def candidate_alerts(train: list[dict], test: list[dict], cand: dict) -> dict:
+    alerts = {}
+    for region in sorted({r["region"] for r in test}):
+        tr = [r for r in train if r["region"] == region]
+        te = [r for r in test if r["region"] == region]
+        for r, a in zip(te, _raw_scores(tr, te, FEATURE_SETS[cand["features"]], cand["model"],
+                                        cand["threshold_quantile"])):
+            alerts[(r["region"], r["ts"])] = a
+    return alerts
+
+
+def candidates() -> list[dict]:
+    g = CANDIDATE_SEARCH["grid"]
+    return [{"model": m, "features": f, "threshold_quantile": q, "persistence_rows": k, "training_data": d}
+            for m in g["model"] for f in g["features"] for q in g["threshold_quantile"]
+            for d in g["training_data"] for k in g["persistence_rows"]]
+
+
+def cand_name(c: dict) -> str:
+    return f"{c['model']}|{c['features']}|q{c['threshold_quantile']}|p{c['persistence_rows']}|{c['training_data']}"
+
+
+def _camp_detection(camp, slots, extra, cand, cache):
+    """Blocked campaign split. live_only training ignores campaign rows entirely."""
+    key = (cand["model"], cand["features"], cand["threshold_quantile"], cand["training_data"])
+    if key not in cache:
+        alerts = {}
+        if cand["training_data"] == "live_only":
+            alerts = candidate_alerts(extra, camp, cand)
+        else:
+            start, end = min(r["ts"] for r in camp), max(r["ts"] for r in camp)
+            for lo, hi in cm.folds_from_slots(slots, start, end):
+                test = [r for r in camp if lo <= r["ts"] < hi]
+                alerts |= candidate_alerts(cm._train_rows(camp, lo, hi, cm.PROTOCOL["embargo_seconds"]) + extra,
+                                           test, cand)
+        cache[key] = alerts
+    return cm.score(camp, persist(cache[key], cand["persistence_rows"]), slots)
+
+
+def _rolling_slices(rows: list[dict], n: int = 4) -> list[tuple[float, float]]:
+    t = sorted(r["ts"] for r in rows)
+    if not t:
+        return []
+    edges = [t[0] + i * (t[-1] - t[0]) / n for i in range(n + 1)]
+    return list(zip(edges, edges[1:]))
+
+
+def search(camp: list[dict], slots: list[dict], rows: list[dict]) -> dict:
+    cs = CANDIDATE_SEARCH
+    aws = [r for r in rows if r["aws"]]
+    fit = [r for r in aws if r["ts"] < ts(cs["fit_window_utc"][1])]
+    val = [r for r in aws if ts(cs["validation_window_utc"][0]) <= r["ts"] < ts(cs["validation_window_utc"][1])]
+    if not fit or not val:
+        raise SystemExit("fit or validation rows missing; export AMP through Mon 03:00 SGT first")
+    camp_h = [r for r in camp if r["label"] == "healthy"]
+    pre = [r for r in aws if r["ts"] < ts(LIVE_PROTOCOL["held_out_start_utc"]) - LIVE_PROTOCOL["embargo_seconds"]]
+    slices = _rolling_slices(pre)
+    out, val_cache, roll_cache, det_cache = [], {}, {}, {}
+    for c in candidates():
+        base = (c["model"], c["features"], c["threshold_quantile"], c["training_data"])
+        extra = camp_h if c["training_data"] == "campaign+live" else []
+        if base not in val_cache:
+            val_cache[base] = candidate_alerts(extra + fit, val, c)
+            roll = []
+            for lo, hi in slices:   # rolling: fit on pre-held-out live outside the slice (+ embargo)
+                tr = [r for r in pre if r["ts"] < lo - 900 or r["ts"] >= hi + 900]
+                te = [r for r in pre if lo <= r["ts"] < hi]
+                roll.append((te, candidate_alerts(extra + tr, te, c)))
+            roll_cache[base] = roll
+        v = fa_summary(val, persist(val_cache[base], c["persistence_rows"]))
+        rolling = [fa_summary(te, persist(al, c["persistence_rows"]))["false_alarms_per_day"]
+                   for te, al in roll_cache[base] if te]
+        d = _camp_detection(camp, slots, fit, c, det_cache)
+        out.append({"name": cand_name(c), **c, "validation": v, "rolling_fa_per_day": rolling,
+                    "campaign_trials_detected": d["trials_detected"], "campaign_trials": d["trials_evaluated"],
+                    "campaign_missed": [t["slot"] for t in d["trials"] if not t["detected"]]})
+    ok = [c for c in out if (c["validation"]["false_alarms_per_day"] or 0) <= 2.0]
+    simple = lambda c: (c["persistence_rows"], len(FEATURE_SETS[c["features"]]))
+    if ok:
+        pick = sorted(ok, key=lambda c: (-c["campaign_trials_detected"], c["validation"]["false_alarms_per_day"],
+                                         *simple(c)))[0]
+    else:
+        pick = sorted(out, key=lambda c: (c["validation"]["false_alarms_per_day"], -c["campaign_trials_detected"],
+                                          *simple(c)))[0]
+    return {"report_version": LIVE_PROTOCOL["version"] + ".search", "mode": "offline_shadow_only",
+            "search": cs, "rows": {"fit": len(fit), "validation": len(val), "pre_held_out": len(pre)},
+            "validation_hours": round(len(val) * STEP / 3600, 2), "candidates": out,
+            "qualifying": len(ok), "pick": pick["name"],
+            "pick_spec": {k: pick[k] for k in ("model", "features", "threshold_quantile",
+                                               "persistence_rows", "training_data")}}
+
+
+def search_markdown(rep: dict) -> str:
+    rows = sorted(rep["candidates"], key=lambda c: (-c["campaign_trials_detected"],
+                                                   c["validation"]["false_alarms_per_day"]))
+    lines = [f"# Candidate search ({len(rows)} candidates, {rep['validation_hours']} validation h, "
+             f"{rep['qualifying']} with <= 2 FA/day)", "", f"**Pick (frozen before held-out): {rep['pick']}**", "",
+             "| candidate | validation FA/day (95% CI) | rolling FA/day | campaign trials |", "|---|---:|---|---:|"]
+    for c in rows:
+        v = c["validation"]
+        ci = v["false_alarms_per_day_ci95"]
+        lines.append(f"| {c['name']} | {v['false_alarms_per_day']} ({ci[0]}-{ci[1]}) | {c['rolling_fa_per_day']} | "
+                     f"{c['campaign_trials_detected']}/{c['campaign_trials']} |")
+    return "\n".join(lines) + "\n"
+
+
+def heldout_candidates(camp: list[dict], rows: list[dict]) -> dict:
+    held_lo = ts(LIVE_PROTOCOL["held_out_start_utc"])
+    aws = [r for r in rows if r["aws"]]
+    train = [r for r in aws if r["ts"] < held_lo - LIVE_PROTOCOL["embargo_seconds"]]
+    held = [r for r in aws if r["ts"] >= held_lo]
+    camp_h = [r for r in camp if r["label"] == "healthy"]
+    out, cache = {}, {}
+    for c in candidates():
+        base = (c["model"], c["features"], c["threshold_quantile"], c["training_data"])
+        if base not in cache:
+            cache[base] = candidate_alerts((camp_h if c["training_data"] == "campaign+live" else []) + train, held, c)
+        out[cand_name(c)] = fa_summary(held, persist(cache[base], c["persistence_rows"]))
+    return out
+
+
 # ---------------------------------------------------------------------------- I/O
 def ssm_exclusions(start: float, end: float, profile: str) -> list[dict]:
     """READ-ONLY: every SSM command sent to either origin during the run becomes an exclusion."""
@@ -344,7 +514,7 @@ def _ripe_spec(live_dir: Path) -> dict[str, list[Path]]:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("command", choices=["snapshot", "retrain", "ssm-exclusions"])
+    ap.add_argument("command", choices=["snapshot", "retrain", "ssm-exclusions", "search"])
     ap.add_argument("--campaign-dir", type=Path, required=True)
     ap.add_argument("--live-dir", type=Path, required=True)
     ap.add_argument("--profile", default="adaptivenet-ml")
@@ -381,9 +551,18 @@ def main(argv=None) -> int:
         (L / "SNAPSHOT.md").write_text(md, encoding="utf-8")
         print(md)
         return 0
+    if a.command == "search":
+        rep = search(camp, slots, rows)
+        (L / "search-report.json").write_text(json.dumps(rep, indent=2), encoding="utf-8")
+        (L / "SEARCH.md").write_text(search_markdown(rep), encoding="utf-8")
+        print(f"pick: {rep['pick']} ({rep['qualifying']} qualifying of {len(rep['candidates'])})")
+        return 0
     if not (L / "exclusions-ssm.json").is_file():
         raise SystemExit("run ssm-exclusions first (read-only) so the review is fixed before scoring")
     rep = retrain(camp, slots, rows, amp, exclusions)
+    rep["candidates_held_out"] = heldout_candidates(camp, rows)
+    if (L / "search-report.json").is_file():
+        rep["frozen_pick"] = json.loads((L / "search-report.json").read_text(encoding="utf-8"))["pick"]
     (L / "retrain-report.json").write_text(json.dumps(rep, indent=2), encoding="utf-8")
     md = retrain_markdown(rep)
     (L / "RETRAIN.md").write_text(md, encoding="utf-8")
