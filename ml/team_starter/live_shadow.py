@@ -70,7 +70,12 @@ LIVE_PROTOCOL = {
     # Mac's off time to Mon 16 Nov 03:00-14:00 SGT (not Sunday). Rules, split and held-out are
     # unchanged; the witness-gap rule above is driven by the witness log, not by these times.
     "amendment_2_expected_gap_sgt": "2026-11-16 03:00 to 2026-11-16 14:00",
+    # Amendment 5 (2026-11-14 10:10 UTC, before any scoring): MY leaves with the Mac Wed 18 Nov
+    # between 07:00 and 08:00 SGT (team review 15:00 SGT), so the run ends at Wed 07:00 SGT instead
+    # of 09:00. Held-out start is unchanged; held-out shrinks from 36 h to 34 h.
+    "amendment_5_live_stop_utc": "2026-11-17T23:00:00+00:00",
 }
+LIVE_PROTOCOL["live_stop_utc"] = LIVE_PROTOCOL["amendment_5_live_stop_utc"]
 # Amendment 3 (2026-11-14 05:30 UTC, before any snapshot or scoring of live data): candidate
 # search requested by MY. Candidates are compared ONLY on (a) a validation block inside the
 # live training period and (b) the 20 campaign trials (blocked split). One candidate is picked
@@ -542,6 +547,49 @@ def trial_detection(camp: list[dict], rows_all: list[dict], amp: dict, L: Path) 
                       for s in slots], "results": res}
 
 
+def _commit(md: str, msg: str) -> None:
+    """Copy the summary into docs/ml/live/ and commit + push it (aggregate numbers only)."""
+    repo = Path(__file__).resolve().parents[2]
+    out = repo / "docs" / "ml" / "live" / "WEDNESDAY_RESULTS.md"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(md, encoding="utf-8")
+    for cmd in (["git", "add", str(out)], ["git", "commit", "-q", "-m", msg], ["git", "push", "-q"]):
+        subprocess.run(cmd, cwd=repo, capture_output=True, timeout=120)
+
+
+def team_summary(rep: dict) -> str:
+    """Plain-language summary built only from the numbers in the report."""
+    r = rep["results"]
+    cur, ret = r[f"current/{PRIMARY}"], r[f"retrained/{PRIMARY}"]
+    f = lambda v: f"{v['held_out_live']['false_alarms_per_day']}/day (95% CI {v['held_out_live']['false_alarms_per_day_ci95'][0]}-{v['held_out_live']['false_alarms_per_day_ci95'][1]})"
+    lines = ["", "## Team summary (generated from the numbers above; shadow only)", "",
+             f"* Held-out: {rep['held_out_span_utc'][0]} to {rep['held_out_span_utc'][1]}, "
+             f"{cur['held_out_live']['healthy_hours']} healthy hours after exclusions, never used for training or choosing.",
+             f"* Current model (13 Nov anomaly, AWS+RIPE, no host): {f(cur)} false alarms; "
+             f"{cur['campaign_trials']['trials_detected']}/20 campaign trials.",
+             f"* Planned retrain (+ live healthy data): {f(ret)} false alarms; "
+             f"{ret['campaign_trials']['trials_detected']}/20 campaign trials.",
+             f"* Frozen RIPE rule (unchanged, context): {r['context/frozen_aws_ripe_rule']['held_out_live']['false_alarms_per_day']}/day."]
+    pick = rep.get("frozen_pick")
+    ch = rep.get("candidates_held_out") or {}
+    if pick and pick in ch:
+        v = ch[pick]
+        lines.append(f"* Candidate picked on Monday before held-out ({pick}): {v['false_alarms_per_day']}/day "
+                     f"(95% CI {v['false_alarms_per_day_ci95'][0]}-{v['false_alarms_per_day_ci95'][1]}); "
+                     f"all {len(ch)} candidates are in retrain-report.json.")
+    elif not pick:
+        lines.append("* No candidate pick was frozen before held-out, so no candidate is claimed.")
+    tt = rep.get("tuesday_trials")
+    if tt and "results" in tt:
+        def t(k):
+            v = tt["results"].get(k)
+            return f"{v['trials_detected']}/{v['trials_evaluated']} (controls alarmed {v['controls_alarmed']}/{v['controls_evaluated']})" if v else "n/a"
+        lines.append(f"* Tuesday trials (unseen faults): current {t('current/' + PRIMARY)}, retrained {t('retrained/' + PRIMARY)}, "
+                     + (f"pick {t('candidate/' + pick)}, " if pick else "") + f"frozen rule {t('context/frozen_aws_ripe_rule')}.")
+    lines.append("* The ML stays shadow-only; it never triggers an action.")
+    return "\n".join(lines) + "\n"
+
+
 # ---------------------------------------------------------------------------- I/O
 def ssm_exclusions(start: float, end: float, profile: str) -> list[dict]:
     """READ-ONLY: every SSM command sent to either origin during the run becomes an exclusion."""
@@ -611,14 +659,23 @@ def main(argv=None) -> int:
         return 0
     if not (L / "exclusions-ssm.json").is_file():
         raise SystemExit("run ssm-exclusions first (read-only) so the review is fixed before scoring")
+    # Stages are saved, summarised and committed one by one, so a Mac that closes early still
+    # leaves the finished stages pushed (Wednesday 07:00-08:00 SGT window).
+    pick = (json.loads((L / "search-report.json").read_text(encoding="utf-8"))["pick"]
+            if (L / "search-report.json").is_file() else None)
     rep = retrain(camp, slots, rows, amp, exclusions)
-    rep["candidates_held_out"] = heldout_candidates(camp, rows)
-    rep["tuesday_trials"] = trial_detection(camp, live_rows(amp, load_index(_ripe_spec(L)), [], witness=wit), amp, L)
-    if (L / "search-report.json").is_file():
-        rep["frozen_pick"] = json.loads((L / "search-report.json").read_text(encoding="utf-8"))["pick"]
-    (L / "retrain-report.json").write_text(json.dumps(rep, indent=2), encoding="utf-8")
-    md = retrain_markdown(rep)
-    (L / "RETRAIN.md").write_text(md, encoding="utf-8")
+    rep["frozen_pick"] = pick
+    stages = [("main comparison", None),
+              ("every candidate on held-out", lambda: rep.__setitem__("candidates_held_out", heldout_candidates(camp, rows))),
+              ("Tuesday trials", lambda: rep.__setitem__("tuesday_trials", trial_detection(
+                  camp, live_rows(amp, load_index(_ripe_spec(L)), [], witness=wit), amp, L)))]
+    for label, fn in stages:
+        if fn:
+            fn()
+        (L / "retrain-report.json").write_text(json.dumps(rep, indent=2), encoding="utf-8")
+        md = retrain_markdown(rep) + team_summary(rep)
+        (L / "RETRAIN.md").write_text(md, encoding="utf-8")
+        _commit(md, f"ml: Wednesday live evaluation - {label} (automatic)")
     print(md)
     return 0
 

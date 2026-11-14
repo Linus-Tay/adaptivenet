@@ -70,3 +70,10 @@ automatic rollback and RIPE measurements as the campaign. The plan is frozen in
 exclude them from the false-alarm count automatically. Detection is scored separately for every model
 (current, planned retrain, every candidate including the frozen pick, frozen rules). Each model is trained
 only on data before the held-out start, so these trials are fully out-of-sample. Labels follow campaign_ml.
+
+**Amendment 5 (2026-11-14 10:10 UTC, before any scoring): earlier stop.** MY leaves with the Mac
+on Wed 18 Nov between 07:00 and 08:00 SGT, and the team review is at 15:00 SGT. The run therefore ends at
+Wed 07:00 SGT (17 Nov 23:00 UTC), and scoring starts automatically at 07:02 SGT. Each stage is committed
+and pushed as soon as it finishes. The held-out start is unchanged, so the held-out window is 34 h. The
+candidate pick is frozen automatically at Mon 16 Nov 19:30 SGT (retries 20:00 and 20:30), before the
+held-out window.

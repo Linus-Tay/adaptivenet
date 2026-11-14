@@ -21,9 +21,9 @@ def test_exclusion_is_padded_and_region_scoped():
     assert not ls.in_exclusion("region-b", t0, ex)
 
 
-def test_protocol_held_out_is_last_36h_and_after_live_training():
+def test_protocol_held_out_is_34h_after_amendment_5():
     p = ls.LIVE_PROTOCOL
-    assert ls.ts(p["live_stop_utc"]) - ls.ts(p["held_out_start_utc"]) == 36 * 3600
+    assert ls.ts(p["live_stop_utc"]) - ls.ts(p["held_out_start_utc"]) == 34 * 3600
     assert p["embargo_seconds"] >= 900
 
 
