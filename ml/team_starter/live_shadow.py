@@ -71,6 +71,30 @@ LIVE_PROTOCOL = {
     # unchanged; the witness-gap rule above is driven by the witness log, not by these times.
     "amendment_2_expected_gap_sgt": "2026-11-16 03:00 to 2026-11-16 14:00",
 }
+# Amendment 3 (2026-11-14 05:30 UTC, before any snapshot or scoring of live data): candidate
+# search requested by MY. Candidates are compared ONLY on (a) a validation block inside the
+# live training period and (b) the 20 campaign trials (blocked split). One candidate is picked
+# by SELECTION_RULE and frozen in a commit before HELD-OUT starts; every candidate is then also
+# scored once on held-out and all are reported. Held-out is never used to choose.
+CANDIDATE_SEARCH = {
+    "fit_window_utc": ["live start", "2026-11-15T00:00:00+00:00"],      # Sat 08:55 to Sun 08:00 SGT
+    "validation_window_utc": ["2026-11-15T00:15:00+00:00", "2026-11-15T19:00:00+00:00"],  # to Mon 03:00 SGT
+    "grid": {
+        "model": ["isolation_forest", "elliptic_envelope", "robust_z_max"],
+        "features": ["aws_ripe_no_host", "aws_ripe_no_host_no_rtt", "ripe_loss_only"],
+        "threshold_quantile": [0.995, 0.999],
+        "persistence_rows": [1, 2, 3],
+        "training_data": ["campaign+live", "live_only"],
+    },
+    "notes": {"robust_z_max": "max over features of |x - median| / (1.4826 MAD) on training healthy rows",
+              "aws_ripe_no_host_no_rtt": "drops ripe_max_rtt_inflation_ms and ripe_paths_inflated",
+              "ripe_loss_only": "ripe_window_loss_pct, ripe_window_probes_with_loss, ripe_loss_pct_reachable, "
+                                "ripe_reachable_probes"},
+    "selection_rule": "among candidates with validation FA/day <= 2.0, pick the most campaign trials "
+                      "detected; ties -> lower validation FA/day, then simpler (persistence, then fewer features). "
+                      "If none qualify, pick the lowest validation FA/day.",
+    "freeze_by_utc": "2026-11-16T12:45:00+00:00",                        # Mon 20:45 SGT
+}
 MODELS = {  # name -> (feature names, persistence rows)
     "anomaly_aws_ripe_no_host": (tuple(n for n in cm.ARMS["aws_ripe"] if n not in cm.HOST_FEATURES), 1),
     "anomaly_aws_ripe": (cm.ARMS["aws_ripe"], 1),

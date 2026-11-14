@@ -50,3 +50,15 @@ Mac's off time: Monday 16 Nov 03:00 to 14:00 SGT, not from Sunday. No rule chang
 witness-gap rule works from the witness log alone, and the held-out window (16 Nov 21:00
 SGT onwards) still begins after the Mac is back. Live training becomes about 42 h
 (14 Nov 08:55 to 16 Nov 03:00 SGT) plus about 7 h on 16 Nov.
+
+**Amendment 3 (2026-11-14 05:30 UTC, before any snapshot or scoring): candidate search.**
+MY asked to look for training changes that cut false alarms or improve detection. The
+search space and selection rule (`CANDIDATE_SEARCH` in `live_shadow.py`) are fixed now:
+model (IsolationForest, EllipticEnvelope, robust max-z), features (AWS+RIPE without host,
+the same without the RTT-inflation columns, RIPE loss columns only), threshold quantile
+(0.995, 0.999), persistence (1, 2, 3 rows) and training data (campaign+live, live only).
+Candidates are fit on live data to 15 Nov 08:00 SGT, scored on a validation block from
+15 Nov 08:15 to 16 Nov 03:00 SGT and on the 20 campaign trials. Pick: the most trials
+detected among candidates with validation FA <= 2/day (ties: lower FA, then simpler).
+The pick is frozen in a commit by 16 Nov 20:45 SGT, before the held-out window. On
+Wednesday every candidate is scored once on held-out and all are reported, not only the pick.
