@@ -38,3 +38,9 @@ confirmed false alarms. Detection cannot be measured on the live run (no trials)
 
 **Smoke check (not a result).** Running the pipeline on the campaign files reproduces the
 published blocked detections for the current model (17/20 without host, 16/20 with host).
+
+**Amendment 1 (2026-11-14, before any live data).** The Mac will be off from about
+15 Nov 03:00 SGT to 16 Nov 14:00 SGT, so the witness traffic stops. Rows with no witness
+record in the 60 s before them are dropped from both training and held-out, using the
+witness log only. The held-out window (16 Nov 21:00 SGT onwards) falls after the Mac is
+back. Live training is then about 18 h on 14 Nov plus about 7 h on 16 Nov.
