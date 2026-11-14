@@ -62,3 +62,11 @@ Candidates are fit on live data to 15 Nov 08:00 SGT, scored on a validation bloc
 detected among candidates with validation FA <= 2/day (ties: lower FA, then simpler).
 The pick is frozen in a commit by 16 Nov 20:45 SGT, before the held-out window. On
 Wednesday every candidate is scored once on held-out and all are reported, not only the pick.
+
+**Amendment 4 (2026-11-14 10:05 UTC, approved by MY in the thread): Tuesday trials.**
+10 packet-loss trials on Tue 17 Nov from 19:00 SGT (seed 1711, 5 cycles), with the same guarded runner,
+automatic rollback and RIPE measurements as the campaign. The plan is frozen in
+`docs/ml/live/tuesday-trials-plan.json`. The trials fall inside the held-out window, and their SSM commands
+exclude them from the false-alarm count automatically. Detection is scored separately for every model
+(current, planned retrain, every candidate including the frozen pick, frozen rules). Each model is trained
+only on data before the held-out start, so these trials are fully out-of-sample. Labels follow campaign_ml.

@@ -490,6 +490,58 @@ def heldout_candidates(camp: list[dict], rows: list[dict]) -> dict:
     return out
 
 
+# ---------------------------------------------------------- Tuesday trials (amendment 4)
+# Amendment 4 (2026-11-14 10:05 UTC, approved by MY in the thread): 10 packet-loss trials on
+# Tue 17 Nov from 11:00 UTC (seed 1711, 5 cycles, same runner and rollback as the campaign).
+# They are inside the held-out window: their SSM commands make them exclusions for the false-
+# alarm count automatically. Detection on them is scored separately for every model, each
+# trained only on data before held_out_start - embargo (the pick frozen beforehand), so the
+# trials are fully out-of-sample. Same rules as campaign_ml: impaired = SSM request to
+# request + duration of SSM-confirmed slots; controls = the other region at the same time.
+TRIALS = {"seed": 1711, "start_utc": "2026-11-17T11:00:00+00:00", "cycles": 5}
+
+
+def trial_detection(camp: list[dict], rows_all: list[dict], amp: dict, L: Path) -> dict | None:
+    tdir = L / "trials"
+    if not (tdir / "campaign-log.jsonl").is_file():
+        return None
+    slots = campaign_slots(json.loads((tdir / "trials-plan.json").read_text(encoding="utf-8")),
+                           read_jsonl(tdir / "campaign-log.jsonl"), tdir / "trials")
+    if not slots:
+        return {"error": "no submitted trials"}
+    lo = min(s["request_unix"] for s in slots) - 3600
+    hi = max(s["request_unix"] + s["duration_seconds"] for s in slots) + 3600
+    rows = []
+    for r in rows_all:
+        if not (lo <= r["ts"] <= hi) or not r["aws"]:
+            continue
+        r = dict(r)
+        for s in slots:
+            if s["region"] == r["region"] and s["request_unix"] <= r["ts"] <= s["request_unix"] + s["duration_seconds"]:
+                r["label"], r["slot"] = ("impaired", s["slot"]) if s["effect_confirmed"] else ("dropped", None)
+        if r["label"] != "dropped":
+            rows.append(r)
+    held_lo = ts(LIVE_PROTOCOL["held_out_start_utc"])
+    train = [r for r in rows_all if r["aws"] and r["ts"] < held_lo - LIVE_PROTOCOL["embargo_seconds"]]
+    camp_h = [r for r in camp if r["label"] == "healthy"]
+    keep = ("trials_evaluated", "trials_detected", "recall_ci95", "detection_by_loss_percent", "median_delay_s",
+            "controls_evaluated", "controls_alarmed")
+    res = {}
+    def put(name, alerts):
+        sc = cm.score(rows, alerts, slots)
+        res[name] = {k: sc[k] for k in keep} | {"missed": [t["slot"] for t in sc["trials"] if not t["detected"]]}
+    for name in MODELS:
+        put(f"current/{name}", predict(camp_h, rows, name))
+        put(f"retrained/{name}", predict(camp_h + train, rows, name))
+    for c in candidates():
+        al = candidate_alerts((camp_h if c["training_data"] == "campaign+live" else []) + train, rows, c)
+        put(f"candidate/{cand_name(c)}", persist(al, c["persistence_rows"]))
+    for name, al in frozen_rules(rows, amp).items():
+        put(f"context/{name}", al)
+    return {"slots": [{k: s[k] for k in ("slot", "region", "loss_percent", "effect_confirmed")} | {"start_utc": iso(s["request_unix"])}
+                      for s in slots], "results": res}
+
+
 # ---------------------------------------------------------------------------- I/O
 def ssm_exclusions(start: float, end: float, profile: str) -> list[dict]:
     """READ-ONLY: every SSM command sent to either origin during the run becomes an exclusion."""
@@ -561,6 +613,7 @@ def main(argv=None) -> int:
         raise SystemExit("run ssm-exclusions first (read-only) so the review is fixed before scoring")
     rep = retrain(camp, slots, rows, amp, exclusions)
     rep["candidates_held_out"] = heldout_candidates(camp, rows)
+    rep["tuesday_trials"] = trial_detection(camp, live_rows(amp, load_index(_ripe_spec(L)), [], witness=wit), amp, L)
     if (L / "search-report.json").is_file():
         rep["frozen_pick"] = json.loads((L / "search-report.json").read_text(encoding="utf-8"))["pick"]
     (L / "retrain-report.json").write_text(json.dumps(rep, indent=2), encoding="utf-8")
