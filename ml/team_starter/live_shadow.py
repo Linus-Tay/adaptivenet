@@ -59,6 +59,13 @@ LIVE_PROTOCOL = {
     "exclusions": "every SSM command in either region during the run (read-only list-commands), "
                   "plus incidents the operator reports, fixed before the retrain is scored",
     "decision": "report both models side by side; no threshold or feature is tuned on live data",
+    # Amendment 1 (2026-11-14, still before any live data): the Mac is off from about
+    # 15 Nov 03:00 SGT to 16 Nov 14:00 SGT, so the witness traffic stops. The model was
+    # trained with witness traffic, so rows without it are not comparable. Rule fixed from
+    # the witness log only, never from alerts.
+    "witness_gap_seconds": 60,
+    "witness_gap_rule": "a row is dropped (train and held-out) when the HTTP witness log has no "
+                        "record in the 60 s up to the row; reported as a row count",
 }
 MODELS = {  # name -> (feature names, persistence rows)
     "anomaly_aws_ripe_no_host": (tuple(n for n in cm.ARMS["aws_ripe"] if n not in cm.HOST_FEATURES), 1),
@@ -93,8 +100,19 @@ def in_exclusion(region: str, t: float, exclusions: list[dict]) -> bool:
                and ts(e["start_utc"]) - pre <= t <= ts(e["end_utc"]) + post for e in exclusions)
 
 
+def witness_times(path: Path) -> list[float]:
+    return sorted(ts(r["timestamp"]) for r in read_jsonl(path) if r.get("timestamp"))
+
+
+def witness_ok(times: list[float] | None, t: float) -> bool:
+    if times is None:
+        return True
+    i = bisect_left(times, t - LIVE_PROTOCOL["witness_gap_seconds"])
+    return i < len(times) and times[i] <= t
+
+
 def live_rows(amp: dict[str, list[dict]], index: ProbeIndex, exclusions: list[dict],
-              until: float | None = None) -> list[dict]:
+              until: float | None = None, witness: list[float] | None = None) -> list[dict]:
     """A 30 s grid per region from RIPE warm-up to the last RIPE result (or `until`).
 
     A grid point carries the AMP values at that exact timestamp when the export has
@@ -111,7 +129,7 @@ def live_rows(amp: dict[str, list[dict]], index: ProbeIndex, exclusions: list[di
         by_ts = {float(r["ts"]): r for r in amp.get(region, [])}
         t = lo
         while t <= hi:
-            if not in_exclusion(region, t, exclusions):
+            if not in_exclusion(region, t, exclusions) and witness_ok(witness, t):
                 a = by_ts.get(t)
                 values = (cm._amp_values(a) if a else {}) | path_features(index, region, t)
                 rows.append({"region": region, "ts": t, "label": "healthy", "slot": None, "aws": a is not None,
@@ -317,7 +335,8 @@ def main(argv=None) -> int:
         if (L / f).is_file():
             exclusions += json.loads((L / f).read_text(encoding="utf-8"))
     amp = {r: read_jsonl(L / f"amp-{r}.jsonl") for r in ("region-a", "region-b")}
-    rows = live_rows(amp, load_index(_ripe_spec(L)), exclusions)
+    wit = witness_times(L / "http_witness.jsonl")
+    rows = live_rows(amp, load_index(_ripe_spec(L)), exclusions, witness=wit)
     if a.command == "snapshot":
         status = (L / "aws_status.txt").read_text().strip() if (L / "aws_status.txt").is_file() else "unknown"
         aws_last = max((r["ts"] for v in amp.values() for r in v), default=None)

@@ -30,3 +30,11 @@ def test_protocol_held_out_is_last_36h_and_after_live_training():
 def test_sgt_day_boundary():
     assert ls.sgt_day(ls.ts("2026-11-14T15:59:59+00:00")) == "2026-11-14"
     assert ls.sgt_day(ls.ts("2026-11-14T16:00:00+00:00")) == "2026-11-15"
+
+
+def test_witness_gap_drops_rows():
+    times = [100.0, 115.0, 300.0]
+    assert ls.witness_ok(times, 120.0)
+    assert not ls.witness_ok(times, 200.0)
+    assert ls.witness_ok(times, 300.0)
+    assert ls.witness_ok(None, 5.0)
