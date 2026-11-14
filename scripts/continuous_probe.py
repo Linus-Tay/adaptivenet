@@ -83,10 +83,18 @@ def main(argv=None):
     parser.add_argument("--cloudfront-only", action="store_true")
     parser.add_argument("--run", action="store_true", help="Send real HTTP GETs (bounded AWS traffic)")
     parser.add_argument("--out", default=str(ROOT / "data" / "probe-events.jsonl"))
+    parser.add_argument("--targets-json", help="scope->URL map saved earlier; skips the AWS lookup")
+    parser.add_argument("--until-utc", help="stop cleanly at this ISO time")
     args = parser.parse_args(argv)
     if not (10 <= args.interval <= 3600 and 1 <= args.count <= 3 and 0 <= args.cycles <= 10000):
         parser.error("interval 10-3600; count 1-3; cycles 0-10000")
-    targets = resolve_targets(args.profile, ROOT / ".env", cloudfront_only=args.cloudfront_only)
+    if args.targets_json:
+        targets = json.loads(Path(args.targets_json).read_text(encoding="utf-8"))
+        if set(targets) - {"cloudfront", *REGIONS}:
+            parser.error("unexpected scope in --targets-json")
+    else:
+        targets = resolve_targets(args.profile, ROOT / ".env", cloudfront_only=args.cloudfront_only)
+    until = datetime.fromisoformat(args.until_utc).timestamp() if args.until_utc else None
     for scope, url in targets.items():
         print(scope, url)
     print(f"Schedule: {args.count} GET per target every {args.interval} seconds.")
@@ -101,7 +109,7 @@ def main(argv=None):
         pass
     n = 0
     try:
-        while not args.cycles or n < args.cycles:
+        while (not args.cycles or n < args.cycles) and (until is None or time.time() < until):
             started = time.monotonic()
             # Probe all regions concurrently: sequential 8-second timeouts could
             # otherwise exceed a 15-second cycle when every endpoint fails.
