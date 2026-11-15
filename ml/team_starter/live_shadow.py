@@ -134,7 +134,21 @@ def in_exclusion(region: str, t: float, exclusions: list[dict]) -> bool:
 
 
 def witness_times(path: Path) -> list[float]:
-    return sorted(ts(r["timestamp"]) for r in read_jsonl(path) if r.get("timestamp"))
+    """Witness record times. The journal (`path`) rotates at a size cap and drops old records,
+    so the full history is also read from the witness's own stdout log, which keeps every
+    record (bug fix 2026-11-15, found by the health check before any live scoring)."""
+    out = set()
+    for p in (path, path.with_name("witness.stdout")):
+        if p.is_file():
+            for line in p.read_text(encoding="utf-8", errors="replace").splitlines():
+                if line.startswith("{"):
+                    try:
+                        r = json.loads(line)
+                    except ValueError:
+                        continue
+                    if r.get("timestamp"):
+                        out.add(ts(r["timestamp"]))
+    return sorted(out)
 
 
 def witness_ok(times: list[float] | None, t: float) -> bool:
