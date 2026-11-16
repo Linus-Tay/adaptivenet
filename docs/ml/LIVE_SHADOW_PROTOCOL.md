@@ -87,3 +87,17 @@ was always >= 0.126 in region-a (CloudFront plus direct requests) and >= 0.063 i
 While the Mac was off, both were exactly 0. A row now counts as witnessed if the log has a record in the
 previous 60 s, or if that region's `http_rps` is >= 0.03 (about half the lower witness-only rate). The threshold was chosen from on/off periods only. The witness now runs as its own
 launchd agent with KeepAlive, and its log is appended, never truncated.
+
+**Amendment 7 (2026-11-16, chosen by MY at 13:33 UTC; committed before the Tuesday trials and before any
+held-out scoring): defective Monday pick, second pick.** An independent review found that the Monday pick
+(`robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p1|live_only`, commit 57cc91d) is an artefact. Trained on
+live data only, 10 of its 11 columns have zero MAD in both regions and are muted, every loss column
+included. Its only active column is `ripe_result_age_s`, which runs higher on the campaign day. So it
+alarms in 20 of 20 campaign controls, at about 370 alarms a day on campaign healthy rows, and its 20/20
+trials is not detection. The p2 runner-up has the same flaw. The cause is the selection rule: it never
+looked at controls. The Monday pick stays frozen and is reported as it is, marked failed. A second pick
+uses the same rule with one added gate: campaign controls alarmed in at most 1 of 20. It is chosen
+mechanically from the same candidates and committed in `docs/ml/live/candidate-pick-2.json`. Campaign
+controls and campaign healthy false alarms are now reported for every candidate, in SEARCH.md and on
+Wednesday. The frozen rule's declared secondary variants (loss_only, loss_or_rtt2) are scored as context
+on held-out and on the Tuesday trials. The frozen rule itself is unchanged.

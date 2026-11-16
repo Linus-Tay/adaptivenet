@@ -1,0 +1,15 @@
+{
+  "pick": "isolation_forest|ripe_loss_only|q0.995|p2|campaign+live",
+  "pick_spec": {
+    "model": "isolation_forest",
+    "features": "ripe_loss_only",
+    "threshold_quantile": 0.995,
+    "persistence_rows": 2,
+    "training_data": "campaign+live"
+  },
+  "rule": "amendment 3 rule + campaign controls alarmed <= 1 of 20 (amendment 7)",
+  "frozen_utc": "2026-11-16T13:36:55.724788+00:00",
+  "candidates": 108,
+  "qualifying": 62,
+  "monday_pick_kept_as_failed": "robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p1|live_only"
+}

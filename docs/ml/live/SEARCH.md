@@ -2,113 +2,115 @@
 
 **Pick (frozen before held-out): robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p1|live_only**
 
-| candidate | validation FA/day (95% CI) | rolling FA/day | campaign trials |
-|---|---:|---|---:|
-| robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p1|live_only | 1.28 (0.16-4.62) | [0.82, 2.46, 0.82, 1.3] | 20/20 |
-| robust_z_max|aws_ripe_no_host_no_rtt|q0.995|p1|live_only | 4.48 (1.8-9.23) | [4.92, 4.92, 3.28, 6.52] | 20/20 |
-| robust_z_max|aws_ripe_no_host_no_rtt|q0.995|p2|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 19/20 |
-| robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p2|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 19/20 |
-| isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p1|live_only | 9.6 (5.37-15.83) | [3.28, 4.92, 2.46, 0.0] | 16/20 |
-| robust_z_max|aws_ripe_no_host_no_rtt|q0.995|p1|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 15/20 |
-| isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p2|live_only | 3.84 (1.41-8.36) | [1.64, 3.28, 2.46, 0.0] | 15/20 |
-| isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p1|campaign+live | 5.76 (2.63-10.93) | [3.28, 3.28, 1.64, 0.0] | 15/20 |
-| isolation_forest|aws_ripe_no_host|q0.995|p2|live_only | 6.4 (3.07-11.77) | [0.0, 4.1, 2.46, 1.3] | 15/20 |
-| isolation_forest|aws_ripe_no_host|q0.995|p1|live_only | 8.32 (4.43-14.23) | [0.0, 4.1, 3.28, 1.3] | 15/20 |
-| isolation_forest|ripe_loss_only|q0.995|p1|live_only | 2.56 (0.7-6.55) | [0.82, 3.28, 1.64, 0.0] | 14/20 |
-| isolation_forest|ripe_loss_only|q0.995|p2|live_only | 2.56 (0.7-6.55) | [0.82, 3.28, 1.64, 0.0] | 14/20 |
-| isolation_forest|ripe_loss_only|q0.995|p3|live_only | 2.56 (0.7-6.55) | [0.82, 3.28, 1.64, 0.0] | 14/20 |
-| elliptic_envelope|ripe_loss_only|q0.995|p2|live_only | 2.56 (0.7-6.55) | [0.82, 0.82, 1.64, 0.0] | 14/20 |
-| elliptic_envelope|ripe_loss_only|q0.995|p3|live_only | 2.56 (0.7-6.55) | [0.82, 0.82, 1.64, 0.0] | 14/20 |
-| isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p3|live_only | 3.2 (1.04-7.47) | [1.64, 2.46, 1.64, 0.0] | 14/20 |
-| elliptic_envelope|ripe_loss_only|q0.995|p1|live_only | 3.84 (1.41-8.36) | [0.82, 0.82, 1.64, 0.0] | 14/20 |
-| isolation_forest|aws_ripe_no_host|q0.995|p3|live_only | 5.12 (2.21-10.09) | [0.0, 3.28, 2.46, 1.3] | 14/20 |
-| isolation_forest|ripe_loss_only|q0.995|p2|campaign+live | 1.92 (0.4-5.61) | [0.82, 1.64, 1.64, 0.0] | 13/20 |
-| isolation_forest|ripe_loss_only|q0.995|p3|campaign+live | 1.92 (0.4-5.61) | [0.82, 1.64, 1.64, 0.0] | 13/20 |
-| isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p3|campaign+live | 2.56 (0.7-6.55) | [0.82, 2.46, 1.64, 0.0] | 13/20 |
-| isolation_forest|aws_ripe_no_host_no_rtt|q0.999|p1|campaign+live | 2.56 (0.7-6.55) | [0.0, 2.46, 2.46, 0.0] | 13/20 |
-| isolation_forest|ripe_loss_only|q0.995|p1|campaign+live | 2.56 (0.7-6.55) | [0.82, 2.46, 1.64, 0.0] | 13/20 |
-| elliptic_envelope|ripe_loss_only|q0.995|p1|campaign+live | 3.84 (1.41-8.36) | [0.82, 2.46, 1.64, 0.0] | 13/20 |
-| isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p2|campaign+live | 4.48 (1.8-9.23) | [1.64, 3.28, 1.64, 0.0] | 13/20 |
-| isolation_forest|aws_ripe_no_host_no_rtt|q0.999|p1|live_only | 4.48 (1.8-9.23) | [0.0, 3.28, 1.64, 0.0] | 13/20 |
-| isolation_forest|aws_ripe_no_host|q0.995|p1|campaign+live | 5.76 (2.63-10.93) | [0.82, 4.1, 3.28, 1.3] | 13/20 |
-| isolation_forest|aws_ripe_no_host|q0.999|p2|campaign+live | 1.28 (0.16-4.62) | [0.0, 1.64, 1.64, 0.0] | 12/20 |
-| elliptic_envelope|ripe_loss_only|q0.999|p2|campaign+live | 1.92 (0.4-5.61) | [0.0, 0.0, 0.0, 0.0] | 12/20 |
-| elliptic_envelope|ripe_loss_only|q0.999|p3|campaign+live | 1.92 (0.4-5.61) | [0.0, 0.0, 0.0, 0.0] | 12/20 |
-| isolation_forest|aws_ripe_no_host_no_rtt|q0.999|p2|live_only | 2.56 (0.7-6.55) | [0.0, 1.64, 1.64, 0.0] | 12/20 |
-| elliptic_envelope|ripe_loss_only|q0.995|p2|campaign+live | 2.56 (0.7-6.55) | [0.82, 1.64, 1.64, 0.0] | 12/20 |
-| elliptic_envelope|ripe_loss_only|q0.995|p3|campaign+live | 2.56 (0.7-6.55) | [0.82, 1.64, 1.64, 0.0] | 12/20 |
-| elliptic_envelope|ripe_loss_only|q0.999|p1|campaign+live | 2.56 (0.7-6.55) | [0.0, 0.0, 0.0, 0.0] | 12/20 |
-| isolation_forest|aws_ripe_no_host|q0.995|p2|campaign+live | 4.48 (1.8-9.23) | [0.0, 4.1, 3.28, 1.3] | 12/20 |
-| isolation_forest|aws_ripe_no_host|q0.995|p3|campaign+live | 4.48 (1.8-9.23) | [0.0, 4.1, 2.46, 1.3] | 12/20 |
-| isolation_forest|aws_ripe_no_host|q0.999|p1|live_only | 4.48 (1.8-9.23) | [0.0, 3.28, 2.46, 0.0] | 12/20 |
-| isolation_forest|aws_ripe_no_host|q0.999|p1|campaign+live | 5.12 (2.21-10.09) | [0.0, 2.46, 3.28, 0.0] | 12/20 |
-| isolation_forest|aws_ripe_no_host_no_rtt|q0.999|p3|live_only | 1.28 (0.16-4.62) | [0.0, 0.82, 0.82, 0.0] | 11/20 |
-| isolation_forest|ripe_loss_only|q0.999|p2|campaign+live | 1.28 (0.16-4.62) | [0.0, 0.82, 0.0, 0.0] | 11/20 |
-| isolation_forest|ripe_loss_only|q0.999|p3|campaign+live | 1.28 (0.16-4.62) | [0.0, 0.82, 0.0, 0.0] | 11/20 |
-| isolation_forest|aws_ripe_no_host|q0.999|p2|live_only | 1.92 (0.4-5.61) | [0.0, 1.64, 0.82, 0.0] | 11/20 |
-| isolation_forest|aws_ripe_no_host|q0.999|p3|live_only | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 0.0] | 11/20 |
-| isolation_forest|ripe_loss_only|q0.999|p1|campaign+live | 1.92 (0.4-5.61) | [0.0, 0.82, 0.0, 0.0] | 11/20 |
-| elliptic_envelope|ripe_loss_only|q0.999|p1|live_only | 2.56 (0.7-6.55) | [0.0, 0.0, 0.0, 0.0] | 11/20 |
-| elliptic_envelope|ripe_loss_only|q0.999|p2|live_only | 2.56 (0.7-6.55) | [0.0, 0.0, 0.0, 0.0] | 11/20 |
-| elliptic_envelope|ripe_loss_only|q0.999|p3|live_only | 2.56 (0.7-6.55) | [0.0, 0.0, 0.0, 0.0] | 11/20 |
-| isolation_forest|aws_ripe_no_host|q0.999|p3|campaign+live | 0.64 (0.02-3.57) | [0.0, 0.0, 0.82, 0.0] | 9/20 |
-| isolation_forest|aws_ripe_no_host_no_rtt|q0.999|p2|campaign+live | 1.92 (0.4-5.61) | [0.0, 1.64, 0.82, 0.0] | 9/20 |
-| isolation_forest|aws_ripe_no_host_no_rtt|q0.999|p3|campaign+live | 0.64 (0.02-3.57) | [0.0, 0.82, 0.0, 0.0] | 6/20 |
-| robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p1|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 5/20 |
-| isolation_forest|ripe_loss_only|q0.999|p1|live_only | 0.64 (0.02-3.57) | [0.0, 0.82, 0.0, 0.0] | 5/20 |
-| isolation_forest|ripe_loss_only|q0.999|p2|live_only | 0.64 (0.02-3.57) | [0.0, 0.82, 0.0, 0.0] | 5/20 |
-| isolation_forest|ripe_loss_only|q0.999|p3|live_only | 0.64 (0.02-3.57) | [0.0, 0.82, 0.0, 0.0] | 5/20 |
-| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.995|p1|campaign+live | 3.84 (1.41-8.36) | [0.0, 0.0, 0.82, 28.68] | 2/20 |
-| robust_z_max|aws_ripe_no_host_no_rtt|q0.995|p2|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host_no_rtt|q0.995|p3|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host_no_rtt|q0.995|p3|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p2|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p3|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p3|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|ripe_loss_only|q0.995|p1|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|ripe_loss_only|q0.995|p2|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|ripe_loss_only|q0.995|p3|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|ripe_loss_only|q0.995|p1|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|ripe_loss_only|q0.995|p2|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|ripe_loss_only|q0.995|p3|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|ripe_loss_only|q0.999|p1|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|ripe_loss_only|q0.999|p2|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|ripe_loss_only|q0.999|p3|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|ripe_loss_only|q0.999|p1|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|ripe_loss_only|q0.999|p2|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| robust_z_max|ripe_loss_only|q0.999|p3|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.999|p2|campaign+live | 0.64 (0.02-3.57) | [0.0, 0.0, 0.82, 2.61] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.999|p3|campaign+live | 0.64 (0.02-3.57) | [0.0, 0.0, 0.82, 2.61] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.999|p2|live_only | 0.64 (0.02-3.57) | [0.0, 0.0, 0.82, 3.91] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.999|p3|live_only | 0.64 (0.02-3.57) | [0.0, 0.0, 0.82, 2.61] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host|q0.999|p2|campaign+live | 1.28 (0.16-4.62) | [0.0, 0.0, 0.82, 3.91] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host|q0.999|p3|campaign+live | 1.28 (0.16-4.62) | [0.0, 0.0, 0.82, 2.61] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host|q0.999|p3|live_only | 1.28 (0.16-4.62) | [0.0, 0.0, 0.82, 2.61] | 0/20 |
-| robust_z_max|aws_ripe_no_host|q0.999|p1|campaign+live | 1.28 (0.16-4.62) | [0.82, 0.0, 1.64, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host|q0.999|p2|campaign+live | 1.28 (0.16-4.62) | [0.82, 0.0, 1.64, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host|q0.999|p3|campaign+live | 1.28 (0.16-4.62) | [0.82, 0.0, 1.64, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host|q0.999|p1|live_only | 1.28 (0.16-4.62) | [0.82, 0.0, 1.64, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host|q0.999|p2|live_only | 1.28 (0.16-4.62) | [0.82, 0.0, 1.64, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host|q0.999|p3|live_only | 1.28 (0.16-4.62) | [0.82, 0.0, 1.64, 0.0] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host|q0.995|p2|campaign+live | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 23.47] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host|q0.995|p3|campaign+live | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 20.86] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host|q0.995|p2|live_only | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 26.08] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host|q0.995|p3|live_only | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 20.86] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host|q0.999|p1|campaign+live | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 5.22] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host|q0.999|p2|live_only | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 3.91] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.995|p3|campaign+live | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 20.86] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.995|p3|live_only | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 20.86] | 0/20 |
-| robust_z_max|aws_ripe_no_host|q0.995|p1|campaign+live | 1.92 (0.4-5.61) | [1.64, 0.0, 4.1, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host|q0.995|p2|campaign+live | 1.92 (0.4-5.61) | [1.64, 0.0, 4.1, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host|q0.995|p3|campaign+live | 1.92 (0.4-5.61) | [1.64, 0.0, 4.1, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host|q0.995|p1|live_only | 1.92 (0.4-5.61) | [1.64, 0.0, 3.28, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host|q0.995|p2|live_only | 1.92 (0.4-5.61) | [1.64, 0.0, 3.28, 0.0] | 0/20 |
-| robust_z_max|aws_ripe_no_host|q0.995|p3|live_only | 1.92 (0.4-5.61) | [1.64, 0.0, 3.28, 0.0] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.995|p2|campaign+live | 2.56 (0.7-6.55) | [0.0, 0.0, 0.82, 26.08] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.995|p2|live_only | 2.56 (0.7-6.55) | [0.0, 0.0, 0.82, 26.08] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host|q0.995|p1|campaign+live | 3.2 (1.04-7.47) | [0.0, 0.0, 0.82, 24.77] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host|q0.995|p1|live_only | 3.2 (1.04-7.47) | [0.0, 0.0, 0.82, 26.08] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host|q0.999|p1|live_only | 3.2 (1.04-7.47) | [0.0, 0.0, 0.82, 6.52] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.995|p1|live_only | 3.2 (1.04-7.47) | [0.0, 0.0, 0.82, 27.38] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.999|p1|campaign+live | 4.48 (1.8-9.23) | [0.0, 0.0, 0.82, 18.25] | 0/20 |
-| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.999|p1|live_only | 4.48 (1.8-9.23) | [0.0, 0.0, 0.82, 15.65] | 0/20 |
+**Pick 2 (amendment 7, at most 1 of 20 controls alarmed): isolation_forest|ripe_loss_only|q0.995|p2|campaign+live**
+
+| candidate | validation FA/day (95% CI) | rolling FA/day | campaign trials | campaign controls alarmed | campaign healthy FA/day |
+|---|---:|---|---:|---:|---:|
+| robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p1|live_only | 1.28 (0.16-4.62) | [0.82, 2.46, 0.82, 1.3] | 20/20 | 20/20 | 369.96 |
+| robust_z_max|aws_ripe_no_host_no_rtt|q0.995|p1|live_only | 4.48 (1.8-9.23) | [4.92, 4.92, 3.28, 6.52] | 20/20 | 20/20 | 369.96 |
+| robust_z_max|aws_ripe_no_host_no_rtt|q0.995|p2|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 19/20 | 20/20 | 295.97 |
+| robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p2|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 19/20 | 20/20 | 295.97 |
+| isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p1|live_only | 9.6 (5.37-15.83) | [3.28, 4.92, 2.46, 0.0] | 16/20 | 1/20 | 17.08 |
+| robust_z_max|aws_ripe_no_host_no_rtt|q0.995|p1|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 15/20 | 13/20 | 128.06 |
+| isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p2|live_only | 3.84 (1.41-8.36) | [1.64, 3.28, 2.46, 0.0] | 15/20 | 1/20 | 14.23 |
+| isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p1|campaign+live | 5.76 (2.63-10.93) | [3.28, 3.28, 1.64, 0.0] | 15/20 | 1/20 | 14.23 |
+| isolation_forest|aws_ripe_no_host|q0.995|p2|live_only | 6.4 (3.07-11.77) | [0.0, 4.1, 2.46, 1.3] | 15/20 | 1/20 | 5.69 |
+| isolation_forest|aws_ripe_no_host|q0.995|p1|live_only | 8.32 (4.43-14.23) | [0.0, 4.1, 3.28, 1.3] | 15/20 | 1/20 | 5.69 |
+| isolation_forest|ripe_loss_only|q0.995|p1|live_only | 2.56 (0.7-6.55) | [0.82, 3.28, 1.64, 0.0] | 14/20 | 1/20 | 5.69 |
+| isolation_forest|ripe_loss_only|q0.995|p2|live_only | 2.56 (0.7-6.55) | [0.82, 3.28, 1.64, 0.0] | 14/20 | 1/20 | 5.69 |
+| isolation_forest|ripe_loss_only|q0.995|p3|live_only | 2.56 (0.7-6.55) | [0.82, 3.28, 1.64, 0.0] | 14/20 | 0/20 | 5.69 |
+| elliptic_envelope|ripe_loss_only|q0.995|p2|live_only | 2.56 (0.7-6.55) | [0.82, 0.82, 1.64, 0.0] | 14/20 | 1/20 | 5.69 |
+| elliptic_envelope|ripe_loss_only|q0.995|p3|live_only | 2.56 (0.7-6.55) | [0.82, 0.82, 1.64, 0.0] | 14/20 | 0/20 | 5.69 |
+| isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p3|live_only | 3.2 (1.04-7.47) | [1.64, 2.46, 1.64, 0.0] | 14/20 | 0/20 | 11.38 |
+| elliptic_envelope|ripe_loss_only|q0.995|p1|live_only | 3.84 (1.41-8.36) | [0.82, 0.82, 1.64, 0.0] | 14/20 | 1/20 | 8.54 |
+| isolation_forest|aws_ripe_no_host|q0.995|p3|live_only | 5.12 (2.21-10.09) | [0.0, 3.28, 2.46, 1.3] | 14/20 | 0/20 | 5.69 |
+| isolation_forest|ripe_loss_only|q0.995|p2|campaign+live | 1.92 (0.4-5.61) | [0.82, 1.64, 1.64, 0.0] | 13/20 | 1/20 | 5.69 |
+| isolation_forest|ripe_loss_only|q0.995|p3|campaign+live | 1.92 (0.4-5.61) | [0.82, 1.64, 1.64, 0.0] | 13/20 | 0/20 | 5.69 |
+| isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p3|campaign+live | 2.56 (0.7-6.55) | [0.82, 2.46, 1.64, 0.0] | 13/20 | 0/20 | 8.54 |
+| isolation_forest|aws_ripe_no_host_no_rtt|q0.999|p1|campaign+live | 2.56 (0.7-6.55) | [0.0, 2.46, 2.46, 0.0] | 13/20 | 1/20 | 8.54 |
+| isolation_forest|ripe_loss_only|q0.995|p1|campaign+live | 2.56 (0.7-6.55) | [0.82, 2.46, 1.64, 0.0] | 13/20 | 1/20 | 5.69 |
+| elliptic_envelope|ripe_loss_only|q0.995|p1|campaign+live | 3.84 (1.41-8.36) | [0.82, 2.46, 1.64, 0.0] | 13/20 | 0/20 | 5.69 |
+| isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p2|campaign+live | 4.48 (1.8-9.23) | [1.64, 3.28, 1.64, 0.0] | 13/20 | 1/20 | 8.54 |
+| isolation_forest|aws_ripe_no_host_no_rtt|q0.999|p1|live_only | 4.48 (1.8-9.23) | [0.0, 3.28, 1.64, 0.0] | 13/20 | 1/20 | 11.38 |
+| isolation_forest|aws_ripe_no_host|q0.995|p1|campaign+live | 5.76 (2.63-10.93) | [0.82, 4.1, 3.28, 1.3] | 13/20 | 1/20 | 11.38 |
+| isolation_forest|aws_ripe_no_host|q0.999|p2|campaign+live | 1.28 (0.16-4.62) | [0.0, 1.64, 1.64, 0.0] | 12/20 | 0/20 | 2.85 |
+| elliptic_envelope|ripe_loss_only|q0.999|p2|campaign+live | 1.92 (0.4-5.61) | [0.0, 0.0, 0.0, 0.0] | 12/20 | 0/20 | 0.0 |
+| elliptic_envelope|ripe_loss_only|q0.999|p3|campaign+live | 1.92 (0.4-5.61) | [0.0, 0.0, 0.0, 0.0] | 12/20 | 0/20 | 0.0 |
+| isolation_forest|aws_ripe_no_host_no_rtt|q0.999|p2|live_only | 2.56 (0.7-6.55) | [0.0, 1.64, 1.64, 0.0] | 12/20 | 1/20 | 11.38 |
+| elliptic_envelope|ripe_loss_only|q0.995|p2|campaign+live | 2.56 (0.7-6.55) | [0.82, 1.64, 1.64, 0.0] | 12/20 | 0/20 | 5.69 |
+| elliptic_envelope|ripe_loss_only|q0.995|p3|campaign+live | 2.56 (0.7-6.55) | [0.82, 1.64, 1.64, 0.0] | 12/20 | 0/20 | 5.69 |
+| elliptic_envelope|ripe_loss_only|q0.999|p1|campaign+live | 2.56 (0.7-6.55) | [0.0, 0.0, 0.0, 0.0] | 12/20 | 0/20 | 2.85 |
+| isolation_forest|aws_ripe_no_host|q0.995|p2|campaign+live | 4.48 (1.8-9.23) | [0.0, 4.1, 3.28, 1.3] | 12/20 | 0/20 | 5.69 |
+| isolation_forest|aws_ripe_no_host|q0.995|p3|campaign+live | 4.48 (1.8-9.23) | [0.0, 4.1, 2.46, 1.3] | 12/20 | 0/20 | 5.69 |
+| isolation_forest|aws_ripe_no_host|q0.999|p1|live_only | 4.48 (1.8-9.23) | [0.0, 3.28, 2.46, 0.0] | 12/20 | 0/20 | 5.69 |
+| isolation_forest|aws_ripe_no_host|q0.999|p1|campaign+live | 5.12 (2.21-10.09) | [0.0, 2.46, 3.28, 0.0] | 12/20 | 0/20 | 8.54 |
+| isolation_forest|aws_ripe_no_host_no_rtt|q0.999|p3|live_only | 1.28 (0.16-4.62) | [0.0, 0.82, 0.82, 0.0] | 11/20 | 0/20 | 5.69 |
+| isolation_forest|ripe_loss_only|q0.999|p2|campaign+live | 1.28 (0.16-4.62) | [0.0, 0.82, 0.0, 0.0] | 11/20 | 0/20 | 0.0 |
+| isolation_forest|ripe_loss_only|q0.999|p3|campaign+live | 1.28 (0.16-4.62) | [0.0, 0.82, 0.0, 0.0] | 11/20 | 0/20 | 0.0 |
+| isolation_forest|aws_ripe_no_host|q0.999|p2|live_only | 1.92 (0.4-5.61) | [0.0, 1.64, 0.82, 0.0] | 11/20 | 0/20 | 5.69 |
+| isolation_forest|aws_ripe_no_host|q0.999|p3|live_only | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 0.0] | 11/20 | 0/20 | 5.69 |
+| isolation_forest|ripe_loss_only|q0.999|p1|campaign+live | 1.92 (0.4-5.61) | [0.0, 0.82, 0.0, 0.0] | 11/20 | 0/20 | 0.0 |
+| elliptic_envelope|ripe_loss_only|q0.999|p1|live_only | 2.56 (0.7-6.55) | [0.0, 0.0, 0.0, 0.0] | 11/20 | 0/20 | 2.85 |
+| elliptic_envelope|ripe_loss_only|q0.999|p2|live_only | 2.56 (0.7-6.55) | [0.0, 0.0, 0.0, 0.0] | 11/20 | 0/20 | 0.0 |
+| elliptic_envelope|ripe_loss_only|q0.999|p3|live_only | 2.56 (0.7-6.55) | [0.0, 0.0, 0.0, 0.0] | 11/20 | 0/20 | 0.0 |
+| isolation_forest|aws_ripe_no_host|q0.999|p3|campaign+live | 0.64 (0.02-3.57) | [0.0, 0.0, 0.82, 0.0] | 9/20 | 0/20 | 0.0 |
+| isolation_forest|aws_ripe_no_host_no_rtt|q0.999|p2|campaign+live | 1.92 (0.4-5.61) | [0.0, 1.64, 0.82, 0.0] | 9/20 | 0/20 | 2.85 |
+| isolation_forest|aws_ripe_no_host_no_rtt|q0.999|p3|campaign+live | 0.64 (0.02-3.57) | [0.0, 0.82, 0.0, 0.0] | 6/20 | 0/20 | 2.85 |
+| robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p1|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 5/20 | 2/20 | 31.3 |
+| isolation_forest|ripe_loss_only|q0.999|p1|live_only | 0.64 (0.02-3.57) | [0.0, 0.82, 0.0, 0.0] | 5/20 | 0/20 | 0.0 |
+| isolation_forest|ripe_loss_only|q0.999|p2|live_only | 0.64 (0.02-3.57) | [0.0, 0.82, 0.0, 0.0] | 5/20 | 0/20 | 0.0 |
+| isolation_forest|ripe_loss_only|q0.999|p3|live_only | 0.64 (0.02-3.57) | [0.0, 0.82, 0.0, 0.0] | 5/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.995|p1|campaign+live | 3.84 (1.41-8.36) | [0.0, 0.0, 0.82, 28.68] | 2/20 | 1/20 | 8.54 |
+| robust_z_max|aws_ripe_no_host_no_rtt|q0.995|p2|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host_no_rtt|q0.995|p3|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host_no_rtt|q0.995|p3|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p2|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p3|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p3|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|ripe_loss_only|q0.995|p1|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|ripe_loss_only|q0.995|p2|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|ripe_loss_only|q0.995|p3|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|ripe_loss_only|q0.995|p1|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|ripe_loss_only|q0.995|p2|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|ripe_loss_only|q0.995|p3|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|ripe_loss_only|q0.999|p1|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|ripe_loss_only|q0.999|p2|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|ripe_loss_only|q0.999|p3|campaign+live | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|ripe_loss_only|q0.999|p1|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|ripe_loss_only|q0.999|p2|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|ripe_loss_only|q0.999|p3|live_only | 0.0 (0.0-2.36) | [0.0, 0.0, 0.0, 0.0] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.999|p2|campaign+live | 0.64 (0.02-3.57) | [0.0, 0.0, 0.82, 2.61] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.999|p3|campaign+live | 0.64 (0.02-3.57) | [0.0, 0.0, 0.82, 2.61] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.999|p2|live_only | 0.64 (0.02-3.57) | [0.0, 0.0, 0.82, 3.91] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.999|p3|live_only | 0.64 (0.02-3.57) | [0.0, 0.0, 0.82, 2.61] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host|q0.999|p2|campaign+live | 1.28 (0.16-4.62) | [0.0, 0.0, 0.82, 3.91] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host|q0.999|p3|campaign+live | 1.28 (0.16-4.62) | [0.0, 0.0, 0.82, 2.61] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host|q0.999|p3|live_only | 1.28 (0.16-4.62) | [0.0, 0.0, 0.82, 2.61] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host|q0.999|p1|campaign+live | 1.28 (0.16-4.62) | [0.82, 0.0, 1.64, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host|q0.999|p2|campaign+live | 1.28 (0.16-4.62) | [0.82, 0.0, 1.64, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host|q0.999|p3|campaign+live | 1.28 (0.16-4.62) | [0.82, 0.0, 1.64, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host|q0.999|p1|live_only | 1.28 (0.16-4.62) | [0.82, 0.0, 1.64, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host|q0.999|p2|live_only | 1.28 (0.16-4.62) | [0.82, 0.0, 1.64, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host|q0.999|p3|live_only | 1.28 (0.16-4.62) | [0.82, 0.0, 1.64, 0.0] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host|q0.995|p2|campaign+live | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 23.47] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host|q0.995|p3|campaign+live | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 20.86] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host|q0.995|p2|live_only | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 26.08] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host|q0.995|p3|live_only | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 20.86] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host|q0.999|p1|campaign+live | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 5.22] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host|q0.999|p2|live_only | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 3.91] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.995|p3|campaign+live | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 20.86] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.995|p3|live_only | 1.92 (0.4-5.61) | [0.0, 0.0, 0.82, 20.86] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host|q0.995|p1|campaign+live | 1.92 (0.4-5.61) | [1.64, 0.0, 4.1, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host|q0.995|p2|campaign+live | 1.92 (0.4-5.61) | [1.64, 0.0, 4.1, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host|q0.995|p3|campaign+live | 1.92 (0.4-5.61) | [1.64, 0.0, 4.1, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host|q0.995|p1|live_only | 1.92 (0.4-5.61) | [1.64, 0.0, 3.28, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host|q0.995|p2|live_only | 1.92 (0.4-5.61) | [1.64, 0.0, 3.28, 0.0] | 0/20 | 0/20 | 0.0 |
+| robust_z_max|aws_ripe_no_host|q0.995|p3|live_only | 1.92 (0.4-5.61) | [1.64, 0.0, 3.28, 0.0] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.995|p2|campaign+live | 2.56 (0.7-6.55) | [0.0, 0.0, 0.82, 26.08] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.995|p2|live_only | 2.56 (0.7-6.55) | [0.0, 0.0, 0.82, 26.08] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host|q0.995|p1|campaign+live | 3.2 (1.04-7.47) | [0.0, 0.0, 0.82, 24.77] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host|q0.995|p1|live_only | 3.2 (1.04-7.47) | [0.0, 0.0, 0.82, 26.08] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host|q0.999|p1|live_only | 3.2 (1.04-7.47) | [0.0, 0.0, 0.82, 6.52] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.995|p1|live_only | 3.2 (1.04-7.47) | [0.0, 0.0, 0.82, 27.38] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.999|p1|campaign+live | 4.48 (1.8-9.23) | [0.0, 0.0, 0.82, 18.25] | 0/20 | 0/20 | 0.0 |
+| elliptic_envelope|aws_ripe_no_host_no_rtt|q0.999|p1|live_only | 4.48 (1.8-9.23) | [0.0, 0.0, 0.82, 15.65] | 0/20 | 0/20 | 0.0 |

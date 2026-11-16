@@ -109,6 +109,14 @@ CANDIDATE_SEARCH = {
                       "If none qualify, pick the lowest validation FA/day.",
     "freeze_by_utc": "2026-11-16T12:45:00+00:00",                        # Mon 20:45 SGT
 }
+# Amendment 7 (2026-11-16 ~13:40 UTC, chosen by MY; before the Tuesday trials and before any
+# held-out scoring). The Monday pick (57cc91d) is kept and reported as is, but it is defective:
+# trained on live data only, 10 of its 11 columns have MAD 0, so it only watches ripe_result_age_s
+# and alarms in 20/20 campaign controls (370 FA/day on campaign healthy rows). The selection rule
+# never looked at controls. A second pick uses the same rule plus a controls gate, and every
+# candidate's campaign controls and campaign healthy FA are reported. The frozen rule's declared
+# secondary variants are scored as context only.
+AMENDMENT_7 = {"max_controls_alarmed": 1, "rule_variants": ("loss_only", "loss_or_rtt2")}
 MODELS = {  # name -> (feature names, persistence rows)
     "anomaly_aws_ripe_no_host": (tuple(n for n in cm.ARMS["aws_ripe"] if n not in cm.HOST_FEATURES), 1),
     "anomaly_aws_ripe": (cm.ARMS["aws_ripe"], 1),
@@ -232,6 +240,8 @@ def predict(train: list[dict], test: list[dict], model: str) -> dict:
 def frozen_rules(rows: list[dict], amp: dict[str, list[dict]]) -> dict[str, dict]:
     """Unchanged frozen rules; the 6 h p95 history is found by bisection (same window as cm)."""
     out = {"frozen_aws_ripe_rule": {}, "frozen_ripe_rule": {}}
+    for v in AMENDMENT_7["rule_variants"]:   # amendment 7 context only; the frozen rule stays primary
+        out[f"frozen_aws_ripe_rule_{v}"], out[f"frozen_ripe_rule_{v}"] = {}, {}
     series = {r: sorted(amp.get(r, []), key=lambda x: x["ts"]) for r in amp}
     stamps = {r: [x["ts"] for x in v] for r, v in series.items()}
     for row in rows:
@@ -242,7 +252,13 @@ def frozen_rules(rows: list[dict], amp: dict[str, list[dict]]) -> dict[str, dict
             st = stamps.get(region, [])
             hist = [x.get("http_p95_ms") for x in series[region][bisect_left(st, t - 6 * 3600):bisect_left(st, t)]]
             vals = {f"{region}.{k}": v for k, v in row["values"].items() if k in cm.AWS_FEATURES}
-            out["frozen_aws_ripe_rule"][key] = bool(aws_view_alert(vals, True, region, hist)) or bool(ripe)
+            aws = bool(aws_view_alert(vals, True, region, hist))
+            out["frozen_aws_ripe_rule"][key] = aws or bool(ripe)
+        for v in AMENDMENT_7["rule_variants"]:
+            rv = bool(ripe_path_alert(row["values"], v))
+            out[f"frozen_ripe_rule_{v}"][key] = rv
+            if row.get("aws", True):
+                out[f"frozen_aws_ripe_rule_{v}"][key] = aws or rv
     return out
 
 
@@ -473,7 +489,9 @@ def search(camp: list[dict], slots: list[dict], rows: list[dict]) -> dict:
         d = _camp_detection(camp, slots, fit, c, det_cache)
         out.append({"name": cand_name(c), **c, "validation": v, "rolling_fa_per_day": rolling,
                     "campaign_trials_detected": d["trials_detected"], "campaign_trials": d["trials_evaluated"],
-                    "campaign_missed": [t["slot"] for t in d["trials"] if not t["detected"]]})
+                    "campaign_missed": [t["slot"] for t in d["trials"] if not t["detected"]],
+                    "campaign_controls_alarmed": d["controls_alarmed"], "campaign_controls": d["controls_evaluated"],
+                    "campaign_healthy_fa_per_day": d["false_alarms_per_day"]})
     ok = [c for c in out if (c["validation"]["false_alarms_per_day"] or 0) <= 2.0]
     simple = lambda c: (c["persistence_rows"], len(FEATURE_SETS[c["features"]]))
     if ok:
@@ -482,7 +500,13 @@ def search(camp: list[dict], slots: list[dict], rows: list[dict]) -> dict:
     else:
         pick = sorted(out, key=lambda c: (c["validation"]["false_alarms_per_day"], -c["campaign_trials_detected"],
                                           *simple(c)))[0]
+    # Amendment 7: second pick = same rule, restricted to candidates whose campaign controls
+    # alarmed in at most AMENDMENT_7["max_controls_alarmed"] of 20 slots.
+    gated = [c for c in ok if c["campaign_controls_alarmed"] <= AMENDMENT_7["max_controls_alarmed"]]
+    pick2 = (sorted(gated, key=lambda c: (-c["campaign_trials_detected"], c["validation"]["false_alarms_per_day"],
+                                          *simple(c)))[0] if gated else None)
     return {"report_version": LIVE_PROTOCOL["version"] + ".search", "mode": "offline_shadow_only",
+            "pick_2": pick2["name"] if pick2 else None, "qualifying_pick_2": len(gated),
             "search": cs, "rows": {"fit": len(fit), "validation": len(val), "pre_held_out": len(pre)},
             "validation_hours": round(len(val) * STEP / 3600, 2), "candidates": out,
             "qualifying": len(ok), "pick": pick["name"],
@@ -495,12 +519,15 @@ def search_markdown(rep: dict) -> str:
                                                    c["validation"]["false_alarms_per_day"]))
     lines = [f"# Candidate search ({len(rows)} candidates, {rep['validation_hours']} validation h, "
              f"{rep['qualifying']} with <= 2 FA/day)", "", f"**Pick (frozen before held-out): {rep['pick']}**", "",
-             "| candidate | validation FA/day (95% CI) | rolling FA/day | campaign trials |", "|---|---:|---|---:|"]
+             f"**Pick 2 (amendment 7, at most {AMENDMENT_7['max_controls_alarmed']} of 20 controls alarmed): {rep.get('pick_2')}**", "",
+             "| candidate | validation FA/day (95% CI) | rolling FA/day | campaign trials | campaign controls alarmed | campaign healthy FA/day |",
+             "|---|---:|---|---:|---:|---:|"]
     for c in rows:
         v = c["validation"]
         ci = v["false_alarms_per_day_ci95"]
         lines.append(f"| {c['name']} | {v['false_alarms_per_day']} ({ci[0]}-{ci[1]}) | {c['rolling_fa_per_day']} | "
-                     f"{c['campaign_trials_detected']}/{c['campaign_trials']} |")
+                     f"{c['campaign_trials_detected']}/{c['campaign_trials']} | "
+                     f"{c.get('campaign_controls_alarmed')}/{c.get('campaign_controls')} | {c.get('campaign_healthy_fa_per_day')} |")
     return "\n".join(lines) + "\n"
 
 
@@ -603,13 +630,22 @@ def team_summary(rep: dict) -> str:
                      f"all {len(ch)} candidates are in retrain-report.json.")
     elif not pick:
         lines.append("* No candidate pick was frozen before held-out, so no candidate is claimed.")
+    if pick:
+        lines.append("  (Monday pick failed review before any held-out scoring: trained on live data only it watches "
+                     "one column, RIPE result age, and alarmed in 20/20 campaign controls. Reported, not claimed.)")
+    pick2 = rep.get("frozen_pick_2")
+    if pick2 and pick2 in ch:
+        v = ch[pick2]
+        lines.append(f"* Pick 2 (amendment 7, frozen before the Tuesday trials and held-out, {pick2}): "
+                     f"{v['false_alarms_per_day']}/day (95% CI {v['false_alarms_per_day_ci95'][0]}-{v['false_alarms_per_day_ci95'][1]}).")
     tt = rep.get("tuesday_trials")
     if tt and "results" in tt:
         def t(k):
             v = tt["results"].get(k)
             return f"{v['trials_detected']}/{v['trials_evaluated']} (controls alarmed {v['controls_alarmed']}/{v['controls_evaluated']})" if v else "n/a"
         lines.append(f"* Tuesday trials (unseen faults): current {t('current/' + PRIMARY)}, retrained {t('retrained/' + PRIMARY)}, "
-                     + (f"pick {t('candidate/' + pick)}, " if pick else "") + f"frozen rule {t('context/frozen_aws_ripe_rule')}.")
+                     + (f"Monday pick {t('candidate/' + pick)}, " if pick else "")
+                     + (f"pick 2 {t('candidate/' + pick2)}, " if pick2 else "") + f"frozen rule {t('context/frozen_aws_ripe_rule')}.")
     lines.append("* The ML stays shadow-only; it never triggers an action.")
     return "\n".join(lines) + "\n"
 
@@ -685,10 +721,11 @@ def main(argv=None) -> int:
         raise SystemExit("run ssm-exclusions first (read-only) so the review is fixed before scoring")
     # Stages are saved, summarised and committed one by one, so a Mac that closes early still
     # leaves the finished stages pushed (Wednesday 07:00-08:00 SGT window).
-    pick = (json.loads((L / "search-report.json").read_text(encoding="utf-8"))["pick"]
-            if (L / "search-report.json").is_file() else None)
+    docs = Path(__file__).resolve().parents[2] / "docs" / "ml" / "live"
+    readpick = lambda f: json.loads((docs / f).read_text(encoding="utf-8"))["pick"] if (docs / f).is_file() else None
     rep = retrain(camp, slots, rows, amp, exclusions)
-    rep["frozen_pick"] = pick
+    rep["frozen_pick"] = readpick("candidate-pick.json")        # Monday pick, reported as is (failed, amendment 7)
+    rep["frozen_pick_2"] = readpick("candidate-pick-2.json")    # amendment 7 pick
     stages = [("main comparison", None),
               ("every candidate on held-out", lambda: rep.__setitem__("candidates_held_out", heldout_candidates(camp, rows))),
               ("Tuesday trials", lambda: rep.__setitem__("tuesday_trials", trial_detection(
