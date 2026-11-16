@@ -1,0 +1,13 @@
+{
+  "pick": "robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p1|live_only",
+  "pick_spec": {
+    "model": "robust_z_max",
+    "features": "aws_ripe_no_host_no_rtt",
+    "threshold_quantile": 0.999,
+    "persistence_rows": 1,
+    "training_data": "live_only"
+  },
+  "frozen_utc": "2026-11-16T11:35:37.414329Z",
+  "candidates": 108,
+  "qualifying": 67
+}
