@@ -1,0 +1,73 @@
+{
+  "amendment": 9,
+  "frozen_utc": "2026-11-16T16:45:23.798043+00:00",
+  "live_end_utc": "2026-11-16T11:29:00+00:00",
+  "frozen": {
+    "S1": {
+      "family": "S1",
+      "model": "gboost",
+      "columns": "ripe_loss+rtt",
+      "training": "campaign+live",
+      "threshold": 0.8,
+      "persistence": 1
+    },
+    "S2": {
+      "family": "S2",
+      "model": "logreg",
+      "columns": "http800+ripe_loss",
+      "training": "campaign+live",
+      "threshold": 0.9,
+      "persistence": 3
+    }
+  },
+  "frozen_training": {
+    "S1": "all campaign rows + CANDIDATE_SEARCH fit-window live rows (healthy negatives)",
+    "S2": "all campaign rows + every live HTTP row before LIVE_END as healthy negatives"
+  },
+  "selection_numbers": {
+    "S1": {
+      "campaign_trials": 16,
+      "campaign_controls": 0,
+      "campaign_day_fa_per_day": 2.85,
+      "median_delay_s": 299,
+      "validation_onsets": 4,
+      "validation_hours": 37.5,
+      "validation_fa_per_day": 2.56,
+      "validation_ci95": [
+        0.7,
+        6.55
+      ],
+      "missed": [
+        5,
+        13,
+        14,
+        16
+      ]
+    },
+    "S2": {
+      "campaign_trials": 20,
+      "campaign_controls": 0,
+      "campaign_day_fa_per_day": 0.0,
+      "median_delay_s": 151,
+      "validation_onsets": 1,
+      "validation_hours": 6.883,
+      "validation_fa_per_day": 3.49,
+      "validation_ci95": [
+        0.09,
+        19.43
+      ],
+      "missed": []
+    },
+    "S2_refit_all_live": {
+      "trials": 20,
+      "controls": 0,
+      "campaign_day_fa": 0.0,
+      "median_delay_s": 150.7086569070816
+    }
+  },
+  "qualifying": {
+    "S1": "11 of 48",
+    "S2": "2 of 54"
+  },
+  "matches_reviewer": true
+}

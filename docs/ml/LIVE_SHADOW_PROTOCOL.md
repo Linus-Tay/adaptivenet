@@ -124,3 +124,37 @@ from looking at campaign data, the Tuesday trials are its unseen test.
   same-time control window in the other region. Controls alarmed (out of 10) are reported for both the
   pick and the loss_only rule. The pass mark also requires the pick to alarm in at most 1 of the 10
   Tuesday controls.
+
+**Amendment 9 (2026-11-17, chosen by the reviewer at MY's request; committed before the Tuesday trials, no
+held-out data read): two supervised early-warning classifiers.** The full spec is in the reviewer's
+`amendment9_supervised_spec.md`, implemented independently in `ml/team_starter/supervised_live.py`.
+* *Data:* the 20 labelled 12 Nov campaign faults, plus live healthy rows and witness records from before
+  2026-11-16T11:29Z (`LIVE_END`) only. Campaign scoring uses campaign_ml blocked folds.
+* *S1, supervised RIPE:* 48 settings (logreg or gboost; RIPE loss columns with or without RTT columns;
+  campaign or campaign+live training; p >= 0.5/0.8/0.9; persistence 1/2). Rule: campaign controls <= 1/20
+  and validation FA <= 5/day, then the most trials; ties go to fewer validation onsets, lower campaign-day
+  FA, fewer columns, logreg, fewer persistence rows, then higher threshold. **Pick:
+  `gboost | ripe_loss+rtt | campaign+live | p>=0.8 | k1`**: 16/20 trials, 0/20 controls, campaign-day FA
+  2.85/day, median delay 299 s, validation 4 onsets in 37.5 h = 2.56/day (0.70-6.55). 11 of 48 settings passed.
+* *S2, supervised HTTP + RIPE:* window features from the 15 s witness (120 s window, 1800 s baseline,
+  excess over 150/800 ms, own and other region). 54 settings. Rule: controls <= 1/20 and at most 1
+  validation onset (6.9 region-hours on 16 Nov 08:02-11:29Z), then the same order. **Pick:
+  `logreg | http800+ripe_loss | p>=0.9 | k3`**: 20/20 trials, 0/20 controls, campaign-day FA 0, median
+  delay 151 s, validation 1 onset in 6.9 h = 3.49/day (0.09-19.4). 2 of 54 settings passed. Its frozen
+  refit uses every live HTTP row before LIVE_END (2,060) and keeps 20/20, 0/20, 151 s.
+* My independent implementation gives the same picks and numbers as the reviewer's run. The definitions
+  are frozen in `docs/ml/live/supervised-picks.json`.
+* *Wednesday report:* S1, S2, the frozen loss_only rule (comparator) and the unchanged lab HTTP rule
+  (context; 60 s window, failures >= 20% or p95 >= 800 ms). Each reports Tuesday trials of 10, controls of
+  10, trials only one side catches, model-minus-rule delays on shared trials, and held-out FA/day with CI
+  and hours. For S2 and the lab rule, FA uses held-out rows with HTTP features, and the count without is given.
+* *Pass marks:* S1 must detect >= the rule's trials, AND catch >= 1 trial the rule misses or be earlier
+  on > half of the shared trials, AND have held-out FA <= 5/day, AND alarm in <= 1 of 10 Tuesday controls.
+  S2 must meet the same, AND have fewer held-out onsets than the lab HTTP rule on the same rows. Otherwise
+  the result is "did not pass". Role if passed: early warning only; an alert asks for a confirming check.
+* *Honesty:* the reviewer explored these settings on the campaign day and pre-held-out live data on
+  16 Nov, about 16:25-16:45 UTC, looking at roughly 150 settings, so the campaign numbers are optimistic.
+  With amendment 8 there are three early-warning tests on 10 trials, and all are reported pass or fail.
+  S2 uses one HTTP vantage point (MY's Mac); the Mac-to-Virginia path is noisy, which is the main FA risk.
+  Models trained on the campaign day alone gave 50-115 FA/day on live data, which is why live negatives
+  are included.

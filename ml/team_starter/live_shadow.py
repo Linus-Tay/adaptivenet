@@ -573,14 +573,15 @@ def heldout_candidates(camp: list[dict], rows: list[dict]) -> dict:
 TRIALS = {"seed": 1711, "start_utc": "2026-11-17T11:00:00+00:00", "cycles": 5}
 
 
-def trial_detection(camp: list[dict], rows_all: list[dict], amp: dict, L: Path) -> dict | None:
+def trial_rows_slots(rows_all: list[dict], L: Path):
+    """(rows, slots) for the Tuesday trials with campaign_ml labels, or (None, None)."""
     tdir = L / "trials"
     if not (tdir / "campaign-log.jsonl").is_file():
-        return None
+        return None, None
     slots = campaign_slots(json.loads((tdir / "trials-plan.json").read_text(encoding="utf-8")),
                            read_jsonl(tdir / "campaign-log.jsonl"), tdir / "trials")
     if not slots:
-        return {"error": "no submitted trials"}
+        return None, []
     lo = min(s["request_unix"] for s in slots) - 3600
     hi = max(s["request_unix"] + s["duration_seconds"] for s in slots) + 3600
     rows = []
@@ -593,6 +594,15 @@ def trial_detection(camp: list[dict], rows_all: list[dict], amp: dict, L: Path) 
                 r["label"], r["slot"] = ("impaired", s["slot"]) if s["effect_confirmed"] else ("dropped", None)
         if r["label"] != "dropped":
             rows.append(r)
+    return rows, slots
+
+
+def trial_detection(camp: list[dict], rows_all: list[dict], amp: dict, L: Path) -> dict | None:
+    rows, slots = trial_rows_slots(rows_all, L)
+    if rows is None and slots is None:
+        return None
+    if not slots:
+        return {"error": "no submitted trials"}
     held_lo = ts(LIVE_PROTOCOL["held_out_start_utc"])
     train = [r for r in rows_all if r["aws"] and r["ts"] < held_lo - LIVE_PROTOCOL["embargo_seconds"]]
     camp_h = [r for r in camp if r["label"] == "healthy"]
@@ -660,6 +670,19 @@ def early_warning(rep: dict) -> dict | None:
             "verdict": "passed" if passed else "did not pass"}
 
 
+def _supervised_stage(C: Path, L: Path, rep: dict, rows: list[dict], amp: dict, wit) -> dict | None:
+    """Amendment 9: frozen S1/S2 (docs/ml/live/supervised-picks.json) on held-out and Tuesday trials."""
+    from . import supervised_live as sl
+    f = Path(__file__).resolve().parents[2] / "docs" / "ml" / "live" / "supervised-picks.json"
+    if not f.is_file():
+        return None
+    spec = json.loads(f.read_text(encoding="utf-8"))["frozen"]
+    held_lo = ts(LIVE_PROTOCOL["held_out_start_utc"])
+    held = [r for r in rows if r["aws"] and r["ts"] >= held_lo]
+    trows, tslots = trial_rows_slots(live_rows(amp, load_index(_ripe_spec(L)), [], witness=wit), L)
+    return sl.wednesday(C, L, rep, held, trows, tslots, spec)
+
+
 def team_summary(rep: dict) -> str:
     """Plain-language summary built only from the numbers in the report."""
     r = rep["results"]
@@ -709,6 +732,23 @@ def team_summary(rep: dict) -> str:
                      f"{ew['rule_held_out_fa']['false_alarms_per_day']}/day; Tuesday controls alarmed pick "
                      f"{ew['pick_controls_alarmed']}, rule {ew['rule_controls_alarmed']}. Verdict: {ew['verdict']}. "
                      "Early warning only: an alert asks for a check and never moves traffic.")
+    sv = rep.get("supervised")
+    if sv:
+        for name in ("S1", "S2"):
+            e = sv.get(name) or {}
+            fa, tu = e.get("held_out_fa") or {}, e.get("tuesday") or {}
+            lines.append(f"* Supervised {name} (amendment 9, {e.get('spec')}): Tuesday "
+                         f"{tu.get('trials_detected')}/{tu.get('trials_evaluated')} (controls {tu.get('controls_alarmed')}/"
+                         f"{tu.get('controls_evaluated')}); only model {e.get('only_model')}, only rule {e.get('only_rule')}; "
+                         f"earlier on {e.get('earlier_on')}/{e.get('shared')} shared; held-out {fa.get('false_alarms_per_day')}/day "
+                         f"(95% CI {(fa.get('false_alarms_per_day_ci95') or ['?', '?'])[0]}-{(fa.get('false_alarms_per_day_ci95') or ['?', '?'])[1]}, "
+                         f"{fa.get('healthy_hours')} h). Verdict: {e.get('verdict')}.")
+        lab = (sv.get("lab_http_rule") or {})
+        lf, lt = lab.get("held_out_fa_on_http_rows") or {}, lab.get("tuesday") or {}
+        lines.append(f"* Lab HTTP rule (context): Tuesday {lt.get('trials_detected')}/{lt.get('trials_evaluated')} "
+                     f"(controls {lt.get('controls_alarmed')}/{lt.get('controls_evaluated')}); held-out "
+                     f"{lf.get('false_alarms_per_day')}/day on {sv.get('held_out_rows_with_http')} rows with HTTP features "
+                     f"({sv.get('held_out_rows_without_http')} without).")
     lines.append("* The ML stays shadow-only; it never triggers an action.")
     return "\n".join(lines) + "\n"
 
@@ -793,7 +833,8 @@ def main(argv=None) -> int:
               ("every candidate on held-out", lambda: rep.__setitem__("candidates_held_out", heldout_candidates(camp, rows))),
               ("Tuesday trials", lambda: rep.__setitem__("tuesday_trials", trial_detection(
                   camp, live_rows(amp, load_index(_ripe_spec(L)), [], witness=wit), amp, L))),
-              ("early-warning test", lambda: rep.__setitem__("early_warning", early_warning(rep)))]
+              ("early-warning test", lambda: rep.__setitem__("early_warning", early_warning(rep))),
+              ("supervised S1/S2 test", lambda: rep.__setitem__("supervised", _supervised_stage(C, L, rep, rows, amp, wit)))]
     for label, fn in stages:
         if fn:
             fn()
