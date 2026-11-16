@@ -74,6 +74,14 @@ LIVE_PROTOCOL = {
     # between 07:00 and 08:00 SGT (team review 15:00 SGT), so the run ends at Wed 07:00 SGT instead
     # of 09:00. Held-out start is unchanged; held-out shrinks from 36 h to 34 h.
     "amendment_5_live_stop_utc": "2026-11-17T23:00:00+00:00",
+    # Amendment 6 (2026-11-16 03:00 UTC, before any held-out data and before the candidate search):
+    # a restart at boot truncated witness.stdout and the journal had rotated, so the witness log
+    # for Sat 14 Nov 08:44 to Mon 16 Nov 01:11 SGT is lost. The origin request rate in AMP is an
+    # independent record of the witness: region-a http_rps was >= 0.126 whenever the log shows the
+    # witness on (Sat-Sun, and Mon 01:11-05:18) and exactly 0 while the Mac was off. A row now counts
+    # as witnessed if the log shows a record OR that region's http_rps >= 0.06 (half the witness-only
+    # rate). Chosen from on/off periods only, never from alerts.
+    "amendment_6_min_origin_rps": 0.06,
 }
 LIVE_PROTOCOL["live_stop_utc"] = LIVE_PROTOCOL["amendment_5_live_stop_utc"]
 # Amendment 3 (2026-11-14 05:30 UTC, before any snapshot or scoring of live data): candidate
@@ -176,8 +184,9 @@ def live_rows(amp: dict[str, list[dict]], index: ProbeIndex, exclusions: list[di
         by_ts = {float(r["ts"]): r for r in amp.get(region, [])}
         t = lo
         while t <= hi:
-            if not in_exclusion(region, t, exclusions) and witness_ok(witness, t):
-                a = by_ts.get(t)
+            a = by_ts.get(t)
+            seen = witness_ok(witness, t) or (a is not None and (a.get("http_rps") or 0) >= LIVE_PROTOCOL["amendment_6_min_origin_rps"])
+            if not in_exclusion(region, t, exclusions) and seen:
                 values = (cm._amp_values(a) if a else {}) | path_features(index, region, t)
                 rows.append({"region": region, "ts": t, "label": "healthy", "slot": None, "aws": a is not None,
                              "values": {k: values.get(k) for k in cm.ARMS["aws_ripe"]}})
