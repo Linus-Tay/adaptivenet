@@ -82,8 +82,8 @@ held-out window.
 witness evidence.** At boot on Monday, a restart truncated the witness stdout log, and the journal had
 already rotated. That lost the witness log from Sat 14 Nov 08:44 to Mon 16 Nov 01:11 SGT. The witness
 itself ran throughout: a check on Sunday 17:00 SGT found no gap over 60 s, and the 30-minute health check
-never saw it stale. The AMP origin request rate is an independent record of it. Region-a `http_rps` was
-always >= 0.126 while the log shows the witness on, and exactly 0 while the Mac was off. A row now counts
-as witnessed if the log has a record in the previous 60 s, or if that region's `http_rps` is >= 0.06 (half
-the witness-only rate). The threshold was chosen from on/off periods only. The witness now runs as its own
+never saw it stale. The AMP origin request rate is an independent record of it. While the witness was on, `http_rps`
+was always >= 0.126 in region-a (CloudFront plus direct requests) and >= 0.063 in region-b (direct only).
+While the Mac was off, both were exactly 0. A row now counts as witnessed if the log has a record in the
+previous 60 s, or if that region's `http_rps` is >= 0.03 (about half the lower witness-only rate). The threshold was chosen from on/off periods only. The witness now runs as its own
 launchd agent with KeepAlive, and its log is appended, never truncated.

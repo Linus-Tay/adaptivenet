@@ -78,10 +78,11 @@ LIVE_PROTOCOL = {
     # a restart at boot truncated witness.stdout and the journal had rotated, so the witness log
     # for Sat 14 Nov 08:44 to Mon 16 Nov 01:11 SGT is lost. The origin request rate in AMP is an
     # independent record of the witness: region-a http_rps was >= 0.126 whenever the log shows the
-    # witness on (Sat-Sun, and Mon 01:11-05:18) and exactly 0 while the Mac was off. A row now counts
-    # as witnessed if the log shows a record OR that region's http_rps >= 0.06 (half the witness-only
-    # rate). Chosen from on/off periods only, never from alerts.
-    "amendment_6_min_origin_rps": 0.06,
+    # witness on (Sat-Sun, and Mon 01:11-05:18), region-b >= 0.063, and both exactly 0 while the Mac
+    # was off. A row now counts
+    # as witnessed if the log shows a record OR that region's http_rps >= 0.03 (about half the lower
+    # witness-only rate). Chosen from on/off periods only, never from alerts.
+    "amendment_6_min_origin_rps": 0.03,
 }
 LIVE_PROTOCOL["live_stop_utc"] = LIVE_PROTOCOL["amendment_5_live_stop_utc"]
 # Amendment 3 (2026-11-14 05:30 UTC, before any snapshot or scoring of live data): candidate
