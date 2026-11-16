@@ -117,6 +117,20 @@ CANDIDATE_SEARCH = {
 # candidate's campaign controls and campaign healthy FA are reported. The frozen rule's declared
 # secondary variants are scored as context only.
 AMENDMENT_7 = {"max_controls_alarmed": 1, "rule_variants": ("loss_only", "loss_or_rtt2")}
+# Amendment 8 (2026-11-16 ~16:30 UTC, chosen by MY; before the Tuesday trials, no held-out data read):
+# early-warning test. Origin, stated honestly: the reviewer's exploratory look at the 12 Nov campaign
+# day (16 Nov ~16:20 UTC) suggested an ML early warning beside the frozen loss_only rule (13 + 2 more
+# trials; earlier on 8 of 13 shared, median 210 s). The Tuesday trials are the unseen test.
+# Role: early warning only; an alert asks for a confirming check and never moves traffic.
+AMENDMENT_8 = {
+    "pick_rule": "from the 108 candidates: campaign controls alarmed <= 1/20 and validation FA <= 5/day, "
+                 "then most campaign trials; ties -> lower validation FA, then simpler",
+    "pick": "isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p2|live_only",   # computed from search-report, 15/20, 1/20, 3.84/day
+    "comparator": "frozen_aws_ripe_rule_loss_only",   # frozen rule, loss_only variant, unchanged
+    "pass_mark": "pick detects >= rule on the Tuesday trials AND (catches >= 1 trial the rule misses OR is earlier "
+                 "on > half of the shared trials) AND pick held-out FA <= 5/day",
+    "max_held_out_fa_per_day": 5.0,
+}
 MODELS = {  # name -> (feature names, persistence rows)
     "anomaly_aws_ripe_no_host": (tuple(n for n in cm.ARMS["aws_ripe"] if n not in cm.HOST_FEATURES), 1),
     "anomaly_aws_ripe": (cm.ARMS["aws_ripe"], 1),
@@ -585,7 +599,8 @@ def trial_detection(camp: list[dict], rows_all: list[dict], amp: dict, L: Path) 
     res = {}
     def put(name, alerts):
         sc = cm.score(rows, alerts, slots)
-        res[name] = {k: sc[k] for k in keep} | {"missed": [t["slot"] for t in sc["trials"] if not t["detected"]]}
+        res[name] = {k: sc[k] for k in keep} | {"missed": [t["slot"] for t in sc["trials"] if not t["detected"]],
+                                                "per_trial": [{k: t[k] for k in ("slot", "detected", "delay_s")} for t in sc["trials"]]}
     for name in MODELS:
         put(f"current/{name}", predict(camp_h, rows, name))
         put(f"retrained/{name}", predict(camp_h + train, rows, name))
@@ -606,6 +621,40 @@ def _commit(md: str, msg: str) -> None:
     out.write_text(md, encoding="utf-8")
     for cmd in (["git", "add", str(out)], ["git", "commit", "-q", "-m", msg], ["git", "push", "-q"]):
         subprocess.run(cmd, cwd=repo, capture_output=True, timeout=120)
+
+
+def early_warning(rep: dict) -> dict | None:
+    """Amendment 8 comparison on the Tuesday trials and held-out healthy time."""
+    tt = (rep.get("tuesday_trials") or {}).get("results")
+    if not tt:
+        return None
+    a8 = AMENDMENT_8
+    pk, rl = tt.get("candidate/" + a8["pick"]), tt.get("context/" + a8["comparator"])
+    if not pk or not rl:
+        return {"error": "pick or comparator missing from trial results"}
+    P = {t["slot"]: t for t in pk["per_trial"]}
+    R = {t["slot"]: t for t in rl["per_trial"]}
+    shared = [s for s in P if P[s]["detected"] and R.get(s, {}).get("detected")]
+    diffs = {s: P[s]["delay_s"] - R[s]["delay_s"] for s in shared}
+    earlier = sum(d < 0 for d in diffs.values())
+    pfa = (rep.get("candidates_held_out") or {}).get(a8["pick"], {})
+    rfa = rep["results"].get("context/" + a8["comparator"], {}).get("held_out_live", {})
+    only_pick = sorted(s for s in P if P[s]["detected"] and not R.get(s, {}).get("detected"))
+    passed = (pk["trials_detected"] >= rl["trials_detected"]
+              and (len(only_pick) >= 1 or earlier > len(shared) / 2)
+              and pfa.get("false_alarms_per_day") is not None
+              and pfa["false_alarms_per_day"] <= a8["max_held_out_fa_per_day"])
+    return {"pick": a8["pick"], "comparator": a8["comparator"],
+            "pick_detected": f"{pk['trials_detected']}/{pk['trials_evaluated']}",
+            "rule_detected": f"{rl['trials_detected']}/{rl['trials_evaluated']}",
+            "pick_controls_alarmed": f"{pk['controls_alarmed']}/{pk['controls_evaluated']}",
+            "rule_controls_alarmed": f"{rl['controls_alarmed']}/{rl['controls_evaluated']}",
+            "only_pick": only_pick,
+            "only_rule": sorted(s for s in R if R[s]["detected"] and not P.get(s, {}).get("detected")),
+            "shared": sorted(shared), "pick_minus_rule_s": diffs, "pick_earlier_on": earlier,
+            "pick_held_out_fa": {k: pfa.get(k) for k in ("false_alarms_per_day", "false_alarms_per_day_ci95")},
+            "rule_held_out_fa": {k: rfa.get(k) for k in ("false_alarms_per_day", "false_alarms_per_day_ci95")},
+            "verdict": "passed" if passed else "did not pass"}
 
 
 def team_summary(rep: dict) -> str:
@@ -646,6 +695,16 @@ def team_summary(rep: dict) -> str:
         lines.append(f"* Tuesday trials (unseen faults): current {t('current/' + PRIMARY)}, retrained {t('retrained/' + PRIMARY)}, "
                      + (f"Monday pick {t('candidate/' + pick)}, " if pick else "")
                      + (f"pick 2 {t('candidate/' + pick2)}, " if pick2 else "") + f"frozen rule {t('context/frozen_aws_ripe_rule')}.")
+    ew = rep.get("early_warning")
+    if ew and "verdict" in ew:
+        med = sorted(ew["pick_minus_rule_s"].values())
+        lines.append(f"* Early-warning test (amendment 8, {ew['pick']} vs frozen loss_only rule): pick {ew['pick_detected']}, "
+                     f"rule {ew['rule_detected']}; only pick {ew['only_pick']}, only rule {ew['only_rule']}; pick earlier on "
+                     f"{ew['pick_earlier_on']}/{len(ew['shared'])} shared trials"
+                     + (f" (median pick minus rule {med[len(med) // 2]:.0f} s)" if med else "")
+                     + f"; held-out FA pick {ew['pick_held_out_fa']['false_alarms_per_day']}/day, rule "
+                     f"{ew['rule_held_out_fa']['false_alarms_per_day']}/day. Verdict: {ew['verdict']}. "
+                     "Early warning only: an alert asks for a check and never moves traffic.")
     lines.append("* The ML stays shadow-only; it never triggers an action.")
     return "\n".join(lines) + "\n"
 
@@ -729,7 +788,8 @@ def main(argv=None) -> int:
     stages = [("main comparison", None),
               ("every candidate on held-out", lambda: rep.__setitem__("candidates_held_out", heldout_candidates(camp, rows))),
               ("Tuesday trials", lambda: rep.__setitem__("tuesday_trials", trial_detection(
-                  camp, live_rows(amp, load_index(_ripe_spec(L)), [], witness=wit), amp, L)))]
+                  camp, live_rows(amp, load_index(_ripe_spec(L)), [], witness=wit), amp, L))),
+              ("early-warning test", lambda: rep.__setitem__("early_warning", early_warning(rep)))]
     for label, fn in stages:
         if fn:
             fn()

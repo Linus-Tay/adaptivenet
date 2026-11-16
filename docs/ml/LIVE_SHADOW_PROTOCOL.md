@@ -101,3 +101,22 @@ mechanically from the same candidates and committed in `docs/ml/live/candidate-p
 controls and campaign healthy false alarms are now reported for every candidate, in SEARCH.md and on
 Wednesday. The frozen rule's declared secondary variants (loss_only, loss_or_rtt2) are scored as context
 on held-out and on the Tuesday trials. The frozen rule itself is unchanged.
+
+**Amendment 8 (2026-11-16, chosen by MY at 16:23 UTC; committed before the Tuesday trials, no held-out data
+read): early-warning test.** Origin: the reviewer took an exploratory look at the 12 Nov campaign day on
+16 Nov around 16:20 UTC. It suggested an ML early warning could catch trials the frozen loss_only rule
+misses (13 + 2 more) and alert earlier (on 8 of 13 shared trials, median 210 s). Because this idea came
+from looking at campaign data, the Tuesday trials are its unseen test.
+* *Pick (fixed rule over the existing 108 candidates):* campaign controls alarmed <= 1/20 and validation
+  FA <= 5/day, then the most campaign trials; ties go to lower validation FA, then the simpler model.
+  Result: `isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p2|live_only` (15/20 trials, 1/20 controls,
+  3.84 FA/day, CI 1.41-8.36). This matches the reviewer's scratch result.
+* *Comparator:* the frozen rule's declared loss_only variant (AWS view OR RIPE loss quorum), unchanged.
+* *Reported on the 10 Tuesday trials,* using the same labels and score: trials detected by each; trials
+  only the pick catches and only the rule catches; on shared trials, seconds from the SSM request to the
+  first alert (pick minus rule); held-out healthy FA/day with CI for both.
+* *Pass mark:* the pick detects at least as many trials as the rule, AND it catches at least 1 trial the
+  rule misses or is earlier on more than half of the shared trials, AND its held-out FA is <= 5/day.
+  Otherwise the result is "did not pass".
+* *Role:* early warning only. An alert asks for a confirming check and never moves traffic. Shadow only.
+* The Monday pick, the second pick and the all-108 report are unchanged.
