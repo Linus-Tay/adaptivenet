@@ -120,3 +120,7 @@ from looking at campaign data, the Tuesday trials are its unseen test.
   Otherwise the result is "did not pass".
 * *Role:* early warning only. An alert asks for a confirming check and never moves traffic. Shadow only.
 * The Monday pick, the second pick and the all-108 report are unchanged.
+* *Addendum (2026-11-16 ~16:30 UTC, before the trials, no held-out data read):* each Tuesday slot has a
+  same-time control window in the other region. Controls alarmed (out of 10) are reported for both the
+  pick and the loss_only rule. The pass mark also requires the pick to alarm in at most 1 of the 10
+  Tuesday controls.

@@ -128,8 +128,10 @@ AMENDMENT_8 = {
     "pick": "isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p2|live_only",   # computed from search-report, 15/20, 1/20, 3.84/day
     "comparator": "frozen_aws_ripe_rule_loss_only",   # frozen rule, loss_only variant, unchanged
     "pass_mark": "pick detects >= rule on the Tuesday trials AND (catches >= 1 trial the rule misses OR is earlier "
-                 "on > half of the shared trials) AND pick held-out FA <= 5/day",
+                 "on > half of the shared trials) AND pick held-out FA <= 5/day AND (addendum) pick alarms in "
+                 "<= 1 of the 10 Tuesday same-time controls in the other region",
     "max_held_out_fa_per_day": 5.0,
+    "max_tuesday_controls_alarmed": 1,   # addendum, 2026-11-16 ~16:30 UTC, before the trials
 }
 MODELS = {  # name -> (feature names, persistence rows)
     "anomaly_aws_ripe_no_host": (tuple(n for n in cm.ARMS["aws_ripe"] if n not in cm.HOST_FEATURES), 1),
@@ -643,7 +645,8 @@ def early_warning(rep: dict) -> dict | None:
     passed = (pk["trials_detected"] >= rl["trials_detected"]
               and (len(only_pick) >= 1 or earlier > len(shared) / 2)
               and pfa.get("false_alarms_per_day") is not None
-              and pfa["false_alarms_per_day"] <= a8["max_held_out_fa_per_day"])
+              and pfa["false_alarms_per_day"] <= a8["max_held_out_fa_per_day"]
+              and pk["controls_alarmed"] <= a8["max_tuesday_controls_alarmed"])
     return {"pick": a8["pick"], "comparator": a8["comparator"],
             "pick_detected": f"{pk['trials_detected']}/{pk['trials_evaluated']}",
             "rule_detected": f"{rl['trials_detected']}/{rl['trials_evaluated']}",
@@ -703,7 +706,8 @@ def team_summary(rep: dict) -> str:
                      f"{ew['pick_earlier_on']}/{len(ew['shared'])} shared trials"
                      + (f" (median pick minus rule {med[len(med) // 2]:.0f} s)" if med else "")
                      + f"; held-out FA pick {ew['pick_held_out_fa']['false_alarms_per_day']}/day, rule "
-                     f"{ew['rule_held_out_fa']['false_alarms_per_day']}/day. Verdict: {ew['verdict']}. "
+                     f"{ew['rule_held_out_fa']['false_alarms_per_day']}/day; Tuesday controls alarmed pick "
+                     f"{ew['pick_controls_alarmed']}, rule {ew['rule_controls_alarmed']}. Verdict: {ew['verdict']}. "
                      "Early warning only: an alert asks for a check and never moves traffic.")
     lines.append("* The ML stays shadow-only; it never triggers an action.")
     return "\n".join(lines) + "\n"
