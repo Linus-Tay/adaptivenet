@@ -632,7 +632,10 @@ def _commit(md: str, msg: str) -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(md, encoding="utf-8")
     for cmd in (["git", "add", str(out)], ["git", "commit", "-q", "-m", msg], ["git", "push", "-q"]):
-        subprocess.run(cmd, cwd=repo, capture_output=True, timeout=120)
+        try:   # a slow or failed push must never stop the scoring; the commit stays local
+            subprocess.run(cmd, cwd=repo, capture_output=True, timeout=60)
+        except subprocess.TimeoutExpired:
+            pass
 
 
 def early_warning(rep: dict) -> dict | None:
