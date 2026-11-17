@@ -30,4 +30,7 @@ Held-out live: 2026-11-16T13:00:00Z to 2026-11-17T22:59:30Z (7880 rows). Live tr
 * Pick 2 (amendment 7, frozen before the Tuesday trials and held-out, isolation_forest|ripe_loss_only|q0.995|p2|campaign+live): 6.58/day (95% CI 3.9-10.4).
 * Tuesday trials (unseen faults): current 10/10 (controls alarmed 2/10), retrained 8/10 (controls alarmed 1/10), Monday pick 0/10 (controls alarmed 1/10), pick 2 9/10 (controls alarmed 0/10), frozen rule 9/10 (controls alarmed 3/10).
 * Early-warning test (amendment 8, isolation_forest|aws_ripe_no_host_no_rtt|q0.995|p2|live_only vs frozen loss_only rule): pick 8/10, rule 8/10; only pick [], only rule []; pick earlier on 2/8 shared trials (median pick minus rule 30 s); held-out FA pick 8.04/day, rule 5.12/day; Tuesday controls alarmed pick 0/10, rule 0/10. Verdict: did not pass. Early warning only: an alert asks for a check and never moves traffic.
+* Supervised S1 (amendment 9, S1|gboost|ripe_loss+rtt|campaign+live|p0.8|k1): Tuesday 9/10 (controls 0/10); only model [11], only rule []; earlier on 3/8 shared; held-out 6.94/day (95% CI 4.18-10.84, 65.667 h). Verdict: did not pass.
+* Supervised S2 (amendment 9, S2|logreg|http800+ripe_loss|campaign+live|p0.9|k3): Tuesday 10/10 (controls 1/10); only model [7, 11], only rule []; earlier on 6/8 shared; held-out 21.93/day (95% CI 16.73-28.23, 65.667 h). Verdict: did not pass.
+* Lab HTTP rule (context): Tuesday 10/10 (controls 5/10); held-out 128.28/day on 7880 rows with HTTP features (0 without).
 * The ML stays shadow-only; it never triggers an action.
