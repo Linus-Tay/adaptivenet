@@ -28,4 +28,5 @@ Held-out live: 2026-11-16T13:00:00Z to 2026-11-17T22:59:30Z (7880 rows). Live tr
 * Candidate picked on Monday before held-out (robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p1|live_only): 2.92/day (95% CI 1.26-5.76); all 108 candidates are in retrain-report.json.
   (Monday pick failed review before any held-out scoring: trained on live data only it watches one column, RIPE result age, and alarmed in 20/20 campaign controls. Reported, not claimed.)
 * Pick 2 (amendment 7, frozen before the Tuesday trials and held-out, isolation_forest|ripe_loss_only|q0.995|p2|campaign+live): 6.58/day (95% CI 3.9-10.4).
+* Tuesday trials (unseen faults): current 10/10 (controls alarmed 2/10), retrained 8/10 (controls alarmed 1/10), Monday pick 0/10 (controls alarmed 1/10), pick 2 9/10 (controls alarmed 0/10), frozen rule 9/10 (controls alarmed 3/10).
 * The ML stays shadow-only; it never triggers an action.
