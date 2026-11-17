@@ -158,3 +158,9 @@ held-out data read): two supervised early-warning classifiers.** The full spec i
   S2 uses one HTTP vantage point (MY's Mac); the Mac-to-Virginia path is noisy, which is the main FA risk.
   Models trained on the campaign day alone gave 50-115 FA/day on live data, which is why live negatives
   are included.
+
+**Deviation (2026-11-17 11:51 UTC): Tuesday slots 0 and 1 skipped.** The launchd job that started the trial
+runner at 10:45 UTC exited, and launchd killed the runner with it, the same cause as Monday's witness loss.
+Nothing ran at 11:01 or 11:25 UTC. The runner was restarted from a shell at 11:51 UTC. By design it logs
+slots 0 and 1 as `skipped_late` and runs slots 2-9 on the frozen plan. Slot 2 (region-a, 20%) was submitted
+at 11:52 UTC with its rollback armed. Slots 0 and 1 are not counted as trials or as controls.
