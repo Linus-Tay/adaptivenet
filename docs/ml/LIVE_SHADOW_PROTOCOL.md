@@ -164,3 +164,6 @@ runner at 10:45 UTC exited, and launchd killed the runner with it, the same caus
 Nothing ran at 11:01 or 11:25 UTC. The runner was restarted from a shell at 11:51 UTC. By design it logs
 slots 0 and 1 as `skipped_late` and runs slots 2-9 on the frozen plan. Slot 2 (region-a, 20%) was submitted
 at 11:52 UTC with its rollback armed. Slots 0 and 1 are not counted as trials or as controls.
+*Make-up (approved by MY at 13:55 UTC, added before slots 7-9 ran and decided only from the skipped status):*
+slots 10 and 11 repeat skipped slots 0 and 1 (region-a 30%, region-b 15%) at 15:12 and 15:37 UTC. They use the
+same runner and rollback, and are appended to the frozen plan.
