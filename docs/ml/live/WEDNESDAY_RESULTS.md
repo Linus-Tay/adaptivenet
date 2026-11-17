@@ -25,5 +25,7 @@ Held-out live: 2026-11-16T13:00:00Z to 2026-11-17T22:59:30Z (7880 rows). Live tr
 * Current model (13 Nov anomaly, AWS+RIPE, no host): 28.14/day (95% CI 22.21-35.17) false alarms; 17/20 campaign trials.
 * Planned retrain (+ live healthy data): 16.08/day (95% CI 11.68-21.59) false alarms; 12/20 campaign trials.
 * Frozen RIPE rule (unchanged, context): 30.7/day.
+* Candidate picked on Monday before held-out (robust_z_max|aws_ripe_no_host_no_rtt|q0.999|p1|live_only): 2.92/day (95% CI 1.26-5.76); all 108 candidates are in retrain-report.json.
   (Monday pick failed review before any held-out scoring: trained on live data only it watches one column, RIPE result age, and alarmed in 20/20 campaign controls. Reported, not claimed.)
+* Pick 2 (amendment 7, frozen before the Tuesday trials and held-out, isolation_forest|ripe_loss_only|q0.995|p2|campaign+live): 6.58/day (95% CI 3.9-10.4).
 * The ML stays shadow-only; it never triggers an action.
