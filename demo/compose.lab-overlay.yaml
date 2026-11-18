@@ -81,14 +81,8 @@ services:
       DEMO_MODE: group_lab
       ADAPTIVENET_SHADOW_MODEL: "${ADAPTIVENET_SHADOW_MODEL:-}"
       DEMO_MODELS_DIR: "${DEMO_MODELS_DIR:-/app/models}"   # loads any of aws_only/aws_ripe/aws_ripe_http.pkl found there
-      # Real telemetry tab: live ingestion API on the host (scripts/live_monitor.py --sqs),
-      # else the latest snapshot in a read-only real data folder.
-      INGESTION_API_URL: http://host.docker.internal:8766
-      REAL_DATA_DIR: /real
-    extra_hosts: ["host.docker.internal:host-gateway"]
     volumes:
       - "${LAB_DATA_HOST:-./data/lab-live}:/app/data"
-      - "${REAL_DATA_DIR:-./data}:/real:ro"
       - "${DEMO_MODELS_HOST:-./data/demo-models}:/app/models:ro"
     ports: ["127.0.0.1:8192:8000"]
   lab-controller:

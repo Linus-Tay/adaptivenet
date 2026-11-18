@@ -28,7 +28,6 @@ demo/run.sh lab-up
 | Open | What it is |
 | --- | --- |
 | http://127.0.0.1:3000 | **Main demo page**: fault buttons (latency, HTTP 503, packet loss; Singapore or Virginia; 30 to 120 s), traffic split, AWS-only vs AWS+RIPE vs AWS+RIPE+HTTP with detection times, the telemetry → detector → proposal → safety review → controller pipeline, signals by source and the decision log |
-| http://127.0.0.1:3000 → **Real AWS telemetry** tab | real data per region in plain sentences. Live when `scripts/live_monitor.py --sqs` runs on the host (:8766); otherwise a recorded real moment from `REAL_DATA_DIR`, always labelled with its own time |
 | http://127.0.0.1:3001 | the shop site, served through the gateway |
 | http://127.0.0.1:8192 | debug only: the raw decision state (`/api/state`) and assessment (`/v1/assessment`) that the dashboard reads |
 

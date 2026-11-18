@@ -133,7 +133,7 @@ Start the demo (11 containers: `compose.yaml` plus `demo/compose.lab-overlay.yam
 demo/run.sh lab-up
 ```
 
-Open **http://127.0.0.1:3000** once the first build finishes (a few minutes). It has the fault buttons, the traffic split, the three views side by side, the decision pipeline and a **Real AWS telemetry** tab. The demo café website, Harbour Lane Coffee, is on :3001. It is served through the gateway; its **Customer website** tab is what a visitor sees, and its **Behind the scenes** tab shows the load time and serving region of every request. Port 8192 is a debug view of the raw decision state that the dashboard reads.
+Open **http://127.0.0.1:3000** once the first build finishes (a few minutes). It has the fault buttons, the traffic split, the three views side by side, the decision pipeline and the Shadow ML panel. It is the local lab only; real AWS telemetry is on its own page, :8766 (section 5). The demo café website, Harbour Lane Coffee, is on :3001. It is served through the gateway; its **Customer website** tab is what a visitor sees, and its **Behind the scenes** tab shows the load time and serving region of every request. Port 8192 is a debug view of the raw decision state that the dashboard reads.
 
 Why each container is there:
 
@@ -181,7 +181,7 @@ demo/run.sh lab-down
 python scripts/export_demo_models.py --root /path/to/folder/holding/data
 ```
 
-The model files and the recorded data behind the **Real AWS telemetry** tab are not in the repository (they stay in the group's git-ignored `data/`). On a fresh clone the Shadow ML panel shows the rule detector and the baseline predictor with "none loaded" for the trained models, and the Real AWS tab says no data folder is mounted. Everything else in the demo works as described. The group can show both live on its own machine; the recorded results themselves are reproduced from `evidence/` in Part C of the testing guide.
+The model files are not in the repository (they stay in the group's git-ignored `data/`). On a fresh clone the Shadow ML panel shows the rule detector and the baseline predictor with "none loaded" for the trained models; everything else in the demo works as described. Live AWS telemetry needs the group's AWS access; the recorded results themselves are reproduced from `evidence/` in Part C of the testing guide.
 
 App faults inside an origin (`app-5xx`, `cpu`, `region-down`), replay of recorded real telemetry (`demo/run.sh replay`) and plugging in trained models are in [demo/DEMO.md](demo/DEMO.md). The real-AWS telemetry pair (collector and feature worker, 2 containers) is in `compose.telemetry.yaml`.
 
@@ -191,7 +191,7 @@ App faults inside an origin (`app-5xx`, `cpu`, `region-down`), replay of recorde
 
 The repository holds no credentials. The real system runs on the group's AWS account and RIPE Atlas measurements; contact CSC3104 Group 03 for access. You do not need it for the tests or the demo.
 
-For members with access: copy `.env.example` to `.env` (git-ignored) and fill it in; [docs/ENV_SETUP.txt](docs/ENV_SETUP.txt) walks through the AWS SSO profiles and the RIPE Atlas key. The real pipeline is `python scripts/live_monitor.py --sqs` (dashboard on :8766). Guarded fault injection through SSM, with its restore timer set before the fault, is `scripts/aws_fault.py`. Campaign tools are in `scripts/campaign/` and [docs/ml/RIPE_TRIALS_PROTOCOL.md](docs/ml/RIPE_TRIALS_PROTOCOL.md); they hold paths for the Mac that ran them, so edit those first. Run `python scripts/check_push_safety.py --staged` before pushing. Never run `terraform apply` without a reviewed plan and the real remote state.
+For members with access: copy `.env.example` to `.env` (git-ignored) and fill it in; [docs/ENV_SETUP.txt](docs/ENV_SETUP.txt) walks through the AWS SSO profiles and the RIPE Atlas key. The real pipeline is `python scripts/live_monitor.py --sqs --traffic` (dashboard on :8766; `--traffic` adds the 15 s HTTP witness). Run it on one machine only: two pipelines on the same SQS queue take each other's messages. Guarded fault injection through SSM, with its restore timer set before the fault, is `scripts/aws_fault.py`. Campaign tools are in `scripts/campaign/` and [docs/ml/RIPE_TRIALS_PROTOCOL.md](docs/ml/RIPE_TRIALS_PROTOCOL.md); they hold paths for the Mac that ran them, so edit those first. Run `python scripts/check_push_safety.py --staged` before pushing. Never run `terraform apply` without a reviewed plan and the real remote state.
 
 ---
 
