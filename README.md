@@ -6,7 +6,7 @@ The question behind it: **do outside network signals catch failures that AWS's o
 
 Everything in sections 3 and 4 runs on a laptop with no AWS or RIPE account. Step-by-step marking instructions with expected output are in [docs/GROUP03_INSTRUCTIONS.md](docs/GROUP03_INSTRUCTIONS.md) ([PDF](docs/GROUP03_INSTRUCTIONS.pdf)).
 
-**Branches.** `main` is the frozen course submission (tag `v1.0-submission`). `v2` holds the same code plus the 14 to 18 November live shadow run and this handoff cleanup.
+**Branches.** `main` is the current, handoff version (the same as `v2`). The original course submission is kept at tag `v1.0-submission`.
 
 ---
 
@@ -109,7 +109,7 @@ Run every Python suite (none of them call AWS):
 PYTHONPATH=services:. python -m pytest -q tests demo/tests ml/team_starter/tests step7_finish step8_finish
 ```
 
-On `v2` (18 Nov 2026, clean install, Python 3.14) this gives **491 passed**. A no-Docker smoke test of the demo loop:
+On `main` (18 Nov 2026, clean install from a GitHub ZIP, Python 3.14) this gives **496 passed**. A no-Docker smoke test of the demo loop:
 
 ```bash
 PYTHONPATH=services:. python -m demo.smoke_local

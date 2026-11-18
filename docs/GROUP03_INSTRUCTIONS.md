@@ -6,7 +6,7 @@ subtitle: "CSC3104 Group 03 · GROUP03_INSTRUCTIONS · version 2"
 # AdaptiveNet: how to test our system
 
 **Course:** CSC3104, Group 03\
-**Repository:** https://github.com/Linus-Tay/adaptivenet, branch `v2` (download as a ZIP: https://github.com/Linus-Tay/adaptivenet/archive/refs/heads/v2.zip)\
+**Repository:** https://github.com/Linus-Tay/adaptivenet, branch `main` (download as a ZIP: https://github.com/Linus-Tay/adaptivenet/archive/refs/heads/main.zip)\
 **Time needed:** about 30 minutes for Parts A and B (most of it is the first Docker build), and about 10 more minutes for Part C
 
 ## What AdaptiveNet does
@@ -60,13 +60,13 @@ docker compose version
 ## 2. Get the code and install the Python packages
 
 ```bash
-git clone -b v2 https://github.com/Linus-Tay/adaptivenet.git
+git clone https://github.com/Linus-Tay/adaptivenet.git
 cd adaptivenet
 ```
 
-**Expected:** `git branch` shows `* v2`. `ls` shows folders such as `demo`, `services`, `ml`, `infra`, `tests` and the file `README.md`.
+**Expected:** `git branch` shows `* main`. `ls` shows folders such as `demo`, `services`, `ml`, `infra`, `tests` and the file `README.md`.
 
-> `main` holds the frozen copy of the system we presented in class. `v2` holds the same system plus the 14–18 November live run, the analysis behind our final results, and the cleaned-up code. Please test `v2`. If you download the ZIP instead of using Git, unzip it and `cd` into the folder `adaptivenet-v2`.
+> Please test the `main` branch (commit `1b3aa64` or later). It holds the final system, the 14–18 November live run and the analysis behind our final results. If you download the ZIP instead of using Git, unzip it and `cd` into the folder `adaptivenet-main`.
 
 Create a virtual environment and install the packages:
 
@@ -290,7 +290,7 @@ Parts A and B use local stand-ins. The numbers in our article come from the **re
 
 ### C0. Get the saved data
 
-The saved data is in two folders of the repository: `evidence/ripe-campaign-20261112/` (the 12 November campaign) and `evidence/live-shadow-20261114/` (the 14–18 November live run). Set two variables:
+The recorded data goes in two folders: `evidence/ripe-campaign-20261112/` (the 12 November campaign) and `evidence/live-shadow-20261114/` (the 14–18 November live run), about 2 MB in total. It is not in the repository itself, because it contains our AWS account number and EC2 instance IDs. If your copy has no `evidence/` folder, please ask CSC3104 Group 03 for `GROUP03_evidence.zip` and unzip it in the repository root. Then set two variables:
 
 ```bash
 export CAMP=evidence/ripe-campaign-20261112
@@ -308,7 +308,7 @@ ls $CAMP $LIVE
 | `http_witness.jsonl` | the HTTP witness (one request every 15 s) |
 | `$LIVE` folder | the 14–18 November live run: metrics, RIPE results, witness, the 10 extra fault trials, the SSM exclusion list and the saved scoring report |
 
-The data contains our AWS account number and EC2 instance IDs (they appear in the SSM records). These are identifiers, not credentials.
+The AWS account number and EC2 instance IDs in the SSM records are identifiers, not credentials.
 
 ### C1. The campaign result (AWS-only 0/20, AWS+RIPE 13/20)
 
@@ -427,6 +427,6 @@ Several values are tied to our account and must be changed: the AMP workspace ID
 
 ## Appendix: how we checked these instructions
 
-- **Parts A and C** (18 Nov 2026): on a clean Linux machine (Python 3.13) with a fresh copy of `v2` (commit `f8eb946`) and the saved data in `evidence/`: 496 passed, 0 failed; both smoke tests printed `PASS`; C1 printed 0/20 against 13/20 and p = 0.000244; C3's output was identical to the amendment 10 section of `docs/ml/live/WEDNESDAY_RESULTS.md`. On the earlier commit `2170d47` (the analysis code has not changed since) C2's output was byte-for-byte identical to `docs/ml/action-replay-campaign.json` (167 s), and C4 (158 s) reproduced every row of the official report and made no git commit.
-- **Part B** (18 Nov 2026, current 11-container demo): a fresh ZIP of `v2` installed, passed all tests and started with `lab-up`. Latency: detected in 15 s, 100→75% at 76 s. HTTP 503: detected in 5 s, 100→75% at 101 s. 80% packet loss: detected in 5 s, 100→75% at 66 s, 75→50% at 106 s. At 50% loss the fault was detected but traffic did not move. The longer sequence in B3 (second step, failback) is from our 13 Nov runs of the earlier 13-container version on a clean Linux machine.
+- **Parts A and C** (18 Nov 2026): on a clean Linux machine (Python 3.13) with a fresh copy of the final code (commit `f8eb946`, the same code as `main` at `1b3aa64`) and the saved data in `evidence/`: 496 passed, 0 failed; both smoke tests printed `PASS`; C1 printed 0/20 against 13/20 and p = 0.000244; C3's output was identical to the amendment 10 section of `docs/ml/live/WEDNESDAY_RESULTS.md`. On the earlier commit `2170d47` (the analysis code has not changed since) C2's output was byte-for-byte identical to `docs/ml/action-replay-campaign.json` (167 s), and C4 (158 s) reproduced every row of the official report and made no git commit.
+- **Part B** (18 Nov 2026, current 11-container demo): a fresh ZIP of the final code installed, passed all tests and started with `lab-up`. Latency: detected in 15 s, 100→75% at 76 s. HTTP 503: detected in 5 s, 100→75% at 101 s. 80% packet loss: detected in 5 s, 100→75% at 66 s, 75→50% at 106 s. At 50% loss the fault was detected but traffic did not move. The longer sequence in B3 (second step, failback) is from our 13 Nov runs of the earlier 13-container version on a clean Linux machine.
 - **Not tested by us:** Windows (WSL 2), and a rebuild of Part D in a fresh AWS account.
