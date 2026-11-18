@@ -119,7 +119,7 @@ CI ([.github/workflows/ci.yml](.github/workflows/ci.yml)) also runs `scripts/smo
 
 ## 4. Run the Docker demo
 
-The demo runs the full loop in local containers with no AWS calls. You need Docker Desktop (or Docker Engine with Compose v2) running. On a Mac where `docker` is not on your PATH, run `export PATH=/Applications/Docker.app/Contents/Resources/bin:$PATH` first. Windows is untested; use WSL 2.
+The demo runs the full loop in local containers with no AWS calls. You need Docker Desktop (or Docker Engine with Compose v2) running. On a Mac where `docker` is not on your PATH, run `export PATH=/Applications/Docker.app/Contents/Resources/bin:$PATH` first. Windows is untested. In PowerShell use `demo\run.ps1` (`lab-up`, `lab-down`, `lab-reset`, `lab-logs`, `status`) and set `$env:PYTHONPATH="services;."` instead of the `PYTHONPATH=services:.` prefix; WSL 2 with the bash commands also works.
 
 On Linux only, the containers run as uid 10001, so prepare `data/` once:
 
