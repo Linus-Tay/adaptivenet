@@ -1,0 +1,10 @@
+{"slot": 0, "region": "region-a", "loss_percent": 30, "status": "skipped_late", "check_returncode": null}
+{"slot": 1, "region": "region-b", "loss_percent": 15, "status": "skipped_late", "check_returncode": null}
+{"slot": 2, "region": "region-a", "loss_percent": 20, "status": "submitted", "check_returncode": 0}
+{"slot": 3, "region": "region-b", "loss_percent": 30, "status": "submitted", "check_returncode": 0}
+{"slot": 4, "region": "region-a", "loss_percent": 25, "status": "submitted", "check_returncode": 0}
+{"slot": 5, "region": "region-b", "loss_percent": 35, "status": "submitted", "check_returncode": 0}
+{"slot": 6, "region": "region-b", "loss_percent": 15, "status": "submitted", "check_returncode": 0}
+{"slot": 7, "region": "region-a", "loss_percent": 15, "status": "submitted", "check_returncode": 0}
+{"slot": 8, "region": "region-a", "loss_percent": 25, "status": "submitted", "check_returncode": 0}
+{"slot": 9, "region": "region-b", "loss_percent": 25, "status": "submitted", "check_returncode": 0}

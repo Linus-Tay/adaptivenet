@@ -1,0 +1,2 @@
+{"slot": 10, "region": "region-a", "loss_percent": 30, "status": "submitted", "check_returncode": 0}
+{"slot": 11, "region": "region-b", "loss_percent": 15, "status": "submitted", "check_returncode": 0}

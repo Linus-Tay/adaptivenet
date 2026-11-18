@@ -1,0 +1,33 @@
+{
+  "schema": "adaptivenet.authorized_native_network_experiment.v1",
+  "requested_utc": "2026-11-12T16:11:28.799679+00:00",
+  "run_id": "2c2da88fe426",
+  "region": "region-b",
+  "profile_name": "adaptivenet-ml",
+  "preflight": {
+    "utc": "2026-11-12T16:11:26.880396+00:00",
+    "aws_account": "468354413374",
+    "region": "region-b",
+    "aws_region": "us-east-1",
+    "instance_id": "i-0ea5125bcb2d201ec",
+    "instance_public_ip": "100.58.157.137",
+    "ripe_measurement_id": 236862555,
+    "ripe_target": "100.58.157.137",
+    "ripe_status": "Ongoing",
+    "ripe_interval_seconds": 240,
+    "min_suggested_impairment_seconds": 960
+  },
+  "duration_seconds": 960,
+  "configured_packet_loss_percent": 30,
+  "ssm_command_id": "8ce58cb5-2ce5-4582-9655-ddbe68719b3a",
+  "ssm_submitted": true,
+  "actual_impairment_effect_verified": false,
+  "human_label_reviewed": false,
+  "model_training_label": null,
+  "note": "SSM submission is NOT proof of network effect. Confirm command output + RIPE + HTTP.",
+  "remote_check_utc": "2026-11-12T16:13:05.748188+00:00",
+  "remote_command_status": "Success",
+  "remote_rollback_armed_and_rules_added": true,
+  "remote_stdout_excerpt": "NETWORK_EXPERIMENT_STARTED UTC=2026-11-12T16:11:28Z TAG=adaptivenet-net-2c2da88fe426 LOSS_PCT=30 DURATION_SECONDS=960 ROLLBACK_ARMED=YES\n-A OUTPUT -p tcp -m tcp --sport 80 -m statistic --mode random --probability 0.29999999981 -m comment --comment adaptivenet-net-2c2da88fe426 -j DROP\n-A OUTPUT -p icmp -m icmp --icmp-type 0 -m statistic --mode random --probability 0.29999999981 -m comment --comment adaptivenet-net-2c2da88fe426 -j DROP\n",
+  "remote_stderr_excerpt": ""
+}

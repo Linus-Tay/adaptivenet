@@ -1,0 +1,38 @@
+{
+  "schema": "adaptivenet.ripe_trial_campaign_plan.v1",
+  "seed": 1711,
+  "created_utc": "2026-11-14T10:02:05.434304+00:00",
+  "slots": [
+    {
+      "slot": 10,
+      "region": "region-a",
+      "control_region": "region-b",
+      "planned_start_utc": "2026-11-17T15:12:00+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 30,
+      "control_window_utc": [
+        "2026-11-17T15:16:00+00:00",
+        "2026-11-17T15:28:00+00:00"
+      ],
+      "ripe_measurement_id": 237672407,
+      "makeup_for_slot": 0
+    },
+    {
+      "slot": 11,
+      "region": "region-b",
+      "control_region": "region-a",
+      "planned_start_utc": "2026-11-17T15:37:00+00:00",
+      "duration_seconds": 960,
+      "loss_percent": 15,
+      "control_window_utc": [
+        "2026-11-17T15:41:00+00:00",
+        "2026-11-17T15:53:00+00:00"
+      ],
+      "ripe_measurement_id": 237672408,
+      "makeup_for_slot": 1
+    }
+  ],
+  "frozen_analysis": "docs/ml/LIVE_SHADOW_PROTOCOL.md (amendment 4)",
+  "stop_file": "/Users/my/Project/adaptivenet-ripe-campaign/live/trials/STOP",
+  "makeup_note": "slots 10-11 make up skipped slots 0-1 (same region and loss); approved by MY 2026-11-17 13:55 UTC"
+}

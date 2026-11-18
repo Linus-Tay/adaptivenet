@@ -1,0 +1,62 @@
+[
+  {
+    "region": "region-a",
+    "start_utc": "2026-11-17T15:12:10Z",
+    "end_utc": "2026-11-17T15:15:10Z",
+    "reason": "SSM AWS-RunShellScript 56dc8db2-8a7f-4fa9-bedc-a356e6f3fe73 (Success)"
+  },
+  {
+    "region": "region-a",
+    "start_utc": "2026-11-17T14:22:17Z",
+    "end_utc": "2026-11-17T14:25:17Z",
+    "reason": "SSM AWS-RunShellScript 2f647baa-1b8d-46c4-a184-3731d984661b (Success)"
+  },
+  {
+    "region": "region-a",
+    "start_utc": "2026-11-17T13:56:44Z",
+    "end_utc": "2026-11-17T13:59:44Z",
+    "reason": "SSM AWS-RunShellScript af1553f2-2e72-4dbf-ac8f-54df90446b32 (Success)"
+  },
+  {
+    "region": "region-a",
+    "start_utc": "2026-11-17T12:43:04Z",
+    "end_utc": "2026-11-17T12:46:04Z",
+    "reason": "SSM AWS-RunShellScript da0d4a44-c84e-4103-9d59-9f31374431d2 (Success)"
+  },
+  {
+    "region": "region-a",
+    "start_utc": "2026-11-17T11:52:19Z",
+    "end_utc": "2026-11-17T11:55:19Z",
+    "reason": "SSM AWS-RunShellScript f8bfd395-bdba-49a0-bc40-0dc4a72ebdc7 (Success)"
+  },
+  {
+    "region": "region-b",
+    "start_utc": "2026-11-17T15:37:10Z",
+    "end_utc": "2026-11-17T15:40:10Z",
+    "reason": "SSM AWS-RunShellScript e0c3ad4c-0a87-4619-bf98-0b31ebf1db31 (Success)"
+  },
+  {
+    "region": "region-b",
+    "start_utc": "2026-11-17T14:46:21Z",
+    "end_utc": "2026-11-17T14:49:21Z",
+    "reason": "SSM AWS-RunShellScript 2fb8de47-89d5-4ac5-9289-fc36dbbf8c58 (Success)"
+  },
+  {
+    "region": "region-b",
+    "start_utc": "2026-11-17T13:31:42Z",
+    "end_utc": "2026-11-17T13:34:42Z",
+    "reason": "SSM AWS-RunShellScript 312966c1-5f03-4831-af26-60c123828b81 (Success)"
+  },
+  {
+    "region": "region-b",
+    "start_utc": "2026-11-17T13:05:59Z",
+    "end_utc": "2026-11-17T13:08:59Z",
+    "reason": "SSM AWS-RunShellScript c19f5adf-f60a-4cce-8863-31cb94206cc0 (Success)"
+  },
+  {
+    "region": "region-b",
+    "start_utc": "2026-11-17T12:16:58Z",
+    "end_utc": "2026-11-17T12:19:58Z",
+    "reason": "SSM AWS-RunShellScript b1c4d808-f4d2-4f7c-b123-eb059c48628b (Success)"
+  }
+]

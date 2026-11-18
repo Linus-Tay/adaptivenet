@@ -1,0 +1,33 @@
+{
+  "schema": "adaptivenet.authorized_native_network_experiment.v1",
+  "requested_utc": "2026-11-12T15:46:45.147129+00:00",
+  "run_id": "a9b7e73d9850",
+  "region": "region-a",
+  "profile_name": "adaptivenet-ml",
+  "preflight": {
+    "utc": "2026-11-12T15:46:43.724985+00:00",
+    "aws_account": "468354413374",
+    "region": "region-a",
+    "aws_region": "ap-southeast-1",
+    "instance_id": "i-0039feaedbd2b3266",
+    "instance_public_ip": "54.179.156.53",
+    "ripe_measurement_id": 236862553,
+    "ripe_target": "54.179.156.53",
+    "ripe_status": "Ongoing",
+    "ripe_interval_seconds": 240,
+    "min_suggested_impairment_seconds": 960
+  },
+  "duration_seconds": 960,
+  "configured_packet_loss_percent": 25,
+  "ssm_command_id": "781ae9f2-f61f-4019-b11e-2551ec7c5075",
+  "ssm_submitted": true,
+  "actual_impairment_effect_verified": false,
+  "human_label_reviewed": false,
+  "model_training_label": null,
+  "note": "SSM submission is NOT proof of network effect. Confirm command output + RIPE + HTTP.",
+  "remote_check_utc": "2026-11-12T15:48:21.906273+00:00",
+  "remote_command_status": "Failed",
+  "remote_rollback_armed_and_rules_added": false,
+  "remote_stdout_excerpt": "STOP: iptables unavailable\n",
+  "remote_stderr_excerpt": "failed to run commands: exit status 22"
+}

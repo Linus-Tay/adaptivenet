@@ -72,7 +72,7 @@ The team therefore chose CloudFront origin failover as the serving path and left
 
 ## 2. Datasets
 
-No dataset is committed. Real evidence stays in the git-ignored `data/` folder on the machines that recorded it. Each result document names the files it used.
+The recorded data behind the two headline evaluations is committed under `evidence/`: `evidence/ripe-campaign-20261112/` (the 12 Nov campaign) and `evidence/live-shadow-20261114/` (the 14 to 18 Nov live run). Part C of the testing guide reruns the analysis from them. The SSM records there contain the AWS account number, EC2 instance IDs and public IPs; these are identifiers, not credentials. Other evidence (earlier archives, trained model files) stays in the git-ignored `data/` folder.
 
 | Dataset | What it is | Why it was used |
 |---|---|---|

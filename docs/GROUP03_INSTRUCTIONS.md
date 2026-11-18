@@ -290,7 +290,7 @@ Parts A and B use local stand-ins. The numbers in our article come from the **re
 
 ### C0. Get the saved data
 
-The recorded data goes in two folders: `evidence/ripe-campaign-20261112/` (the 12 November campaign) and `evidence/live-shadow-20261114/` (the 14–18 November live run), about 2 MB in total. It is not in the repository itself, because it contains our AWS account number and EC2 instance IDs. If your copy has no `evidence/` folder, please ask CSC3104 Group 03 for `GROUP03_evidence.zip` and unzip it in the repository root. Then set two variables:
+The recorded data is in two folders of the repository: `evidence/ripe-campaign-20261112/` (the 12 November campaign) and `evidence/live-shadow-20261114/` (the 14–18 November live run). Set two variables:
 
 ```bash
 export CAMP=evidence/ripe-campaign-20261112
@@ -298,14 +298,14 @@ export LIVE=evidence/live-shadow-20261114
 ls $CAMP $LIVE
 ```
 
-**Expected:** the first folder holds `campaign-plan.json`, `campaign-log.jsonl`, `amp-region-a.jsonl`, `amp-region-b.jsonl`, `ripe/`, `trials/` and `http_witness.jsonl`; the second holds `amp-region-*.jsonl`, `ripe-region-*.json`, `http_witness.jsonl`, `exclusions-ssm.json`, `retrain-report.json` and `trials/`.
+**Expected:** the first folder holds `campaign-plan.json`, `campaign-log.jsonl`, `amp-region-a.jsonl`, `amp-region-b.jsonl`, `ripe/`, `trials/` and `http_witness.jsonl`; the second holds `live.json`, `amp-region-*.jsonl`, `ripe-region-*.json`, `http_witness.jsonl`, `exclusions-ssm.json`, `retrain-report.json` and `trials/`. Both also hold `witness.stdout`, the raw HTTP witness output.
 
 | File or folder | What it is |
 |---|---|
 | `campaign-plan.json`, `campaign-log.jsonl`, `trials/` | the 20 pre-registered fault slots, when each fault ran, and the AWS SSM confirmation of each fault (the ground truth) |
 | `amp-region-*.jsonl` | AWS-internal metrics exported from Amazon Managed Prometheus |
 | `ripe/236862553.json`, `ripe/236862555.json` | the RIPE Atlas ping results for Singapore and Virginia |
-| `http_witness.jsonl` | the HTTP witness (one request every 15 s) |
+| `http_witness.jsonl`, `witness.stdout` | the HTTP witness (one request every 15 s) |
 | `$LIVE` folder | the 14–18 November live run: metrics, RIPE results, witness, the 10 extra fault trials, the SSM exclusion list and the saved scoring report |
 
 The AWS account number and EC2 instance IDs in the SSM records are identifiers, not credentials.
@@ -371,10 +371,11 @@ and the last line: `AWS-only view of the frozen rule on the Tuesday trials: 0/10
 ### C4. Full rescoring of the live run (optional, slow)
 
 ```bash
-PYTHONPATH=services:. python -m ml.team_starter.live_shadow retrain --campaign-dir $CAMP --live-dir $LIVE
+cp -r $LIVE /tmp/live-copy
+PYTHONPATH=services:. python -m ml.team_starter.live_shadow retrain --campaign-dir $CAMP --live-dir /tmp/live-copy
 ```
 
-**Expected** (about 3 minutes): this retrains and rescores every model on the live data and rewrites `$LIVE/RETRAIN.md` and `$LIVE/retrain-report.json`. The new `RETRAIN.md` matches the part of `docs/ml/live/WEDNESDAY_RESULTS.md` above the amendment 10 section, for example `current/anomaly_aws_ripe_no_host | 28.14 (22.21-35.17) | 77 | 65.667 | 17/20`. It has one extra context row, `context/frozen_aws_rule | 2.19 ...`, which was added with amendment 10; no other number changes. The command does not touch git (only the group's own run used `--commit`). C3 does not need C4. Copy `$LIVE` first if you want to keep the original files.
+**Expected** (about 3 minutes): this retrains and rescores every model on the live data and writes `/tmp/live-copy/RETRAIN.md` and `/tmp/live-copy/retrain-report.json`. It runs on a copy because it overwrites `retrain-report.json`, which C3 reads. The new `RETRAIN.md` matches the part of `docs/ml/live/WEDNESDAY_RESULTS.md` above the amendment 10 section, for example `current/anomaly_aws_ripe_no_host | 28.14 (22.21-35.17) | 77 | 65.667 | 17/20`. It has one extra context row, `context/frozen_aws_rule | 2.19 ...`, which was added with amendment 10; no other number changes. The command does not touch git (only the group's own run used `--commit`). C3 does not need C4.
 
 ---
 
