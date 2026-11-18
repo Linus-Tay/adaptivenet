@@ -42,3 +42,6 @@ plan.txt
 backend.hcl
 backend-bootstrap.tf
 bootstrap-outputs.json
+
+# Written by Part C step C3 (amendment10) when a marker reruns it
+evidence/live-shadow-20261114/amendment10.json

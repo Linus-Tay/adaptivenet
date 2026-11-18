@@ -278,9 +278,12 @@ demo/run.sh lab-down
 
 **Expected:** `lab-reset` restarts the gateway and lab controller (traffic back at 100% Singapore, faults cleared). `lab-down` prints `Removed` for each container and the network; `docker ps` then shows no `adaptivenet-lab-` containers.
 
-### B8. Shadow ML panel (optional)
+### B8. Two parts of the page that stay empty on your machine
 
-The **Shadow ML** panel shows the trained models next to the rule detector. They never act. The trained model files are not in the repository, so in your copy the panel will say "none loaded". The group can supply them on request; they are loaded with `python scripts/export_demo_models.py --root <folder holding the models>` (each file's SHA-256 is checked against our frozen evaluation report), followed by `demo/run.sh lab-up`.
+- **Shadow ML panel.** It shows the rule detector (which drives decisions) and a baseline predictor. The trained models are not shipped with the repository, so their rows say "none loaded". Please skip `scripts/export_demo_models.py`, which needs those model files.
+- **Real AWS telemetry tab.** It shows recorded data from our real system only when that recorded data is mounted (`REAL_DATA_DIR`). Those recordings are not shipped either, so the tab says that no recorded data is mounted. Please skip this step.
+
+Neither affects Tests 1 to 3. We can show both working live on our own machine, and the recorded results behind them are reproduced in Part C.
 
 ---
 
