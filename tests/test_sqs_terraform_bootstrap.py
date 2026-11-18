@@ -8,7 +8,17 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "deploy_sqs_terraform.sh"
 
-@pytest.mark.skipif(shutil.which("bash") is None, reason="bash is not installed (plain Windows)")
+def _bash_works() -> bool:
+    # Windows ships a bash.exe WSL launcher that fails when no Linux distro is installed.
+    if shutil.which("bash") is None:
+        return False
+    try:
+        return subprocess.run(["bash", "-c", "exit 0"], capture_output=True, timeout=20).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+@pytest.mark.skipif(not _bash_works(), reason="no working bash (plain Windows)")
 def test_sqs_bootstrap_bash_syntax():
     result = subprocess.run(["bash", "-n", str(SCRIPT)], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
