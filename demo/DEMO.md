@@ -127,7 +127,7 @@ The dashboard's **Shadow ML** panel shows what the trained models say next to th
 python scripts/export_demo_models.py --root /path/to/folder/holding/data
 ```
 
-`--root` is the folder whose `data/ml-results/native/` holds the models (on the group Mac: the evidence copy of the repo). Then restart with `demo/run.sh lab-up`. Never download pickle files; use only artifacts the group made. The models were trained on real AWS data, so on lab data they can disagree with the rules (for example the AWS+RIPE+HTTP model flagging a healthy lab), which is exactly why they stay shadow-only. `ADAPTIVENET_SHADOW_MODEL=/app/models/<file>.pkl` makes `ml/predictor.py` use one. Decisions still come from the rule detector for `DEMO_DECISION_GROUP` (default `aws_ripe_http`), and every proposal still goes through the reviewer.
+`--root` is the folder whose `data/ml-results/native/` holds the models (on the group Mac: the evidence copy of the repo). The models are not in the repository, so on a fresh clone the panel shows "none loaded" for them; the rule detector and the baseline predictor still appear. Then restart with `demo/run.sh lab-up`. Never download pickle files; use only artifacts the group made. The models were trained on real AWS data, so on lab data they can disagree with the rules (for example the AWS+RIPE+HTTP model flagging a healthy lab), which is exactly why they stay shadow-only. `ADAPTIVENET_SHADOW_MODEL=/app/models/<file>.pkl` makes `ml/predictor.py` use one. Decisions still come from the rule detector for `DEMO_DECISION_GROUP` (default `aws_ripe_http`), and every proposal still goes through the reviewer.
 
 ## 5. Without Docker, and tests
 

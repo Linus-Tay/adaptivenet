@@ -181,6 +181,8 @@ demo/run.sh lab-down
 python scripts/export_demo_models.py --root /path/to/folder/holding/data
 ```
 
+The model files and the recorded data behind the **Real AWS telemetry** tab are not in the repository (they stay in the group's git-ignored `data/`). On a fresh clone the Shadow ML panel shows the rule detector and the baseline predictor with "none loaded" for the trained models, and the Real AWS tab says no data folder is mounted. Everything else in the demo works as described. The group can show both live on its own machine; the recorded results themselves are reproduced from `evidence/` in Part C of the testing guide.
+
 App faults inside an origin (`app-5xx`, `cpu`, `region-down`), replay of recorded real telemetry (`demo/run.sh replay`) and plugging in trained models are in [demo/DEMO.md](demo/DEMO.md). The real-AWS telemetry pair (collector and feature worker, 2 containers) is in `compose.telemetry.yaml`.
 
 ---
