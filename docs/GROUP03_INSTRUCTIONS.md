@@ -77,7 +77,7 @@ docker compose version
 > powershell -ExecutionPolicy Bypass -File demo\run.ps1 lab-up
 > ```
 >
-> Use `demo\run.ps1 lab-reset`, `lab-down`, `lab-logs` or `status` in place of `demo/run.sh`. Inject faults with the page buttons, or with `python -m demo.faultctl lab-latency|lab-errors|lab-loss ...` (B6) once `$env:PYTHONPATH` is set as above. Leave out the `PYTHONPATH=services:.` prefix shown in the commands. A2 (`demo.smoke_local`) may fail on Windows because it builds a `:`-separated path, so skip it. In Part C set the variables with `$env:CAMP = "evidence/ripe-campaign-20261112"` and `$env:LIVE = "evidence/live-shadow-20261114"`, and write `$env:CAMP` where the guide writes `$CAMP`.
+> Use `demo\run.ps1 lab-reset`, `lab-down`, `lab-logs` or `status` in place of `demo/run.sh`. Inject faults with the page buttons, or with `python -m demo.faultctl lab-latency|lab-errors|lab-loss ...` (B6) once `$env:PYTHONPATH` is set as above. Leave out the `PYTHONPATH=services:.` prefix shown in the commands. A2 runs as `python -m demo.smoke_local` and A3 as `python scripts/smoke.py`. In Part C set the variables with `$env:CAMP = "evidence/ripe-campaign-20261112"` and `$env:LIVE = "evidence/live-shadow-20261114"`, and write `$env:CAMP` where the guide writes `$CAMP`.
 >
 > *We have not tested either option on Windows*; we tested on Linux and macOS. If Option B fails, please use Option A.
 
