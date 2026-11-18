@@ -12,15 +12,11 @@ Three independent **signals** vote on each region in each window:
 
 * ``aws``  AWS-internal metrics: app down, HTTP error ratio >= 20 % or p95 >= 800 ms
 * ``ripe`` RIPE Atlas path: median probe loss >= 20 %, p50 RTT >= 400 ms or
-  every probe unreachable (needs >= 3 probes and fresh data). Rule
-  ``RIPE_TOTAL_LOSS_RULE``: when every probe is lost there is no RTT, ingestion
-  marks RIPE quality ``loss_only`` and ``end_to_end.network_health`` returns
-  unknown; here that case is judged on loss alone. This is a controller-only,
-  post-campaign rule: it does not change ``end_to_end.network_health`` or the
-  frozen campaign detector in ``ml/team_starter/ripe_value.py``.
+  every probe unreachable (needs >= 3 probes and fresh data). With every probe
+  lost there is no RTT, so ``RIPE_TOTAL_LOSS_RULE`` judges that case on loss
+  alone. It is controller-only and leaves the frozen campaign detector alone.
 * ``http`` the controller's own client request: failed, served by the wrong
-  region, or missed the 500 ms deadline (``recovery.DEADLINE_SEC``; the
-  request itself times out at 2 s)
+  region, or missed the 500 ms deadline (``recovery.DEADLINE_SEC``)
 
 A vote is ``bad``, ``good`` or ``unknown`` (stale or missing data). Unknown
 never counts as good or bad.

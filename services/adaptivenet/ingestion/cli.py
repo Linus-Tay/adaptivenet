@@ -33,11 +33,8 @@ def cycle(db_path, *, profile="adaptivenet-admin", env_file=None, now=None):
     collected, cf_id, evaluated_at = collect_source_poll(profile=profile, env_file=env_file, now=now)
     store = Store(db_path)
     saved = store.record(collected.observations, collected.errors, collected.status, at=evaluated_at)
-    # Source timestamps remain immutable; do not refresh historical Atlas data.
-    # Include only bounded future-skewed AMP samples. The feature builder also
-    # checks collected_at and excludes future RIPE probe data.
-    # Last-known CloudFront values are a separate, display-only history.
-    # Live metric freshness and model inputs still use the short event window.
+    # Allow a little AMP clock skew; the feature builder drops future RIPE data.
+    # Last-known CloudFront values are display-only and never feed the model.
     cf_history = (store.latest_cloudfront_observations(cf_id, at=evaluated_at)
                   if cf_id else [])
     snapshot = make_snapshot(store.events_since(evaluated_at - 2100, end=evaluated_at + AMP_CLOCK_SKEW_SEC),

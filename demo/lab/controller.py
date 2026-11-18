@@ -6,14 +6,10 @@ Every tick:
    ``adaptivenet.proposal.v1`` (untrusted model output);
 3. ask ``adaptivenet.controller.end_to_end.decide`` for a dry-run EKS decision
    (scale / failover / no-op) behind the independent safety reviewer;
-4. execute ONLY a ``failover`` and ONLY on the local lab gateway, through the
-   unchanged ``SafetyController(mode="local")`` (3 fresh observations, journal,
-   bounded 25-point steps, client recovery verification, cooldown), but only
-   after the confidence rules in ``adaptivenet.controller.confidence`` agree
-   (2 of AWS / RIPE / client HTTP bad for 3 windows in a row, no reversal
-   within 120 s). Those rules read raw measurements only, never the ML output.
-   ``scale`` is never executed here: the plan is shown, and live HPA writes stay
-   behind ``scripts/end_to_end.py execute --approve-live-write``.
+4. execute only a ``failover``, only on the lab gateway, through
+   ``SafetyController(mode="local")``, and only once the confidence rules agree.
+   Those rules read raw measurements, never the ML output. ``scale`` is shown,
+   never executed; live HPA writes need ``scripts/end_to_end.py execute --approve-live-write``.
 
 ``DEMO_CONTROLLER_MODE``: ``local`` (default, actuates the lab gateway),
 ``review`` (decisions only; used for replay), or ``disabled``.

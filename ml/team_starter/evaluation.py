@@ -16,10 +16,8 @@ def split_episodes(episodes: list[dict], *, embargo_seconds: float = 900) -> dic
     """
     if embargo_seconds < 0:
         raise ValueError("embargo must be nonnegative")
-    # Group *whole experiment runs* first. Multiple healthy, failure and
-    # recovery episodes may be separated by gaps; they are NOT independent.
-    # Interleaved runs are combined into a single chronological time block to
-    # prevent train/validation/test from straddling overlapping run windows.
+    # Episodes from one run are not independent, so split whole runs, and merge
+    # overlapping runs into one block so no split straddles them.
     runs = {}
     for e in episodes:
         ident = e["episode_id"]

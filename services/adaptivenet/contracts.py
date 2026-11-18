@@ -1,22 +1,5 @@
-from datetime import datetime
 from typing import Literal
 from pydantic import BaseModel, Field
-
-class TelemetryEvent(BaseModel):
-    schema_version: Literal[1] = 1
-    event_id: str
-    tenant_id: str
-    application_id: str
-    region: str
-    source: Literal["atlas", "prometheus", "cloudwatch", "synthetic"]
-    observed_at: datetime
-    received_at: datetime
-    measurement_id: str | None = None
-    probe_id: str | None = None
-    metric: str
-    value: float | None = None
-    unit: str
-    outcome: Literal["success", "timeout", "error", "missing"]
 
 class Fault(BaseModel):
     region: Literal["region-a", "region-b"]

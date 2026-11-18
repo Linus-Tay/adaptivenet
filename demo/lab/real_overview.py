@@ -156,12 +156,6 @@ def _witness_window(folder: Path, at: float, span: float = 900) -> list[dict]:
     return out
 
 
-def _fresh(age: float | None, limit: float) -> str:
-    if age is None:
-        return "missing"
-    return "fresh" if age <= limit else "stale"
-
-
 def _age(iso: str | None, at: float) -> float | None:
     if not iso:
         return None

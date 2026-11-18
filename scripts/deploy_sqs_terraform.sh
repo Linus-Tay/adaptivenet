@@ -42,10 +42,8 @@ aws s3api head-bucket --bucket "$BUCKET" --profile "$PROFILE" >/dev/null 2>&1 ||
   echo "Remote state bucket $BUCKET is absent or inaccessible. No changes made." >&2; exit 3;
 }
 
-# The checked-in lock has an upstream-signed zip hash set but may lack an
-# h1 checksum for a developer's platform (e.g. Apple Silicon). Refresh only
-# the pinned AWS provider's official hashes for Mac and CI Linux first.
-# Keep init readonly so it cannot silently select another provider version.
+# The lock may lack an h1 hash for Apple Silicon, so add the pinned provider's
+# official hashes for Mac and CI Linux; init stays readonly so the version can't drift.
 echo "Verifying official hashicorp/aws provider checksums for Mac + CI Linux"
 terraform -chdir="$TF_DIR" providers lock \
   -platform=darwin_arm64 \
