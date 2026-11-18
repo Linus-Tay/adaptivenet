@@ -180,7 +180,7 @@ Other modes are in [demo/DEMO.md](demo/DEMO.md). The standalone 10-container sta
 
 The repository holds no credentials. The real system runs on the group's AWS account and RIPE Atlas measurements; contact CSC3104 Group 03 for access. You do not need it for the tests or the demo.
 
-For members with access: copy `.env.example` to `.env` (git-ignored) and fill it in. The real pipeline is `python scripts/live_monitor.py --sqs` (dashboard on :8766). Guarded fault injection through SSM, with its restore timer set before the fault, is `scripts/aws_fault.py`. Campaign tools are in `scripts/campaign/` and [docs/ml/RIPE_TRIALS_PROTOCOL.md](docs/ml/RIPE_TRIALS_PROTOCOL.md); they hold paths for the Mac that ran them, so edit those first. Run `python scripts/check_push_safety.py --staged` before pushing. Never run `terraform apply` without a reviewed plan and the real remote state.
+For members with access: copy `.env.example` to `.env` (git-ignored) and fill it in; [docs/ENV_SETUP.txt](docs/ENV_SETUP.txt) walks through the AWS SSO profiles and the RIPE Atlas key. The real pipeline is `python scripts/live_monitor.py --sqs` (dashboard on :8766). Guarded fault injection through SSM, with its restore timer set before the fault, is `scripts/aws_fault.py`. Campaign tools are in `scripts/campaign/` and [docs/ml/RIPE_TRIALS_PROTOCOL.md](docs/ml/RIPE_TRIALS_PROTOCOL.md); they hold paths for the Mac that ran them, so edit those first. Run `python scripts/check_push_safety.py --staged` before pushing. Never run `terraform apply` without a reviewed plan and the real remote state.
 
 ---
 

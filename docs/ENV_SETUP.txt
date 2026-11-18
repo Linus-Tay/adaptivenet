@@ -1,0 +1,79 @@
+ADAPTIVENET ENVIRONMENT SETUP
+=============================
+
+What needs keys, and what does not
+----------------------------------
+  Tests (pytest)                 no keys, no .env
+  Docker demo (demo/run.sh)      no keys; it writes demo/.env.demo with a random local token
+  Rerun the analysis (Part C)    no keys; reads the saved files only
+  Real AWS pipeline / faults     AWS SSO profile + .env (below)
+  New RIPE measurements          RIPE Atlas API key (below)
+
+If you only want the tests and the demo, stop reading here.
+
+
+1. Create .env
+--------------
+From the repository root:
+
+    cp .env.example .env
+
+Uncomment and fill in only the lines you need. .env is ignored by git; never commit it.
+
+
+2. AWS sign-in (SSO)
+--------------------
+Install AWS CLI v2, then run once:
+
+    aws configure sso
+
+Answer the prompts:
+  SSO session name        adaptivenet
+  SSO start URL           <your organisation's AWS access portal URL>
+  SSO region              ap-southeast-1
+  Account / role          the account and role you were given
+  Default client region   ap-southeast-1
+  Output format           json
+  Profile name            adaptivenet-admin
+
+Repeat with profile name adaptivenet-ml for a read-only role if you have one
+(the ML export and analysis scripts default to it).
+
+Each day, sign in before using the real system:
+
+    aws sso login --profile adaptivenet-admin
+
+Check it works:
+
+    aws sts get-caller-identity --profile adaptivenet-admin
+
+Regions used: ap-southeast-1 (Singapore: region-a, SQS, EKS) and us-east-1
+(Virginia: region-b, CloudFront metrics).
+
+Install the AWS extras for Python once:
+
+    pip install -e '.[cloud]'
+
+Then, for example:
+
+    python scripts/live_monitor.py --sqs          # real pipeline, dashboard on :8766
+    python scripts/aws_fault.py --help            # guarded SSM faults, restore timer first
+
+
+3. RIPE Atlas
+-------------
+Reading public measurement results needs no key. Put the IDs you follow in .env:
+
+    ATLAS_MEASUREMENTS=region-a=<id>,region-b=<id>
+
+To create or stop measurements you need your own key:
+  1. Sign in at https://atlas.ripe.net and open "API Keys" in your profile.
+  2. Create a key with permission to create measurements.
+  3. Add it to .env yourself:  ATLAS_API_KEY=<your key>
+  Never paste the key into chat, a commit or a document.
+
+
+4. Optional demo settings (set in your shell before demo/run.sh, not in .env)
+-----------------------------------------------------------------------------
+  FAILBACK_HEALTHY_SEC   seconds Singapore must stay clean before failback (lab: 60)
+  REPLAY_SOURCE          folder of recorded telemetry for demo/run.sh replay
