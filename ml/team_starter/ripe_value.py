@@ -565,7 +565,8 @@ def campaign_slots(plan: dict, log_rows: list[dict], trial_dir: Path) -> list[di
         if row.get("status") != "submitted" or not row.get("trial_record"):
             continue
         rec_path = Path(row["trial_record"])
-        if not rec_path.is_absolute():
+        # Logs store absolute paths from the recording Mac; elsewhere use trial_dir.
+        if not rec_path.is_absolute() or not rec_path.is_file():
             rec_path = trial_dir / rec_path.name
         rec = json.loads(rec_path.read_text(encoding="utf-8"))
         p = planned[row["slot"]]

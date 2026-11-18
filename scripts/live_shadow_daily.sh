@@ -52,7 +52,7 @@ fi
 # 5. Wednesday: exclusions + retrain, once, only with a complete AMP export
 if [ "$NOW" -ge "$STOP" ] && [ $ok = 1 ] && [ ! -f "$L/RETRAIN.md" ]; then
   $PY -m ml.team_starter.live_shadow ssm-exclusions --campaign-dir "$C" --live-dir "$L" --profile adaptivenet-ml \
-    && $PY -m ml.team_starter.live_shadow retrain --campaign-dir "$C" --live-dir "$L" > /dev/null \
+    && $PY -m ml.team_starter.live_shadow retrain --campaign-dir "$C" --live-dir "$L" --commit > /dev/null \
     && echo "retrain written: $L/RETRAIN.md" || echo "retrain FAILED"
 fi
 if [ "$NOW" -ge "$STOP" ] && [ -f "$L/RETRAIN.md" ]; then

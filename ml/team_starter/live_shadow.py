@@ -783,13 +783,19 @@ def _ripe_spec(live_dir: Path) -> dict[str, list[Path]]:
     return {r: [live_dir / f"ripe-{r}.json"] for r in ("region-a", "region-b") if (live_dir / f"ripe-{r}.json").is_file()}
 
 
-def main(argv=None) -> int:
+def _parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("command", choices=["snapshot", "retrain", "ssm-exclusions", "search"])
     ap.add_argument("--campaign-dir", type=Path, required=True)
     ap.add_argument("--live-dir", type=Path, required=True)
     ap.add_argument("--profile", default="adaptivenet-ml")
-    a = ap.parse_args(argv)
+    ap.add_argument("--commit", action="store_true",
+                    help="retrain: copy the summary to docs/ml/live/ and git commit + push it")
+    return ap
+
+
+def main(argv=None) -> int:
+    a = _parser().parse_args(argv)
     C, L = a.campaign_dir, a.live_dir
     meta = json.loads((L / "live.json").read_text(encoding="utf-8"))
     if a.command == "ssm-exclusions":
@@ -849,7 +855,8 @@ def main(argv=None) -> int:
         (L / "retrain-report.json").write_text(json.dumps(rep, indent=2), encoding="utf-8")
         md = retrain_markdown(rep) + team_summary(rep)
         (L / "RETRAIN.md").write_text(md, encoding="utf-8")
-        _commit(md, f"ml: Wednesday live evaluation - {label} (automatic)")
+        if a.commit:
+            _commit(md, f"ml: Wednesday live evaluation - {label} (automatic)")
     print(md)
     return 0
 
