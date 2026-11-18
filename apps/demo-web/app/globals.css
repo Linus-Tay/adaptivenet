@@ -63,3 +63,31 @@ body{background:#0b1423;color:#e6edf7;font-family:Arial,sans-serif;margin:0}main
 .shop .workload-grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
 .shop .workload-card .card-head h2{margin:0}
 @media(max-width:700px){.shop .hero{flex-direction:column;align-items:flex-start}.shop .workload-grid.two{grid-template-columns:1fr}}
+
+/* Tabs and the customer-facing cafe site. */
+.tabs{position:sticky;top:0;z-index:5;display:flex;gap:6px;justify-content:center;padding:10px;background:#0b1423ee;border-bottom:1px solid #22344c}
+.tabs button{margin:0;background:transparent;border:1px solid #3c5470;color:#cfe0f2;border-radius:20px;padding:8px 16px}
+.tabs button.on{background:#235c9b;border-color:#5a8ac0;color:#fff}
+.cafe{max-width:none;margin:0;padding:0;background:#fbf6ef;color:#2b1d14;min-height:100vh;font-family:Georgia,"Times New Roman",serif}
+.cafe p{color:#5b4636}
+.cafe-top{display:flex;justify-content:space-between;align-items:center;padding:22px 6vw;border-bottom:1px solid #eadfd2}
+.cafe .logo{font-size:24px;font-weight:700;letter-spacing:-.02em}.cafe .logo span{color:#b5652b}
+.cafe-top nav{display:flex;gap:22px;font-family:Arial,sans-serif;font-size:14px}.cafe-top nav a{color:#5b4636;cursor:default}
+.cafe-hero{display:flex;align-items:center;justify-content:space-between;gap:30px;padding:56px 6vw;background:linear-gradient(120deg,#f3e6d6,#fbf6ef)}
+.cafe-hero small{color:#b5652b;font-family:Arial,sans-serif;letter-spacing:.12em;text-transform:uppercase;font-size:12px}
+.cafe-hero h1{font-size:clamp(34px,5vw,58px);margin:14px 0;line-height:1.05;color:#2b1d14}
+.cafe-hero p{font-size:18px;max-width:520px}
+.cafe-hero button{background:#2b1d14;color:#fbf6ef;border:none;border-radius:30px;padding:14px 26px;font-family:Arial,sans-serif;font-size:15px}
+.cafe .cup{font-size:120px}
+.cafe-alert{margin:18px 6vw 0;padding:14px 18px;border-radius:12px;background:#fde3e1;color:#8a2a22;font-family:Arial,sans-serif}
+.cafe-alert.slow{background:#fff1d6;color:#7a5410}
+.cafe-menu{padding:36px 6vw}.cafe-menu h2{font-size:30px;margin:0 0 18px}
+.cafe-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.cafe-items article{display:flex;justify-content:space-between;gap:14px;background:#fff;border:1px solid #eadfd2;border-radius:16px;padding:18px}
+.cafe-items b{font-size:20px}.cafe-items p{font-family:Arial,sans-serif;font-size:13px;margin:6px 0 0}
+.cafe-items strong{color:#b5652b;font-size:18px;font-family:Arial,sans-serif}
+.cafe .muted{font-family:Arial,sans-serif}
+.cafe-info{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;padding:10px 6vw 40px}
+.cafe-info h3{font-size:18px;margin:0 0 6px}.cafe-info p{font-family:Arial,sans-serif;font-size:14px;margin:0}
+.cafe-foot{padding:20px 6vw 30px;font-family:Arial,sans-serif;font-size:12px;color:#8a7764;border-top:1px solid #eadfd2}
+@media(max-width:760px){.cafe-hero{flex-direction:column;align-items:flex-start}.cafe .cup{display:none}.cafe-info{grid-template-columns:1fr}.cafe-top nav{display:none}}

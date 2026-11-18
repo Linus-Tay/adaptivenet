@@ -133,7 +133,7 @@ Start the demo (11 containers: `compose.yaml` plus `demo/compose.lab-overlay.yam
 demo/run.sh lab-up
 ```
 
-Open **http://127.0.0.1:3000** once the first build finishes (a few minutes). It has the fault buttons, the traffic split, the three views side by side, the decision pipeline and a **Real AWS telemetry** tab. The shop site served through the gateway is on :3001. Port 8192 is a debug view of the raw decision state that the dashboard reads.
+Open **http://127.0.0.1:3000** once the first build finishes (a few minutes). It has the fault buttons, the traffic split, the three views side by side, the decision pipeline and a **Real AWS telemetry** tab. The demo café website, Harbour Lane Coffee, is on :3001. It is served through the gateway; its **Customer website** tab is what a visitor sees, and its **Behind the scenes** tab shows the load time and serving region of every request. Port 8192 is a debug view of the raw decision state that the dashboard reads.
 
 Why each container is there:
 

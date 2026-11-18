@@ -137,7 +137,7 @@ export default function Page(){
     <tr key={k}><td>{l}</td>{["region-a","region-b"].map(r=><td key={r}>{fmt(snap?.regions?.[r]?.features?.[k],d)}</td>)}</tr>);
 
   return <main className="operator an">
-    <nav className="nav"><a href="/applications">Applications & endpoints ↗</a></nav>
+    <nav className="nav"><a href="http://127.0.0.1:3001">Customer site (:3001) ↗</a></nav>
     <header className="operator-header"><small>ADAPTIVENET</small>
       <div className="rt-tabs" role="tablist">
         <button role="tab" aria-selected={tab==="lab"} className={tab==="lab"?"on":""} onClick={()=>setTab("lab")}>Live lab demo</button>
