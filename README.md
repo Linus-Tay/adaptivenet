@@ -8,6 +8,41 @@ Everything in sections 3 and 4 runs on a laptop with no AWS or RIPE account. Ste
 
 **Branches.** `main` is the current, handoff version (the same as `v2`). The original course submission is kept at tag `v1.0-submission`.
 
+## Quick start (macOS, Linux or Windows PowerShell)
+
+**Download first**
+
+| Tool | Needed for | Link |
+|---|---|---|
+| Python 3.11 or newer (tick "Add to PATH" on Windows) | everything | https://www.python.org/downloads/ |
+| Docker Desktop (running) | the demo | https://www.docker.com/products/docker-desktop/ |
+| Git (optional; you can download the ZIP instead) | getting the code | https://git-scm.com/downloads |
+| AWS CLI v2 (optional) | live AWS telemetry only | https://aws.amazon.com/cli/ |
+
+Node.js is not needed: the dashboards are built inside Docker.
+
+**Then, from the repository folder** (use `python3` on macOS if `python` is not found):
+
+```bash
+python run.py check
+```
+
+```bash
+python run.py setup
+```
+
+```bash
+python run.py test
+```
+
+```bash
+python run.py demo-up
+```
+
+Open http://127.0.0.1:3000 (control room) and http://127.0.0.1:3001 (café site). Inject faults from the buttons, or with `python run.py fault lab-latency --region sg --ms 1500`. Reset with `python run.py demo-reset` and stop with `python run.py demo-down`.
+
+Live AWS telemetry (group members with AWS access, after `aws sso login`): `python run.py setup --cloud`, then `python run.py live` (dashboard on :8766). It reads AWS directly and never uses the shared SQS queue, so it is safe next to another running pipeline.
+
 ---
 
 ## 1. Architecture
