@@ -52,7 +52,7 @@ Regions used: ap-southeast-1 (Singapore: region-a, SQS, EKS) and us-east-1
 
 Install the AWS extras for Python once:
 
-    pip install -e '.[cloud]'
+    pip install -e '.[cloud]'      (Windows PowerShell: pip install -e ".[cloud]")
 
 Then, for example:
 
@@ -77,3 +77,17 @@ To create or stop measurements you need your own key:
 -----------------------------------------------------------------------------
   FAILBACK_HEALTHY_SEC   seconds Singapore must stay clean before failback (lab: 60)
   REPLAY_SOURCE          folder of recorded telemetry for demo/run.sh replay
+
+
+5. Live AWS telemetry on Windows (PowerShell, no WSL; untested by the group)
+---------------------------------------------------------------------------
+  1. Install AWS CLI v2 for Windows (the .msi from AWS), then open a new PowerShell.
+  2. aws configure sso      (same answers as section 2; profile name adaptivenet-admin)
+  3. aws sso login --profile adaptivenet-admin
+  4. In the repository, with the venv active:
+         python -m pip install -e ".[cloud]"
+         $env:PYTHONPATH="services;."
+         python scripts/live_monitor.py --sqs
+     (add --profile <name> if you named the profile differently)
+  5. Open http://127.0.0.1:8766, and the Real AWS telemetry tab on http://127.0.0.1:3000
+     if the Docker demo is running. Ctrl+C stops the pipeline.
