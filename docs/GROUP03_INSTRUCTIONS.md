@@ -53,14 +53,33 @@ docker compose version
 > **macOS:** if `docker` is "command not found" although Docker Desktop is installed, run
 > `export PATH=/Applications/Docker.app/Contents/Resources/bin:$PATH`
 >
-> **Windows: please use WSL 2.** The commands in this guide are Linux/macOS shell commands (`demo/run.sh` is a bash script; `source .venv/bin/activate`, the `PYTHONPATH=services:. python ...` prefix, `/tmp` and `cmp` do not work in PowerShell or Command Prompt). On Windows:
+> **Windows.** The commands in this guide are Linux/macOS shell commands (`demo/run.sh` is a bash script; `source .venv/bin/activate`, the `PYTHONPATH=services:. python ...` prefix, `/tmp` and `cmp` do not work in PowerShell or Command Prompt). There are two ways to run it on Windows.
+>
+> **Option A (recommended): WSL 2.**
 >
 > 1. Install WSL 2 with Ubuntu (`wsl --install -d Ubuntu` in an administrator PowerShell, then restart).
 > 2. Install Docker Desktop and turn on *Settings → Resources → WSL integration* for Ubuntu.
 > 3. Open the **Ubuntu** terminal and run every command in this guide there, unchanged. Install Python and Git inside Ubuntu (`sudo apt install python3 python3-venv git`), and clone the repository into your Ubuntu home folder (`cd ~`), not under `/mnt/c`.
 > 4. Open the demo pages in your normal Windows browser at the same `127.0.0.1` addresses.
 >
-> Inside WSL 2 the steps are the Linux steps, including the Linux-only `chmod` step in B1. *We have not tested Windows ourselves*; we tested on Linux and macOS.
+> Inside WSL 2 the steps are the Linux steps, including the Linux-only `chmod` step in B1.
+>
+> **Option B: PowerShell, without WSL.** Install Python 3.11+, Git and Docker Desktop for Windows, then in PowerShell, from the repository folder:
+>
+> ```
+> python -m venv .venv
+> Set-ExecutionPolicy -Scope Process Bypass
+> .venv\Scripts\Activate.ps1
+> python -m pip install -r requirements-dev.lock -r ml\team_starter\requirements-ml-inference.lock
+> python -m pip install --no-deps -e .
+> $env:PYTHONPATH = "services;."
+> python -m pytest -q tests demo/tests ml/team_starter/tests step7_finish step8_finish
+> powershell -ExecutionPolicy Bypass -File demo\run.ps1 lab-up
+> ```
+>
+> Use `demo\run.ps1 lab-reset`, `lab-down`, `lab-logs` or `status` in place of `demo/run.sh`. Inject faults with the page buttons, or with `python -m demo.faultctl lab-latency|lab-errors|lab-loss ...` (B6) once `$env:PYTHONPATH` is set as above. Leave out the `PYTHONPATH=services:.` prefix shown in the commands. A2 (`demo.smoke_local`) may fail on Windows because it builds a `:`-separated path, so skip it. In Part C set the variables with `$env:CAMP = "evidence/ripe-campaign-20261112"` and `$env:LIVE = "evidence/live-shadow-20261114"`, and write `$env:CAMP` where the guide writes `$CAMP`.
+>
+> *We have not tested either option on Windows*; we tested on Linux and macOS. If Option B fails, please use Option A.
 
 ---
 
