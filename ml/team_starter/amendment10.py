@@ -43,8 +43,8 @@ def main(C: Path, L: Path) -> str:
     alerts["13 Nov model (current/" + ls.PRIMARY + ")"] = (held, ls.predict(camp_h, held, ls.PRIMARY))
     alerts["planned retrain (retrained/" + ls.PRIMARY + ")"] = (held, ls.predict(camp_h + train, held, ls.PRIMARY))
     docs = Path(__file__).resolve().parents[2] / "docs" / "ml" / "live"
-    picks = {"Monday pick (failed)": json.loads((docs / "candidate-pick.json").read_text())["pick"],
-             "pick 2 (amendment 7)": json.loads((docs / "candidate-pick-2.json").read_text())["pick"],
+    picks = {"Monday pick (failed)": json.loads((docs / "candidate-pick.json").read_text(encoding="utf-8"))["pick"],
+             "pick 2 (amendment 7)": json.loads((docs / "candidate-pick-2.json").read_text(encoding="utf-8"))["pick"],
              "early-warning pick (amendment 8)": ls.AMENDMENT_8["pick"]}
     cands = {ls.cand_name(c): c for c in ls.candidates()}
     for label, name in picks.items():
@@ -57,7 +57,7 @@ def main(C: Path, L: Path) -> str:
              "frozen_ripe_rule_loss_or_rtt2": "frozen loss_or_rtt2 rule, RIPE-only"}
     for k, al in ls.frozen_rules(held, amp).items():
         alerts[names.get(k, k)] = (held, al)
-    spec = json.loads((docs / "supervised-picks.json").read_text())["frozen"]
+    spec = json.loads((docs / "supervised-picks.json").read_text(encoding="utf-8"))["frozen"]
     models = sl.frozen_models(C, L, spec)
     w = sl.Witness([L / "http_witness.jsonl", L / "witness.stdout"])
     held_h = sl.with_http(held, w)

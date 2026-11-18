@@ -88,7 +88,7 @@ def main(argv=None):
         raise ValueError("unexpected_demo_image")
     name="controller-load-"+uuid4().hex[:10]
     manifest=directory/"load-job.json"
-    manifest.write_text(json.dumps(job_manifest(name,image)))
+    manifest.write_text(json.dumps(job_manifest(name,image)), encoding="utf-8")
     summary={"test":"eks_controller_load_to_readiness","input_source":"fixture_proposal; live_eks_metrics",
              "job":name,"controller_requested_capacity":False,"controller_action_journaled":False,"controller_replica_readiness_verified":False,
              "client_recovery_verified":False,"cleanup_errors":[]}
@@ -108,7 +108,7 @@ def main(argv=None):
             result=controller.step_scale(snapshot,proposal,compute_overloaded=True)
             row={"at":time.time(),"controller":asdict(result),
                  "observation":asdict(adapter.last_observation) if adapter.last_observation else None}
-            with (directory/"observations.jsonl").open("a") as log:
+            with (directory/"observations.jsonl").open("a", encoding="utf-8") as log:
                 log.write(json.dumps(row)+"\n")
             emit(row)
             pending=journal.pending()
@@ -153,7 +153,7 @@ def main(argv=None):
                 journal.resolve(pending.action_id,state="blocked",reason="operator_test_cleanup_no_client_recovery_claim")
             except (ValueError,KubernetesReadError) as exc:
                 summary["cleanup_errors"].append("hpa_restore: "+str(exc))
-        (directory/"summary.json").write_text(json.dumps(summary,indent=2))
+        (directory/"summary.json").write_text(json.dumps(summary,indent=2), encoding="utf-8")
         emit(summary)
     return 0 if summary["controller_replica_readiness_verified"] and not summary["cleanup_errors"] else 2
 

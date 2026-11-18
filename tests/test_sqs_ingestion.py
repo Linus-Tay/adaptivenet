@@ -158,8 +158,8 @@ def test_monitor_switches_to_queue_without_running_direct_collector():
 
 def test_terraform_uses_existing_queue_and_dlq(tmp_path):
     root = Path(__file__).resolve().parents[1]
-    cfg = (root / "infra/terraform/environments/dev/main.tf").read_text()
-    permissions = (root / "infra/terraform/environments/dev/telemetry_iam_and_alarms.tf").read_text()
+    cfg = (root / "infra/terraform/environments/dev/main.tf").read_text(encoding="utf-8")
+    permissions = (root / "infra/terraform/environments/dev/telemetry_iam_and_alarms.tf").read_text(encoding="utf-8")
     assert 'name                       = "adaptivenet-dev-telemetry"' in cfg
     assert "maxReceiveCount = 5" in cfg
     assert "sqs:SendMessage" in permissions and "sqs:ReceiveMessage" in permissions
@@ -171,8 +171,8 @@ def test_queue_references_can_be_loaded_from_env_without_secrets(tmp_path):
     path.write_text(
         "ADAPTIVENET_SQS_QUEUE_URL=" + QUEUE + "\n" +
         "ADAPTIVENET_AWS_ACCOUNT_ID=468354413374\n" +
-        "ATLAS_API_KEY=SHOULD_NOT_BE_READ\n"
-    )
+        "ATLAS_API_KEY=SHOULD_NOT_BE_READ\n",
+        encoding="utf-8")
     result = read_env_file(path)
     assert result["ADAPTIVENET_SQS_QUEUE_URL"] == QUEUE
     assert result["ADAPTIVENET_AWS_ACCOUNT_ID"] == "468354413374"

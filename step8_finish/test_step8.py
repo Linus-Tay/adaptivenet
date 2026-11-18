@@ -68,24 +68,24 @@ class Step8SafetyTests(unittest.TestCase):
 
     def test_missing_healthy_groundtruth_not_promoted(self):
         p=self.root/'data/ml-results/native/step6-network-validation/STEP6_REPORT.json'
-        data=json.loads(p.read_text())
+        data=json.loads(p.read_text(encoding="utf-8"))
         data['heldout']['models']['aws_only']['verified_healthy_rows']=2
-        p.write_text(json.dumps(data))
+        p.write_text(json.dumps(data), encoding="utf-8")
         with self.assertRaisesRegex(ValueError,'healthy holdout'):
             collect_evidence(self.root)
 
     def test_prospective_replay_not_accepted_as_verified(self):
         p=self.root/'data/ml-results/native/step6-network-validation/STEP6_REPORT.json'
-        data=json.loads(p.read_text())
+        data=json.loads(p.read_text(encoding="utf-8"))
         data['prospective']['safe_hold_verified']=False
-        p.write_text(json.dumps(data))
+        p.write_text(json.dumps(data), encoding="utf-8")
         with self.assertRaisesRegex(ValueError,'Prospective'):
             collect_evidence(self.root)
 
     def test_shadow_no_execution_gate(self):
         p=self.root/'data/ml-results/native/step7-shadow-handoff/STEP7_LOCAL_SMOKE.json'
-        data=json.loads(p.read_text());data['no_execution']=False
-        p.write_text(json.dumps(data))
+        data=json.loads(p.read_text(encoding="utf-8"));data['no_execution']=False
+        p.write_text(json.dumps(data), encoding="utf-8")
         with self.assertRaisesRegex(ValueError,'safety review'):
             collect_evidence(self.root)
 
@@ -114,17 +114,17 @@ class Step8SafetyTests(unittest.TestCase):
 
     def test_docker_source_patch_is_idempotent(self):
         p=self.root/'Dockerfile'
-        p.write_text('RUN '+OLD+'\n')
+        p.write_text('RUN '+OLD+'\n', encoding="utf-8")
         self.assertTrue(patch_docker(p))
         self.assertFalse(patch_docker(p))
-        self.assertIn(NEW,p.read_text())
+        self.assertIn(NEW,p.read_text(encoding="utf-8"))
 
     def test_unexpected_docker_source_not_clobbered(self):
         p=self.root/'Dockerfile'
-        p.write_text('RUN echo custom\n')
+        p.write_text('RUN echo custom\n', encoding="utf-8")
         with self.assertRaisesRegex(ValueError,'unexpected format'):
             patch_docker(p)
-        self.assertEqual(p.read_text(),'RUN echo custom\n')
+        self.assertEqual(p.read_text(encoding="utf-8"),'RUN echo custom\n')
 
     def test_docker_not_accessible_never_claims_pass(self):
         result=docker_container_test({'status':'LOCAL_DOCKER_IMAGE_NOT_CHECKED','image_id':None})

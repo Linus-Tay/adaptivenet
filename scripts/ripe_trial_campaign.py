@@ -61,7 +61,7 @@ def run(plan_path: Path, profile: str, account: str, out_dir: Path) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     done = set()
     if log.exists():
-        done = {json.loads(l)["slot"] for l in log.read_text().splitlines() if l.strip()}
+        done = {json.loads(l)["slot"] for l in log.read_text(encoding="utf-8").splitlines() if l.strip()}
     stop = Path(p["stop_file"])
     for s in p["slots"]:
         if s["slot"] in done:

@@ -134,7 +134,7 @@ def test_replay_keeps_values_and_original_times(tmp_path):
     snaps = [make_snapshot(fixture_events(t), t) for t in (now - 7200, now - 7170)]
     archive = tmp_path / "archive"
     archive.mkdir()
-    (archive / "feature_snapshots.jsonl").write_text("\n".join(json.dumps(s) for s in snaps))
+    (archive / "feature_snapshots.jsonl").write_text("\n".join(json.dumps(s) for s in snaps), encoding="utf-8")
     loaded = replay.load_snapshots(archive)
     slept = []
     clock = [now]

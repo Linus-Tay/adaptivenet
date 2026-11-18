@@ -100,7 +100,7 @@ def _process_cpu_pct() -> float | None:
     global _cpu_prev
     try:
         ticks = os.sysconf("SC_CLK_TCK")
-        fields = Path("/proc/self/stat").read_text().rsplit(")", 1)[1].split()
+        fields = Path("/proc/self/stat").read_text(encoding="utf-8").rsplit(")", 1)[1].split()
         used = (int(fields[11]) + int(fields[12])) / ticks
     except (OSError, ValueError, IndexError):
         times = os.times()
@@ -115,8 +115,8 @@ def _process_cpu_pct() -> float | None:
 def _memory() -> tuple[float | None, float | None]:
     """(available, total) bytes from cgroup v2 limit if set, else /proc/meminfo."""
     try:
-        limit = Path("/sys/fs/cgroup/memory.max").read_text().strip()
-        current = int(Path("/sys/fs/cgroup/memory.current").read_text())
+        limit = Path("/sys/fs/cgroup/memory.max").read_text(encoding="utf-8").strip()
+        current = int(Path("/sys/fs/cgroup/memory.current").read_text(encoding="utf-8"))
         if limit != "max":
             total = int(limit)
             return float(max(0, total - current)), float(total)
@@ -124,7 +124,7 @@ def _memory() -> tuple[float | None, float | None]:
         pass
     try:
         info = {}
-        for line in Path("/proc/meminfo").read_text().splitlines():
+        for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
             key, _, rest = line.partition(":")
             info[key] = int(rest.split()[0]) * 1024
         return float(info["MemAvailable"]), float(info["MemTotal"])

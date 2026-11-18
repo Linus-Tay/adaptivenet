@@ -74,20 +74,20 @@ def ts(value) -> float:
 class Inputs:
     def __init__(self, campaign: Path):
         self.dir = campaign
-        self.plan = json.loads((campaign / "campaign-plan.json").read_text())
-        log = [json.loads(l) for l in (campaign / "campaign-log.jsonl").read_text().splitlines() if l.strip()]
+        self.plan = json.loads((campaign / "campaign-plan.json").read_text(encoding="utf-8"))
+        log = [json.loads(l) for l in (campaign / "campaign-log.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
         self.slots = rv.campaign_slots(self.plan, log, campaign / "trials")
-        self.amp = {r: [json.loads(l) for l in (campaign / f"amp-{r}.jsonl").read_text().splitlines() if l.strip()]
+        self.amp = {r: [json.loads(l) for l in (campaign / f"amp-{r}.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
                     for r in REGIONS}
         self.msm = {}
         self.ripe_raw = {}
         for slot in self.plan["slots"]:
             self.msm.setdefault(slot["region"], slot["ripe_measurement_id"])
         for region, msm in self.msm.items():
-            records = json.loads((campaign / "ripe" / f"{msm}.json").read_text())
+            records = json.loads((campaign / "ripe" / f"{msm}.json").read_text(encoding="utf-8"))
             self.ripe_raw[region] = sorted(records, key=lambda r: r["timestamp"])
         self.witness = []
-        for line in (campaign / "witness.stdout").read_text().splitlines():
+        for line in (campaign / "witness.stdout").read_text(encoding="utf-8").splitlines():
             if '"http_witness"' in line:
                 try:
                     self.witness.append(json.loads(line))
@@ -340,7 +340,7 @@ def main(argv=None) -> int:
                   f"healthy gaps: {healthy['hours']} h, {len(healthy['actions'])} actions", flush=True)
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
-        args.out.write_text(json.dumps(report, indent=1, default=str))
+        args.out.write_text(json.dumps(report, indent=1, default=str), encoding="utf-8")
     return 0
 
 

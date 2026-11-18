@@ -11,7 +11,7 @@ import boto3
 from botocore.config import Config
 SESSION, REGION, ACCOUNT, ROLE = "adaptivenet", "ap-southeast-1", "468354413374", "AdaptiveNetSetupAdmin"
 path = os.path.expanduser("~/.aws/sso/cache/" + hashlib.sha1(SESSION.encode()).hexdigest() + ".json")
-tok = json.load(open(path))
+tok = json.load(open(path, encoding="utf-8"))
 cfg = Config(connect_timeout=5, read_timeout=20, retries={"max_attempts": 3})
 exp = dt.datetime.fromisoformat(tok["expiresAt"].replace("Z", "+00:00"))
 if exp - dt.datetime.now(dt.timezone.utc) < dt.timedelta(minutes=20):
@@ -22,7 +22,7 @@ if exp - dt.datetime.now(dt.timezone.utc) < dt.timedelta(minutes=20):
     tok["refreshToken"] = r.get("refreshToken", tok["refreshToken"])
     tok["expiresAt"] = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(seconds=r["expiresIn"])).strftime("%Y-%m-%dT%H:%M:%SZ")
     tmp = path + ".tmp"
-    with open(tmp, "w") as fh:
+    with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(tok, fh)
     os.chmod(tmp, 0o600)
     os.replace(tmp, path)

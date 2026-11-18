@@ -14,7 +14,7 @@ def main():
         for name in source.namelist():
             if name!="__main__.py":
                 target.writestr(name,source.read(name))
-        code=(ROOT/"scripts/eks_load_test.py").read_text()
+        code=(ROOT/"scripts/eks_load_test.py").read_text(encoding="utf-8")
         code=code.replace('str(Path(__file__).resolve().parent.parent / "services")',
                           'str(Path(__file__).resolve().parent / "services")')
         target.writestr("__main__.py",code)

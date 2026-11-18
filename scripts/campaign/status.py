@@ -5,10 +5,10 @@ SGT = d.timezone(d.timedelta(hours=8))
 def fmt(t): return t.astimezone(SGT).strftime('%a %I:%M %p SGT')
 while True:
     now = d.datetime.now(d.timezone.utc)
-    plan = json.loads((C / 'campaign-plan.json').read_text())
+    plan = json.loads((C / 'campaign-plan.json').read_text(encoding="utf-8"))
     log = {}
     if (C / 'campaign-log.jsonl').exists():
-        for l in (C / 'campaign-log.jsonl').read_text().splitlines():
+        for l in (C / 'campaign-log.jsonl').read_text(encoding="utf-8").splitlines():
             if l.strip():
                 r = json.loads(l); log[r['slot']] = r
     rows, done, failed, current, nxt = [], 0, 0, None, None
@@ -36,12 +36,12 @@ while True:
             f"Expected finish: {fmt(last_end)}\n"
             f"Runner process alive: {'yes' if alive else 'CHECK'}   (updated {fmt(now)})\n")
     table = '\n'.join(f"{a:>2}  {b:<9} {c:>2}%  {e_:<26} {f}" for a, b, c, e_, f in rows)
-    (C / 'STATUS.txt').write_text(head + '\n' + table + '\n')
+    (C / 'STATUS.txt').write_text(head + '\n' + table + '\n', encoding="utf-8")
     pct = int(100 * done / target)
     (C / 'status.html').write_text(f"""<!doctype html><meta charset=utf-8><meta http-equiv=refresh content=30>
 <title>RIPE trial campaign</title><body style="font-family:-apple-system,sans-serif;max-width:760px;margin:24px auto;padding:0 16px">
 <h2>RIPE trial campaign: {done}/{target} done</h2>
 <div style="background:#ddd;border-radius:6px;height:22px"><div style="background:#2f7d4f;width:{pct}%;height:22px;border-radius:6px"></div></div>
 <pre style="font-size:14px">{html.escape(head)}</pre><pre style="font-size:13px">{html.escape(table)}</pre>
-<p style="color:#666">Refreshes every 30 s. Each trial: 16 min of packet loss, then automatic rollback.</p></body>""")
+<p style="color:#666">Refreshes every 30 s. Each trial: 16 min of packet loss, then automatic rollback.</p></body>""", encoding="utf-8")
     time.sleep(30)

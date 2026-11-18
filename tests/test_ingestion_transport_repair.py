@@ -44,7 +44,7 @@ def test_aws_non_json_is_safe_error():
             query_amp(CFG,'app_up','adaptivenet-admin',NOW)
 
 def test_atlas_explicit_ca_bundle_is_passed_to_verified_ssl(tmp_path):
-    p=tmp_path/'ca.pem'; p.write_text('dummy')
+    p=tmp_path/'ca.pem'; p.write_text('dummy', encoding="utf-8")
     with patch.dict(os.environ,{'SSL_CERT_FILE':str(p)}), patch('adaptivenet.ingestion.sources.ssl.create_default_context',return_value='context') as mocked:
         assert atlas_tls_context()=='context'
         mocked.assert_called_once_with(cafile=str(p))

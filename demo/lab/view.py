@@ -92,5 +92,5 @@ def reset(x_lab_token: str | None = Header(default=None)):
     expected = os.environ.get("LAB_TOKEN", "")
     if not expected or not secrets.compare_digest(x_lab_token or "", expected):
         raise HTTPException(401, "Lab token required")
-    (data_dir() / "reset-request").write_text(str(time.time()))
+    (data_dir() / "reset-request").write_text(str(time.time()), encoding="utf-8")
     return {"status": "requested"}

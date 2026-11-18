@@ -12,15 +12,15 @@ spec.loader.exec_module(ripe)
 def test_store_new_ids_preserves_other_env_settings(tmp_path, monkeypatch):
     monkeypatch.setattr(ripe, 'ROOT', tmp_path)
     env = tmp_path / '.env'
-    env.write_text('LAB_TOKEN=keep-secret\nATLAS_MEASUREMENTS=region-a=100,region-b=200\nLOCAL_AUTO_MITIGATION=false\n')
+    env.write_text('LAB_TOKEN=keep-secret\nATLAS_MEASUREMENTS=region-a=100,region-b=200\nLOCAL_AUTO_MITIGATION=false\n', encoding="utf-8")
     ripe.save_ids(env, 301, 302)
-    content = env.read_text()
+    content = env.read_text(encoding="utf-8")
     assert content.count('ATLAS_MEASUREMENTS=') == 1
     assert 'ATLAS_MEASUREMENTS=region-a=301,region-b=302' in content
     assert 'LAB_TOKEN=keep-secret' in content
     assert 'LOCAL_AUTO_MITIGATION=false' in content
     backups = list((tmp_path/'data'/'config-backups').glob('*.bak'))
-    assert len(backups) == 1 and 'region-a=100' in backups[0].read_text()
+    assert len(backups) == 1 and 'region-a=100' in backups[0].read_text(encoding="utf-8")
 
 
 def test_repeated_save_does_not_create_another_backup(tmp_path, monkeypatch):

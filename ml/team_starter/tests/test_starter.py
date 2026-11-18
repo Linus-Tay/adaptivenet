@@ -88,11 +88,11 @@ class StarterContractTests(unittest.TestCase):
                         (snap["snapshot_id"], 10, json.dumps(snap)))
             con.commit(); con.close()
             witness = root / "probe.jsonl"
-            witness.write_text(json.dumps({"timestamp":"2026-01-01T00:00:00Z","scope":"region-a", "outcome":"ok"}) + "\n")
+            witness.write_text(json.dumps({"timestamp":"2026-01-01T00:00:00Z","scope":"region-a", "outcome":"ok"}) + "\n", encoding="utf-8")
             out = root / "output"
             self.assertEqual(archive(db, witness, out), (1, 1))
             self.assertEqual(archive(db, witness, out), (0, 0))
-            self.assertEqual(json.loads((out / "feature_snapshots.jsonl").read_text().strip()), snap)
+            self.assertEqual(json.loads((out / "feature_snapshots.jsonl").read_text(encoding="utf-8").strip()), snap)
             self.assertTrue(db.exists())
 
 

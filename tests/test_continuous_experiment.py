@@ -14,7 +14,7 @@ def test_witness_journal_is_bounded_and_never_saves_extra_fields(tmp_path):
     assert len(recent_probes(p))==2
     assert recent_probes(p)[0]['scope']=='cloudfront'
     assert recent_probes(p)[1]['http_status']==503
-    assert 'secret' not in p.read_text()
+    assert 'secret' not in p.read_text(encoding="utf-8")
     assert recent_probes(tmp_path/'missing')==[]
 
 def test_monitor_has_no_implicit_http_traffic_or_aws_fault():
@@ -88,7 +88,7 @@ def test_ssm_offline_safely_prevents_fault():
 
 def test_public_origin_dns_supports_virginia_compute_1(tmp_path):
     env = tmp_path / ".env"
-    env.write_text("CLOUDFRONT_DISTRIBUTION_ID=E1234567890ABC\n")
+    env.write_text("CLOUDFRONT_DISTRIBUTION_ID=E1234567890ABC\n", encoding="utf-8")
     domains = iter(["d2zsecrmlm6eiu.cloudfront.net",
                     "ec2-54-179-156-53.ap-southeast-1.compute.amazonaws.com",
                     "ec2-100-58-157-137.compute-1.amazonaws.com"])

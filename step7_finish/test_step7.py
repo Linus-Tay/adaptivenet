@@ -106,7 +106,7 @@ class Step7Security(unittest.TestCase):
             for group in finish_step7.GROUPS:
                 file=mod/(group+'.pkl');file.write_bytes(b'trusted-test-fixture')
                 models[group]={'model_id':group,'model_file':str(file),'model_sha256':hashlib.sha256(file.read_bytes()).hexdigest()}
-            f.write_text(json.dumps({'evaluation_status':'completed_with_explicit_heldout_healthy_limitation','models':models}))
+            f.write_text(json.dumps({'evaluation_status':'completed_with_explicit_heldout_healthy_limitation','models':models}), encoding="utf-8")
             self.assertEqual(len(finish_step7.audit_models(root)),3)
             (mod/'aws_only.pkl').write_bytes(b'MODIFIED')
             with self.assertRaisesRegex(ValueError,'hash changed'):
@@ -115,10 +115,10 @@ class Step7Security(unittest.TestCase):
     def test_copy_allowlist_excludes_secrets(self):
         with tempfile.TemporaryDirectory() as d:
             src=Path(d)/'src';src.mkdir()
-            (src/'worker.py').write_text('print(1)')
-            (src/'.env').write_text('private')
-            (src/'creds.json').write_text('private')
-            (src/'tests').mkdir();(src/'tests'/'test.py').write_text('pass')
+            (src/'worker.py').write_text('print(1)', encoding="utf-8")
+            (src/'.env').write_text('private', encoding="utf-8")
+            (src/'creds.json').write_text('private', encoding="utf-8")
+            (src/'tests').mkdir();(src/'tests'/'test.py').write_text('pass', encoding="utf-8")
             dst=Path(d)/'dst'
             self.assertEqual(finish_step7.safe_copy_py(src,dst),1)
             self.assertTrue((dst/'worker.py').exists())
@@ -137,11 +137,11 @@ class Step7Packaging(unittest.TestCase):
             step=root/'step7_finish';step.mkdir()
             # Tests only the allowlisted staging function with a minimal stub checkout.
             for name in ('service.py','Dockerfile','requirements-service.txt'):
-                (step/name).write_text('content')
-            sf=root/'step5_finish';sf.mkdir();(sf/'finalize_step5.py').write_text('content')
-            ml=root/'ml';ml.mkdir();(ml/'predictor.py').write_text('content')
-            sv=root/'services/adaptivenet/ingestion';sv.mkdir(parents=True);(sv/'handoff.py').write_text('content')
-            (root/'.env').write_text('SECRET')
+                (step/name).write_text('content', encoding="utf-8")
+            sf=root/'step5_finish';sf.mkdir();(sf/'finalize_step5.py').write_text('content', encoding="utf-8")
+            ml=root/'ml';ml.mkdir();(ml/'predictor.py').write_text('content', encoding="utf-8")
+            sv=root/'services/adaptivenet/ingestion';sv.mkdir(parents=True);(sv/'handoff.py').write_text('content', encoding="utf-8")
+            (root/'.env').write_text('SECRET', encoding="utf-8")
             (root/'data/private.db').parent.mkdir(parents=True,exist_ok=True)
             (root/'data/private.db').write_bytes(b'PRIVATE')
             models={}
@@ -150,7 +150,7 @@ class Step7Packaging(unittest.TestCase):
                 filename=f'{group}.pkl';(artifact/filename).write_bytes(group.encode())
                 models[group]={'filename':filename,'sha256':finish_step7.sha(artifact/filename),'model_id':group}
             step4=root/'data/ml-results/native/step4-network-evaluation';step4.mkdir(parents=True)
-            (step4/'step4-evaluation.json').write_text('{}')
+            (step4/'step4-evaluation.json').write_text('{}', encoding="utf-8")
             dest=root/'data/ml-results/native/step7-container-context'
             count=finish_step7.prepare_context(models,root,dest)
             self.assertEqual(count['ml_python_files'],1)

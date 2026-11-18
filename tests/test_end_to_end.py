@@ -146,7 +146,7 @@ def test_cli_decide_is_dry_run(tmp_path, capsys):
             "--hpa", f"region-a={_write(tmp_path, 'h.json', asdict(hpa()))}",
             "--out", str(tmp_path / "decision.json")]
     assert main(args) == 0
-    decision = json.loads((tmp_path / "decision.json").read_text())
+    decision = json.loads((tmp_path / "decision.json").read_text(encoding="utf-8"))
     assert decision["decision"] == "scale" and decision["executed"] is False
 
 

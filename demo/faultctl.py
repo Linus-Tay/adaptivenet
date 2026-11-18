@@ -47,7 +47,7 @@ def token() -> str:
     if not value:
         env_file = Path(__file__).with_name(".env.demo")
         if env_file.exists():
-            for line in env_file.read_text().splitlines():
+            for line in env_file.read_text(encoding="utf-8").splitlines():
                 if line.startswith("LAB_TOKEN="):
                     value = line.split("=", 1)[1].strip()
     if not value:

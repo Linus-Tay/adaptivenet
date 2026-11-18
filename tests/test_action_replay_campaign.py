@@ -33,26 +33,26 @@ def write_campaign(tmp: Path, *, fault: bool) -> Path:
          "loss_percent": 35, "ripe_measurement_id": MSM["region-a"]},
         {"slot": 1, "region": "region-b", "control_region": "region-a", "duration_seconds": 960,
          "loss_percent": 35, "ripe_measurement_id": MSM["region-b"]}]}
-    (tmp / "campaign-plan.json").write_text(json.dumps(plan))
+    (tmp / "campaign-plan.json").write_text(json.dumps(plan), encoding="utf-8")
     record = {"requested_utc": iso(T0), "region": "region-a", "configured_packet_loss_percent": 35,
               "duration_seconds": 960, "remote_rollback_armed_and_rules_added": True}
-    (tmp / "trials" / "trial-0.json").write_text(json.dumps(record))
+    (tmp / "trials" / "trial-0.json").write_text(json.dumps(record), encoding="utf-8")
     (tmp / "campaign-log.jsonl").write_text(
         json.dumps({"slot": 0, "status": "submitted", "trial_record": "trial-0.json"}) + "\n"
-        + json.dumps({"slot": 1, "status": "skipped"}) + "\n")
+        + json.dumps({"slot": 1, "status": "skipped"}) + "\n", encoding="utf-8")
     for region in ("region-a", "region-b"):
         rows = [{"ts": t, "region": region, "app_up": 1.0, "http_rps": 1.0, "http_5xx_rps": 0.0,
                  "http_p95_ms": 5.0, "memory_available_bytes": 5e8, "memory_total_bytes": 1e9,
                  "cpu_busy_pct": 2.0, "node_load1": 0.01, "http_error_ratio": 0.0}
                 for t in range(int(T0 - 7 * 3600), int(T0 + 1000), 30)]
-        (tmp / f"amp-{region}.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+        (tmp / f"amp-{region}.jsonl").write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
         results = []
         for t in range(int(T0 - 7 * 3600), int(T0 + 1000), 240):
             for probe in (11, 12, 13, 14):
                 rcvd = 1 if in_fault(region, t) else 3
                 results.append({"prb_id": probe, "timestamp": t + probe, "msm_id": MSM[region], "sent": 3,
                                 "rcvd": rcvd, "avg": 40.0, "result": [{"rtt": 40.0}] * rcvd})
-        (tmp / "ripe" / f"{MSM[region]}.json").write_text(json.dumps(results))
+        (tmp / "ripe" / f"{MSM[region]}.json").write_text(json.dumps(results), encoding="utf-8")
     lines = []
     for t in range(int(T0 - 3600), int(T0 + 1000), 15):
         for scope in ("cloudfront", "region-a", "region-b"):
@@ -61,7 +61,7 @@ def write_campaign(tmp: Path, *, fault: bool) -> Path:
                                      "http_status": None if down else 200, "latency_ms": None if down else 60.0,
                                      "origin": None if down else ("region-a" if scope == "cloudfront" else scope),
                                      "outcome": "timeout" if down else "ok"}))
-    (tmp / "witness.stdout").write_text("schedule header line\n" + "\n".join(lines) + "\n")
+    (tmp / "witness.stdout").write_text("schedule header line\n" + "\n".join(lines) + "\n", encoding="utf-8")
     return tmp
 
 
@@ -90,11 +90,11 @@ def test_healthy_campaign_never_acts(tmp_path):
 
 def test_unconfirmed_slots_are_excluded(tmp_path):
     campaign = write_campaign(tmp_path, fault=True)
-    record = json.loads((campaign / "trials" / "trial-0.json").read_text())
+    record = json.loads((campaign / "trials" / "trial-0.json").read_text(encoding="utf-8"))
     record["remote_rollback_armed_and_rules_added"] = False
-    (campaign / "trials" / "trial-0.json").write_text(json.dumps(record))
+    (campaign / "trials" / "trial-0.json").write_text(json.dumps(record), encoding="utf-8")
     out = tmp_path / "report.json"
     assert replay.main(["--campaign-dir", str(campaign), "--out", str(out)]) == 0
-    report = json.loads(out.read_text())
+    report = json.loads(out.read_text(encoding="utf-8"))
     assert report["excluded_unconfirmed_slots"] == [0]
     assert report["runs"]["campaign"]["summary"]["trials"] == 0

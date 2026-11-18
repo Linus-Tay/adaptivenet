@@ -85,7 +85,7 @@ def test_global_cloudfront_only_source_and_region_policy():
 
 
 def test_env_precedence(tmp_path,monkeypatch):
-    env=tmp_path/'.env';env.write_text('CLOUDFRONT_DISTRIBUTION_ID='+CF+'\n')
+    env=tmp_path/'.env';env.write_text('CLOUDFRONT_DISTRIBUTION_ID='+CF+'\n', encoding="utf-8")
     monkeypatch.delenv('CLOUDFRONT_DISTRIBUTION_ID',raising=False)
     assert distribution_id(str(env))==CF
     monkeypatch.setenv('CLOUDFRONT_DISTRIBUTION_ID','EABCDEF1234567')
@@ -123,12 +123,12 @@ def test_configure_cloudfront_preserves_other_env_settings(tmp_path):
     sys.path.insert(0,str(ROOT/'scripts'))
     from cloudfront_configure import save_distribution
     env=tmp_path/'.env'
-    env.write_text('ATLAS_MEASUREMENTS=region-a=12,region-b=13\nLAB_TOKEN=safe\n')
+    env.write_text('ATLAS_MEASUREMENTS=region-a=12,region-b=13\nLAB_TOKEN=safe\n', encoding="utf-8")
     backups=tmp_path/'backups'
     assert save_distribution(env,CF,backups) is True
     assert save_distribution(env,CF,backups) is False
-    assert 'ATLAS_MEASUREMENTS=region-a=12,region-b=13' in env.read_text()
-    assert 'CLOUDFRONT_DISTRIBUTION_ID='+CF in env.read_text()
+    assert 'ATLAS_MEASUREMENTS=region-a=12,region-b=13' in env.read_text(encoding="utf-8")
+    assert 'CLOUDFRONT_DISTRIBUTION_ID='+CF in env.read_text(encoding="utf-8")
     assert len(list(backups.iterdir()))==1
     with pytest.raises(ValueError):save_distribution(env,'bad;injected',backups)
 

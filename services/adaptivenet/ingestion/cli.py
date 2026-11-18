@@ -69,7 +69,7 @@ def main(argv=None):
         snap = store.latest_snapshot()
         if snap is None:
             parser.error("no persisted snapshot; run once first")
-        proposal = json.loads(Path(args.proposal).read_text())
+        proposal = json.loads(Path(args.proposal).read_text(encoding="utf-8"))
         print(json.dumps(review_proposal(snap,proposal,current_region_a_percent=args.current_a_percent), indent=2)); return 0
     if args.command == "export":
         snapshots = list(reversed(store.recent_snapshots(args.limit)))

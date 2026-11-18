@@ -58,7 +58,7 @@ def main() -> int:
     procs = []
     try:
         for i, (cmd, extra) in enumerate(specs):
-            out = (logs / f"{i}.log").open("w")
+            out = (logs / f"{i}.log").open("w", encoding="utf-8")
             procs.append(subprocess.Popen(cmd, cwd=root, env={**env, **extra}, stdout=out, stderr=out))
             if i == 3:
                 time.sleep(2)  # servers up before clients
@@ -95,7 +95,7 @@ def main() -> int:
             state = client.get(url["gw"] + "/admin/state", headers={"X-Lab-Token": token}).json()
             weight = state["region_a_percent"]
             time.sleep(2)
-        decisions = [json.loads(l) for l in (data / "decisions.jsonl").read_text().splitlines()]
+        decisions = [json.loads(l) for l in (data / "decisions.jsonl").read_text(encoding="utf-8").splitlines()]
         failovers = [d for d in decisions if d.get("decision") == "failover"]
         print(f"decisions: {len(decisions)}, failover decisions: {len(failovers)}, gateway region-a weight: {weight}%")
         if weight == 100:
@@ -106,7 +106,7 @@ def main() -> int:
         end = time.time() + 60
         while time.time() < end and verify is None:
             time.sleep(3)
-            for line in (data / "decisions.jsonl").read_text().splitlines():
+            for line in (data / "decisions.jsonl").read_text(encoding="utf-8").splitlines():
                 record = json.loads(line).get("executed_locally") or {}
                 if "verify" in record:
                     verify = record["verify"]

@@ -1,0 +1,9 @@
+# Keep Unix line endings for files that run in bash or inside Linux containers, even on Windows clones.
+*.sh text eol=lf
+Dockerfile* text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.ps1 text eol=crlf
+*.pdf binary
+*.png binary
+*.pkl binary

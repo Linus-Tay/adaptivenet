@@ -813,7 +813,7 @@ def main(argv=None) -> int:
     wit = witness_times(L / "http_witness.jsonl")
     rows = live_rows(amp, load_index(_ripe_spec(L)), exclusions, witness=wit)
     if a.command == "snapshot":
-        status = (L / "aws_status.txt").read_text().strip() if (L / "aws_status.txt").is_file() else "unknown"
+        status = (L / "aws_status.txt").read_text(encoding="utf-8").strip() if (L / "aws_status.txt").is_file() else "unknown"
         aws_last = max((r["ts"] for v in amp.values() for r in v), default=None)
         ripe_last = max((r["ts"] for r in rows), default=None)
         rep = snapshot(camp, rows, amp, {"live_start_utc": meta["start_utc"], "aws_status": status,
