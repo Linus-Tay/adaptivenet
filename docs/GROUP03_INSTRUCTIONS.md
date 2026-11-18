@@ -77,9 +77,9 @@ docker compose version
 > powershell -ExecutionPolicy Bypass -File demo\run.ps1 lab-up
 > ```
 >
-> Use `demo\run.ps1 lab-reset`, `lab-down`, `lab-logs` or `status` in place of `demo/run.sh`. Inject faults with the page buttons, or with `python -m demo.faultctl lab-latency|lab-errors|lab-loss ...` (B6) once `$env:PYTHONPATH` is set as above. Leave out the `PYTHONPATH=services:.` prefix shown in the commands. A2 runs as `python -m demo.smoke_local` and A3 as `python scripts/smoke.py`. In Part C set the variables with `$env:CAMP = "evidence/ripe-campaign-20261112"` and `$env:LIVE = "evidence/live-shadow-20261114"`, and write `$env:CAMP` where the guide writes `$CAMP`.
+> On plain Windows the test line should end with `495 passed, 1 skipped` (one test checks bash syntax and is skipped when bash is not installed). Use `demo\run.ps1 lab-reset`, `lab-down`, `lab-logs` or `status` in place of `demo/run.sh`. Inject faults with the page buttons, or with `python -m demo.faultctl lab-latency|lab-errors|lab-loss ...` (B6) once `$env:PYTHONPATH` is set as above. Leave out the `PYTHONPATH=services:.` prefix shown in the commands. A2 runs as `python -m demo.smoke_local` and A3 as `python scripts/smoke.py`. In Part C set the variables with `$env:CAMP = "evidence/ripe-campaign-20261112"` and `$env:LIVE = "evidence/live-shadow-20261114"`, and write `$env:CAMP` where the guide writes `$CAMP`.
 >
-> *We have not tested either option on Windows*; we tested on Linux and macOS. If Option B fails, please use Option A.
+> *Windows is less tested than Linux and macOS.* A first PowerShell run of Option B found three problems (text encoding, a bash-only test and line endings), which are fixed in `main`; we have not yet confirmed a full run after the fix. Option A has not been tested. If Option B fails, please use Option A.
 
 ---
 
@@ -459,4 +459,5 @@ Several values are tied to our account and must be changed: the AMP workspace ID
 
 - **Parts A and C** (18 Nov 2026): on a clean Linux machine (Python 3.13) with a fresh copy of the final code (commit `f8eb946`, the same code as `main` at `1b3aa64`) and the saved data in `evidence/`: 496 passed, 0 failed; both smoke tests printed `PASS`; C1 printed 0/20 against 13/20 and p = 0.000244; C3's output was identical to the amendment 10 section of `docs/ml/live/WEDNESDAY_RESULTS.md`. On the earlier commit `2170d47` (the analysis code has not changed since) C2's output was byte-for-byte identical to `docs/ml/action-replay-campaign.json` (167 s), and C4 (158 s) reproduced every row of the official report and made no git commit.
 - **Part B** (18 Nov 2026, current 11-container demo): a fresh ZIP of the final code installed, passed all tests and started with `lab-up`. Latency: detected in 15 s, 100→75% at 76 s. HTTP 503: detected in 5 s, 100→75% at 101 s. 80% packet loss: detected in 5 s, 100→75% at 66 s, 75→50% at 106 s. At 50% loss the fault was detected but traffic did not move. The longer sequence in B3 (second step, failback) is from our 13 Nov runs of the earlier 13-container version on a clean Linux machine.
-- **Not tested by us:** Windows (WSL 2), and a rebuild of Part D in a fresh AWS account.
+- **Windows:** a first PowerShell run (Option B) found three problems, now fixed; a full run after the fix is not yet confirmed. WSL 2 (Option A) is untested.
+- **Not tested by us:** a rebuild of Part D in a fresh AWS account.
