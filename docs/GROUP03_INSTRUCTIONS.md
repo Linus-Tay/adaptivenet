@@ -10,7 +10,7 @@ AdaptiveNet watches a web service in two AWS regions, Singapore and Virginia. It
 
 | Part | What you do | Time | What it shows |
 |---|---|---|---|
-| **A. Tests** | run 500 automated tests and a smoke test | 5 min | each component behaves as designed, including the failure cases |
+| **A. Tests** | run 502 automated tests and a smoke test | 5 min | each component behaves as designed, including the failure cases |
 | **B. Docker demo** | start the demo in Docker and inject three faults from a web page | 20 min | a fault that AWS-only monitoring misses is caught from outside, traffic moves away in safe steps and comes back |
 | **C. Our analysis** | rerun three analyses on the data we recorded on the real AWS system | 5 min | the article's main numbers come from the saved data and the committed code |
 
@@ -100,7 +100,7 @@ python run.py test
 **Expected** (1 to 2 minutes). The test run ends with
 
 ```
-500 passed, 1 warning, 4 subtests passed
+502 passed, 1 warning, 4 subtests passed
 ```
 
 (the warning is a library deprecation notice; **no test should fail**). Then the smoke test, which runs every demo service as a local process without Docker, ends with
