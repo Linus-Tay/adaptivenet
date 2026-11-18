@@ -158,11 +158,11 @@ On the control room, press **Reset demo**, wait 30 s, leave **Singapore** and **
 
 ### Test 2: HTTP errors
 
-**Reset demo**, wait 30 s, press **Inject HTTP 503**. **Expected:** within about 5 s both outside views show **Network degradation** while **AWS only** stays **Healthy**; traffic moves to **75 · 25** (about 100 s in our run), and back to 100% after the fault ends.
+**Reset demo**, wait 30 s, press **Inject HTTP 503**. **Expected:** within about 5 s both outside views show **Network degradation** while **AWS only** stays **Healthy**; traffic moves to **75 · 25** (about 100 to 120 s in our runs), and back to 100% after the fault ends.
 
 ### Test 3: packet loss
 
-**Reset demo**, wait 30 s, press **Inject 80% packet loss**. **Expected:** both outside views flag Singapore within about 5 s, **AWS only** stays **Healthy**, traffic goes to **75 · 25** (about 66 s) and **50 · 50** (about 106 s), then back to 100%. This is the same kind of fault as our real campaign.
+**Reset demo**, wait 30 s, press **Inject 80% packet loss**. **Expected:** both outside views flag Singapore within about 5 s, **AWS only** stays **Healthy**, in most runs traffic goes to **75 · 25** (about 40 to 66 s) and then **50 · 50** (about 80 to 106 s), then back to 100%. Occasionally the partial loss is detected but the safety chain holds and traffic does not move (1 of 5 runs on 18 November); this is the safety chain being cautious, not a fault. This is the same kind of fault as our real campaign.
 
 ### Faults from the command line, reset and stop
 
@@ -230,7 +230,7 @@ python scripts/action_replay_campaign.py --campaign-dir $CAMP --http-deadline-ms
 python -m ml.team_starter.amendment10 $CAMP $LIVE
 ```
 
-**Expected** (about 30 seconds): a table headed `Amendment 10 (POST-HOC, ...)`, identical to the end of `docs/ml/live/WEDNESDAY_RESULTS.md`. For example `frozen loss_only rule (comparator) | 5.12 (2.8-8.59), 14 onsets, 65.667 h | 2.64 (1.06-5.45), 7 onsets, 63.542 h`, and the last line `AWS-only view of the frozen rule on the Tuesday trials: 0/10 trials detected, controls alarmed 0/10.`
+**Expected** (about 30 seconds): a table headed `Amendment 10 (POST-HOC, ...)`, identical to the end of `docs/ml/live/WEDNESDAY_RESULTS.md`. For example `frozen loss_only rule (comparator) | 5.12 (2.8-8.59), 14 onsets, 65.667 h | 2.64 (1.06-5.45), 7 onsets, 63.542 h`, and the last line `**AWS-only view of the frozen rule on the Tuesday trials:** 0/10 trials detected, controls alarmed 0/10.`
 
 **What this shows:** each model and its pass mark were frozen before 10 new faults and 65.7 hours of held-out healthy time. **No ML model passed**, which is why ML stays in shadow mode and never moves traffic. The simple loss rule again beat AWS-only on the new faults (8 of 10 against 0 of 10). A counting error found afterwards is corrected openly, with both counts shown.
 
