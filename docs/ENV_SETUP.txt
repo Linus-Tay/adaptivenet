@@ -71,6 +71,13 @@ To create or stop measurements you need your own key:
   2. Create a key with permission to create measurements.
   3. Add it to .env yourself:  ATLAS_API_KEY=<your key>
   Never paste the key into chat, a commit or a document.
+  To stop measurements early (scripts/ripe_stop_measurements.py --execute) the key also
+  needs the "stop measurements" permission; without it, stop them on atlas.ripe.net
+  (My Atlas > Measurements > Stop). Measurements made by ripe_campaign_measurements.py
+  stop on their own after --hours.
+
+On the group Mac the whole live pipeline starts with:
+    AWS_PROFILE_NAME=adaptivenet-ml FORCE_IPV4=1 scripts/live/start_live.sh
 
 
 4. Optional demo settings (set in your shell before demo/run.sh, not in .env)
