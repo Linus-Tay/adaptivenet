@@ -6,7 +6,7 @@ subtitle: "CSC3104 Group 03 · GROUP03_INSTRUCTIONS · version 2"
 # AdaptiveNet: how to test our system
 
 **Course:** CSC3104, Group 03\
-**Repository:** https://github.com/Linus-Tay/adaptivenet, branch `v2`\
+**Repository:** https://github.com/Linus-Tay/adaptivenet, branch `v2` (download as a ZIP: https://github.com/Linus-Tay/adaptivenet/archive/refs/heads/v2.zip)\
 **Time needed:** about 30 minutes for Parts A and B (most of it is the first Docker build), and about 10 more minutes for Part C
 
 ## What AdaptiveNet does
@@ -21,8 +21,8 @@ The tests are in four parts. **Parts A, B and C need no AWS account, no RIPE Atl
 
 | Part | What you do | Time | What it shows |
 |---|---|---|---|
-| **A. Automated tests** | run 493 unit and integration tests and two smoke tests | 5 min | the collector, queue, feature snapshots, safety reviewer, confidence rules, safety controller and ML code behave as designed |
-| **B. Docker demo** | start 13 containers and inject faults from a web page | 15–20 min | the whole loop working: a fault that AWS-only monitoring misses is detected by the external views, traffic is moved in bounded steps, and moved back when the region recovers |
+| **A. Automated tests** | run 496 unit and integration tests and two smoke tests | 5 min | the collector, queue, feature snapshots, safety reviewer, confidence rules, safety controller and ML code behave as designed |
+| **B. Docker demo** | start 11 containers and inject three kinds of fault from a web page | 15–20 min | the whole loop working: a fault that AWS-only monitoring misses is detected by the external views, traffic is moved in bounded steps, and moved back when the region recovers |
 | **C. Rerun our analysis** | rerun three analyses on the data we recorded on the real system | 5–10 min | the main numbers in our article come from the saved data and the committed code, not from hand editing |
 | **D. Real AWS and RIPE (optional)** | rebuild the cloud system in your own AWS account | hours, costs money | the real deployment. **We have not tested a rebuild in a fresh account**, so we describe it and offer a live demonstration instead |
 
@@ -60,14 +60,13 @@ docker compose version
 ## 2. Get the code and install the Python packages
 
 ```bash
-git clone https://github.com/Linus-Tay/adaptivenet.git
+git clone -b v2 https://github.com/Linus-Tay/adaptivenet.git
 cd adaptivenet
-git checkout v2
 ```
 
-**Expected:** `git checkout` prints `Switched to a new branch 'v2'` (or `Already on 'v2'`). `ls` shows folders such as `demo`, `services`, `ml`, `infra`, `tests` and the file `README.md`.
+**Expected:** `git branch` shows `* v2`. `ls` shows folders such as `demo`, `services`, `ml`, `infra`, `tests` and the file `README.md`.
 
-> `main` holds the frozen copy of the system we presented in class. `v2` holds the same system plus the 14–18 November live run, the analysis behind our final results, and the cleaned-up code. Please test `v2`.
+> `main` holds the frozen copy of the system we presented in class. `v2` holds the same system plus the 14–18 November live run, the analysis behind our final results, and the cleaned-up code. Please test `v2`. If you download the ZIP instead of using Git, unzip it and `cd` into the folder `adaptivenet-v2`.
 
 Create a virtual environment and install the packages:
 
@@ -93,7 +92,7 @@ PYTHONPATH=services:. python -m pytest -q tests demo/tests ml/team_starter/tests
 **Expected:** after about 10 seconds the last line is
 
 ```
-493 passed, 1 warning, 4 subtests passed in 6.62s
+496 passed, 1 warning, 4 subtests passed in 13.36s
 ```
 
 The time will differ. The one warning is a library deprecation notice. **No test should fail.** None of these tests call AWS or the internet; AWS, RIPE and Kubernetes responses are replaced by fixtures.
@@ -117,7 +116,7 @@ PYTHONPATH=services:. python -m demo.smoke_local
 
 ```
 baseline healthy: {'aws_only': 'healthy', 'aws_ripe': 'healthy', 'aws_ripe_http': 'healthy'}
-injected 700 ms path latency on region-a (external path only)
+injected 700 ms latency on the gateway path to region-a (the origin itself is untouched)
 during fault: {'aws_only': 'healthy', 'aws_ripe': 'network_degradation', 'aws_ripe_http': 'network_degradation'}
 decisions: 12, failover decisions: 7, gateway region-a weight: 75%
 ...
@@ -135,7 +134,7 @@ python scripts/smoke.py
 **Expected:** some server log lines, then
 
 ```
-PASS: auth, baseline, fault, healthy control plane, B routing, expiry, bounds, latency, cleanup
+PASS: auth, baseline, fault, healthy control plane, B routing, expiry, bounds, latency, loss, cleanup
 ```
 
 **What this shows:** the lab control plane rejects unauthenticated requests, keeps traffic changes within bounds, and expires faults on time.
@@ -144,7 +143,7 @@ PASS: auth, baseline, fault, healthy control plane, B routing, expiry, bounds, l
 
 ## 4. Part B: the Docker demo
 
-The demo runs the full loop in 13 local containers:
+The demo runs the full loop in 11 local containers:
 
 ```
 local probes (stand-ins for AWS metrics, RIPE Atlas and the HTTP witness)
@@ -154,15 +153,28 @@ local probes (stand-ins for AWS metrics, RIPE Atlas and the HTTP witness)
   -> safety controller moves traffic on the LOCAL gateway only
 ```
 
-It makes no AWS calls and uses no credentials. The values are real measurements of local containers, labelled as lab data. The detector in the demo is a set of transparent threshold rules (`demo/lab/detectors.py`). The trained ML models run only in shadow mode and never drive the controller; Part C explains why.
+It makes no AWS calls and uses no credentials. The values are real measurements of local containers, labelled as lab data.
+
+| Container | Role |
+|---|---|
+| `demo-a`, `demo-b` | the Singapore and Virginia origins, kept separate so each is its own failure domain |
+| `gateway` | stands in for CloudFront: network faults are applied on it, and its traffic split is the only thing the controller changes |
+| `control-api` | the lab API behind the dashboard's fault buttons and manual routes (port 8000) |
+| `lab-collector`, `lab-feature-worker` | mirror the real collector and feature worker, with a file queue in place of SQS |
+| `lab-ml` | the detector, which only suggests; it also serves the decision state for the dashboard |
+| `lab-controller` | acts only after the confidence rules, the safety reviewer and its own probes agree |
+| `lab-users` | steady user traffic, so there is something to measure and move |
+| `dashboard`, `demo-web` | the demo page (:3000) and the shop site (:3001) |
+
+Decisions in the demo come from transparent threshold rules (`demo/lab/detectors.py`). The trained ML models run only in shadow mode and never drive the controller; Part C explains why.
 
 ### B1. Start the demo
 
-Start Docker and check that ports 3000, 3001, 8000, 8001, 8080, 8101, 8102, 8190 and 8192 are free (for example, a local LM Studio server often uses 8080).
+Start Docker and check that ports 3000, 3001, 8000, 8080, 8101, 8102 and 8192 are free (for example, a local LM Studio server often uses 8080).
 
 > **Linux only:** the containers run as a non-root user (uid 10001) and write to `data/`. Run this once first, or some containers restart in a loop with "Permission denied":
 > ```bash
-> mkdir -p data/lab-live data/demo-live data/demo-replay data/demo-models && chmod -R a+rwX data
+> mkdir -p data/lab-live data/demo-replay data/demo-models && chmod -R a+rwX data
 > ```
 
 ```bash
@@ -172,15 +184,15 @@ demo/run.sh lab-up
 **Expected:** the first run builds the images, which takes several minutes. It ends with
 
 ```
-Group lab: dashboard http://127.0.0.1:3000  site http://127.0.0.1:3001
-Detector + safety decisions: http://127.0.0.1:8190
+Demo dashboard: http://127.0.0.1:3000   shop site: http://127.0.0.1:3001
+Debug view of the decision pipeline: http://127.0.0.1:8192
 ```
 
 ```bash
 docker ps --format '{{.Names}}  {{.Status}}'
 ```
 
-**Expected:** 13 containers whose names start with `adaptivenet-lab-` (for example `adaptivenet-lab-dashboard-1`, `adaptivenet-lab-gateway-1`, `adaptivenet-lab-lab-controller-1`), all `Up`, none `Restarting`.
+**Expected:** 11 containers whose names start with `adaptivenet-lab-` (for example `adaptivenet-lab-dashboard-1`, `adaptivenet-lab-gateway-1`, `adaptivenet-lab-lab-controller-1`), all `Up`, none `Restarting`.
 
 ### B2. Open the pages
 
@@ -188,9 +200,10 @@ Wait about 30 seconds, then open:
 
 | Address | What you should see |
 |---|---|
-| http://127.0.0.1:3000 | **Main demo page.** Title "Can AWS-only monitoring see this failure?", a "Where customers are sent" bar at **100% Singapore · 0% Virginia**, fault buttons, and three cards (AWS only, AWS + RIPE Atlas, AWS + RIPE + HTTP), all **Healthy** |
-| http://127.0.0.1:3001 | the demo web site (a product catalogue served through the gateway) |
-| http://127.0.0.1:8190 | the raw decision-service view, for debugging |
+| http://127.0.0.1:3000 | **Main demo page.** Title "Can AWS-only monitoring see this failure?", a "Where customers are sent" bar at **100% Singapore · 0% Virginia**, three fault buttons (**Inject +1.5 s latency**, **Inject HTTP 503**, **Inject 80% packet loss**), three cards (AWS only, AWS + RIPE Atlas, AWS + RIPE + HTTP), all **Healthy**, and a **Shadow ML, side by side (never acts)** panel |
+| http://127.0.0.1:3001 | the shop site (a product catalogue served through the gateway) |
+| http://127.0.0.1:8192 | a debug view of the raw decision state that the dashboard reads |
+| http://127.0.0.1:8000/experiments | the lab API's experiment view |
 
 The "What AdaptiveNet is doing about it" row should read: Data in "a few s old", Detector sees **Healthy**, Detector suggests **Do nothing**, Safety review **No action**, Controller **Idle**.
 
@@ -204,23 +217,23 @@ On http://127.0.0.1:3000:
 
 This adds 1.5 seconds of delay on the network path to Singapore. The servers stay healthy, which is the kind of "gray failure" that monitoring inside AWS misses.
 
-**Expected sequence** (times from our runs on 13 Nov 2026; yours may differ by some seconds):
+**Expected sequence** (the detection and first-move times are from our run on 18 Nov 2026, the rest from 13 Nov; yours may differ by some seconds):
 
 | Time after pressing | What the page shows |
 |---|---|
 | 0 s | a red **FAULT ACTIVE** badge: "Singapore · +1500 ms latency" |
-| about 10–15 s | the **AWS + RIPE + HTTP** card shows **Network degradation**, with "Detected *N* s after the fault started" |
+| about 15 s | the **AWS + RIPE + HTTP** card shows **Network degradation**, with "Detected *N* s after the fault started" |
 | about 20 s | the **AWS + RIPE Atlas** card also shows **Network degradation** |
 | the whole time | **AWS only** stays **Healthy** ("Not detected during this fault"), and a yellow banner says "AWS-only says healthy, but the external signals see a problem." |
 | about 20–60 s | Detector suggests **Move 25% of traffic**, Safety review **Approved: move traffic**, Controller **Confirming** (it needs 2 of 3 signals to agree for 3 windows, then 3 fresh checks of its own) |
-| about 1 minute | the traffic bar moves to **75% Singapore · 25% Virginia** |
+| about 75 s | the traffic bar moves to **75% Singapore · 25% Virginia** (76 s in our run) |
 | about 2 minutes | if the fault is still active, a further step to **50% · 50%** |
 | after the fault ends | the cards return to **Healthy**; Controller shows "Waiting: Singapore must stay healthy" |
-| about 2–3 minutes after the fault ends | traffic steps back to **75%**, then **100% Singapore** (failback); Controller returns to **Idle** |
+| about 2 minutes after the fault ends | traffic steps back to **75%**, then **100% Singapore** (failback); Controller returns to **Idle** |
 
-![Main demo page during Test 1, about 50 s after the latency fault was injected: AWS only is Healthy, both external views show Network degradation, and the safety review has approved moving traffic.](demo_fault_screenshot.png)
+![Main demo page during Test 1 (13 Nov version of the page; the current page also has the packet-loss button and the Shadow ML panel), about 50 s after the latency fault was injected: AWS only is Healthy, both external views show Network degradation, and the safety review has approved moving traffic.](demo_fault_screenshot.png)
 
-The full cycle took about 5 minutes in our runs. The "What happened, step by step" log on the right records each decision with a time stamp.
+The "What happened, step by step" log on the right records each decision with a time stamp.
 
 **What this shows:** with the same data, the view that uses only AWS-internal metrics cannot see a network-path fault, while the views that add outside measurements detect it. The system then moves traffic in bounded 25-point steps, only after the confidence rules, the safety reviewer and its own fresh checks agree, and moves it back once the region stays healthy.
 
@@ -229,21 +242,34 @@ The full cycle took about 5 minutes in our runs. The "What happened, step by ste
 1. Press **Reset demo** and wait about 30 seconds.
 2. Press **Inject HTTP 503** (Singapore, 120 s).
 
-**Expected:** within about a minute, **AWS + RIPE Atlas** and **AWS + RIPE + HTTP** show **Network degradation** for Singapore while **AWS only** stays **Healthy**. (In this lab the 503 errors are injected on the gateway path that outside users take, so the servers' own metrics stay clean.) Safety review shows **Approved: move traffic**. The traffic bar moves to **75% · 25%** after about 40–45 s, to **50% · 50%** after about 75–85 s and, if the fault is still active, to **25% · 75%** at about 115 s. After the fault ends, traffic returns to **100% Singapore** in 25-point steps (about 3 minutes after the fault ended in our run).
+**Expected:** within about 5 seconds, **AWS + RIPE Atlas** and **AWS + RIPE + HTTP** show **Network degradation** for Singapore while **AWS only** stays **Healthy**. (In this lab the 503 errors are injected on the gateway path that outside users take, so the servers' own metrics stay clean.) Safety review shows **Approved: move traffic**, and the traffic bar moves to **75% · 25%** (101 s after the fault started in our 18 Nov run). If the fault is still active, further 25-point steps follow. After the fault ends, traffic returns to **100% Singapore** in 25-point steps.
 
-**What this shows:** a second fault type, a larger move when the fault persists, and that the controller never moves more than 25 points in one step.
+**What this shows:** a second fault type, detected only from outside, handled by the same safety chain.
 
-### B5. The same faults from the command line (optional)
+### B5. Test 3: packet loss
+
+1. Press **Reset demo** and wait about 30 seconds.
+2. Press **Inject 80% packet loss** (Singapore, 120 s).
+
+This drops 80% of requests on the gateway path to Singapore.
+
+**Expected** (our run on 18 Nov 2026): both external views show **Network degradation** within about 5 s, **AWS only** stays **Healthy**, the traffic bar moves to **75% · 25%** at about 66 s and to **50% · 50%** at about 106 s, and traffic returns to **100% Singapore** after the fault ends.
+
+**What this shows:** the same kind of fault as our real campaign (packet loss), which AWS metrics cannot see. A further check: with `--pct 50` (B6) the fault is detected but traffic does not move: the safety chain holds rather than move traffic on weaker evidence.
+
+### B6. The same faults from the command line (optional)
 
 ```bash
 set -a; source demo/.env.demo; set +a
 PYTHONPATH=services:. python -m demo.faultctl lab-latency --region sg --ms 1500 --duration 120
 PYTHONPATH=services:. python -m demo.faultctl lab-errors --region sg --rate 1.0
+PYTHONPATH=services:. python -m demo.faultctl lab-loss --region sg --pct 80
+demo/run.sh status
 ```
 
-**Expected:** JSON output containing `"status": "active"`, then `"latency_ms": 1500` or `"error_rate": 1.0`. The main page then behaves as in B3 or B4. (`demo/.env.demo` is created by `demo/run.sh` and holds only a random local token for the lab, not an AWS credential.)
+**Expected:** JSON output containing `"status": "active"` and `"latency_ms": 1500`, `"error_rate": 1.0` or `"loss_pct": 80`; `status` shows the active faults. The main page then behaves as in B3, B4 or B5. Faults inside an origin (`app-5xx --region us --rate 0.5`, `cpu --region sg`, `region-down --region sg`) are described in `demo/DEMO.md`. (`demo/.env.demo` is created by `demo/run.sh` and holds only a random local token for the lab, not an AWS credential.)
 
-### B6. Reset and stop
+### B7. Reset and stop
 
 ```bash
 demo/run.sh lab-reset
@@ -252,16 +278,9 @@ demo/run.sh lab-down
 
 **Expected:** `lab-reset` restarts the gateway and lab controller (traffic back at 100% Singapore, faults cleared). `lab-down` prints `Removed` for each container and the network; `docker ps` then shows no `adaptivenet-lab-` containers.
 
-### B7. Packet-loss stack (optional)
+### B8. Shadow ML panel (optional)
 
-A second, 10-container stack has its own emulated internet path, so it can also inject packet loss, application errors and CPU load. Its page is the raw decision view only.
-
-```bash
-demo/run.sh up
-PYTHONPATH=services:. python -m demo.faultctl latency --region sg --ms 700
-```
-
-**Expected:** open http://127.0.0.1:8190. About 20–30 s after the fault, `aws_ripe` and `aws_ripe_http` show `network_degradation` for region-a while `aws_only` stays `healthy`; within about 2 minutes the gateway's region-a share drops (it reached 50% in our run). Other faults: `loss --region sg --pct 50`, `app-5xx --region us --rate 0.5`, `cpu --region sg`, `region-down --region sg`. Expected outcomes for each are in `demo/DEMO.md`, section 2. Stop with `demo/run.sh down`. Run only one stack at a time.
+The **Shadow ML** panel shows the trained models next to the rule detector. They never act. The trained model files are not in the repository, so in your copy the panel will say "none loaded". The group can supply them on request; they are loaded with `python scripts/export_demo_models.py --root <folder holding the models>` (each file's SHA-256 is checked against our frozen evaluation report), followed by `demo/run.sh lab-up`.
 
 ---
 
@@ -401,12 +420,13 @@ Several values are tied to our account and must be changed: the AMP workspace ID
 | `ModuleNotFoundError` | activate the environment (`source .venv/bin/activate`), run from the repository root, keep the `PYTHONPATH=services:.` prefix, and check that both lock files were installed |
 | cards say "unknown" or the data is old right after start | wait 30–60 seconds for the first probe rounds |
 | demo seems stuck after many faults | `demo/run.sh lab-reset`, then wait 30 seconds |
+| `demo/run.sh up` or `down` says "usage" | those older commands were removed; use `lab-up`, `lab-down`, `lab-reset`, `lab-logs` or `status` |
 | Part C: `FileNotFoundError` for a trial file | check that `$CAMP` and `$LIVE` point at the saved data folder, and that you run from the repository root |
 
 ---
 
 ## Appendix: how we checked these instructions
 
-- **Parts A and C** (18 Nov 2026): on a clean Linux machine (Python 3.13) with a fresh copy of `v2` (commit `2170d47`) and the saved data in `evidence/`: 493 passed, 0 failed; both smoke tests printed `PASS`; C1 printed 0/20 against 13/20 and p = 0.000244; C2's output was byte-for-byte identical to `docs/ml/action-replay-campaign.json` (167 s); C3's output was identical to the amendment 10 section of `docs/ml/live/WEDNESDAY_RESULTS.md`; C4 (158 s) reproduced every row of the official report and made no git commit.
-- **Part B** (13 Nov 2026): on a clean Linux machine (Docker Engine 29.9.2, Python 3.12), `lab-up` started all 13 containers; in Test 1 the HTTP view flagged Singapore after 11 s and the RIPE view after 21 s, traffic went 100→75% at about 65 s and 75→50% at about 120 s, and returned to 100% at about 286 s; Test 2 was detected by both external views; `lab-reset` and `lab-down` worked. The group also ran `lab-up` on macOS with Docker Desktop.
+- **Parts A and C** (18 Nov 2026): on a clean Linux machine (Python 3.13) with a fresh copy of `v2` (commit `f8eb946`) and the saved data in `evidence/`: 496 passed, 0 failed; both smoke tests printed `PASS`; C1 printed 0/20 against 13/20 and p = 0.000244; C3's output was identical to the amendment 10 section of `docs/ml/live/WEDNESDAY_RESULTS.md`. On the earlier commit `2170d47` (the analysis code has not changed since) C2's output was byte-for-byte identical to `docs/ml/action-replay-campaign.json` (167 s), and C4 (158 s) reproduced every row of the official report and made no git commit.
+- **Part B** (18 Nov 2026, current 11-container demo): a fresh ZIP of `v2` installed, passed all tests and started with `lab-up`. Latency: detected in 15 s, 100→75% at 76 s. HTTP 503: detected in 5 s, 100→75% at 101 s. 80% packet loss: detected in 5 s, 100→75% at 66 s, 75→50% at 106 s. At 50% loss the fault was detected but traffic did not move. The longer sequence in B3 (second step, failback) is from our 13 Nov runs of the earlier 13-container version on a clean Linux machine.
 - **Not tested by us:** Windows (WSL 2), and a rebuild of Part D in a fresh AWS account.
