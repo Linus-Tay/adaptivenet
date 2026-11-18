@@ -5,6 +5,7 @@ own SSO refresh hang. Reads/writes only the user's own ~/.aws/sso/cache token.
 Never prints anything except the credential JSON the AWS CLI expects.
 """
 import datetime as dt, hashlib, json, os, socket, sys
+os.environ.pop("AWS_PROFILE", None)  # boto3 below must not re-enter this credential_process
 _orig = socket.getaddrinfo
 socket.getaddrinfo = lambda h, p, family=0, *a, **k: _orig(h, p, socket.AF_INET, *a, **k)
 import boto3
