@@ -102,7 +102,7 @@ def _process_cpu_pct() -> float | None:
         ticks = os.sysconf("SC_CLK_TCK")
         fields = Path("/proc/self/stat").read_text(encoding="utf-8").rsplit(")", 1)[1].split()
         used = (int(fields[11]) + int(fields[12])) / ticks
-    except (OSError, ValueError, IndexError):
+    except (OSError, ValueError, IndexError, AttributeError):  # no /proc or sysconf (macOS, Windows)
         times = os.times()
         used = times.user + times.system
     now = time.monotonic()
@@ -130,7 +130,27 @@ def _memory() -> tuple[float | None, float | None]:
         return float(info["MemAvailable"]), float(info["MemTotal"])
     except (OSError, KeyError, ValueError, IndexError):
         pass
-    return _darwin_memory()
+    return _windows_memory() if os.name == "nt" else _darwin_memory()
+
+
+def _windows_memory() -> tuple[float | None, float | None]:
+    """Native Windows runs (smoke test): GlobalMemoryStatusEx."""
+    import ctypes
+
+    class MemoryStatus(ctypes.Structure):
+        _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
+                    ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
+                    ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
+                    ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
+                    ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
+    try:
+        status = MemoryStatus()
+        status.dwLength = ctypes.sizeof(MemoryStatus)
+        if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+            return None, None
+        return float(status.ullAvailPhys), float(status.ullTotalPhys)
+    except (OSError, AttributeError):
+        return None, None
 
 
 def _darwin_memory() -> tuple[float | None, float | None]:
@@ -146,14 +166,14 @@ def _darwin_memory() -> tuple[float | None, float | None]:
             pages[key.strip()] = int(value.strip().rstrip("."))
         free = pages["Pages free"] + pages.get("Pages inactive", 0) + pages.get("Pages speculative", 0)
         return float(free * page), total
-    except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+    except (OSError, ValueError, KeyError, AttributeError, subprocess.SubprocessError):
         return None, None
 
 
 def _load1() -> float | None:
     try:
         return float(os.getloadavg()[0])
-    except OSError:
+    except (OSError, AttributeError):  # Windows has no load average: unknown
         return None
 
 

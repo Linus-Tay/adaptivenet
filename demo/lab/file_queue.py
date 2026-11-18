@@ -45,7 +45,7 @@ class FileQueue:
                 original = item.name.split("__", 1)[1]
                 try:
                     os.replace(item, self.path / "ready" / original)
-                except FileNotFoundError:
+                except (FileNotFoundError, PermissionError):  # Windows: file briefly locked, retry next poll
                     pass
 
     def receive_message(self, *, QueueUrl: str, MaxNumberOfMessages: int = 1,
@@ -58,8 +58,8 @@ class FileQueue:
                 receipt = f"{time.time() + VisibilityTimeout:.3f}__{item.name}"
                 try:
                     os.replace(item, self.path / "inflight" / receipt)
-                except FileNotFoundError:
-                    continue  # another consumer took it
+                except (FileNotFoundError, PermissionError):
+                    continue  # another consumer took it, or (Windows) it is briefly locked
                 body = (self.path / "inflight" / receipt).read_text(encoding="utf-8")
                 return {"Messages": [{"MessageId": item.stem, "ReceiptHandle": receipt, "Body": body}]}
             if time.monotonic() >= deadline:

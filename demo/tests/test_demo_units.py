@@ -160,3 +160,15 @@ def test_faultctl_plans():
     assert faultctl.plan(ns(command="app-5xx", region="us", rate=0.5))[0][3]["kind"] == "app_5xx"
     assert faultctl.plan(ns(command="lab-errors", region="sg", rate=1.0, duration=900))[0][3]["duration_seconds"] == 120
     assert len(faultctl.plan(ns(command="lab-clear"))) == 3
+
+
+def test_origin_metrics_work_without_unix_apis(monkeypatch):
+    """Windows has no os.sysconf, os.getloadavg or /proc: metrics must still answer."""
+    import os as _os
+    from demo.lab import origin
+    monkeypatch.delattr(_os, "sysconf", raising=False)
+    monkeypatch.delattr(_os, "getloadavg", raising=False)
+    monkeypatch.setattr(origin, "_memory", lambda: (1.0e9, 2.0e9))
+    body = origin.metrics()
+    assert body["app_up"] == 1 and body["node_load1"] is None
+    assert body["memory_available_bytes"] == 1.0e9

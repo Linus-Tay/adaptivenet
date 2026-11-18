@@ -16,7 +16,10 @@ def append_probe(path: str | Path, event: dict) -> None:
         tail = tail.partition(b"\n")[2]
         temp = file.with_name(file.name + ".rotating")
         temp.write_bytes(tail)
-        os.replace(temp, file)
+        try:
+            os.replace(temp, file)
+        except PermissionError:  # Windows: a reader has the file open; rotate on a later append
+            temp.unlink(missing_ok=True)
     with file.open("a", encoding="utf-8") as stream:
         stream.write(line)
 

@@ -75,7 +75,10 @@ def main() -> int:
                 if a and pred(a):
                     return a
                 time.sleep(2)
-            raise SystemExit(f"FAIL: timed out waiting for {what}; logs in {logs}")
+            last = assessment()
+            detail = {"quality_reasons": last.get("quality_reasons"),
+                      "groups": {g: d.get("condition") for g, d in (last.get("detectors") or {}).items()}} if last else "no assessment"
+            raise SystemExit(f"FAIL: timed out waiting for {what}; last: {detail}; logs in {logs}")
 
         healthy = wait(lambda a: all(d["condition"] == "healthy" for d in a["detectors"].values()), 90,
                        "all feature groups healthy")
