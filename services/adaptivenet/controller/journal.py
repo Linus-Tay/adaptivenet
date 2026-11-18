@@ -107,6 +107,14 @@ class ActionJournal:
                 db.execute("DELETE FROM pending_action WHERE action_id = ?", (action_id,))
             return True
 
+    def release_blocked(self, action_id: str) -> None:
+        """Free the slot held by a blocked action so the controller can decide again."""
+        with closing(sqlite3.connect(self.path)) as db, db:
+            db.execute("""
+                DELETE FROM pending_action WHERE action_id = ?
+                AND EXISTS (SELECT 1 FROM action_outcome WHERE action_id = ? AND state = 'blocked')
+            """, (action_id, action_id))
+
     def outcome(self, action_id: str | None = None) -> ActionOutcome | None:
         query = """
             SELECT action_id, state, reason, resolved_at, before_json, expected_json, intent

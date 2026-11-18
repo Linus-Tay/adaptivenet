@@ -302,6 +302,7 @@ Further reading: [docs/ARCHITECTURE_AND_ML_2026.md](docs/ARCHITECTURE_AND_ML_202
 
 - ML output is untrusted and never triggers an action. The reviewer never executes anything itself.
 - Traffic moves at most 25 points per step, only after fresh probes show the destination healthy, with cooldowns and a journal.
+- A blocked step (for example the route changed under the controller, or client checks failed) is not final: after 300 s the controller re-reads the route, journals any stuck step and goes back to observing, so it keeps deciding without a person.
 - Failback waits for 120 s of clean signals (60 s in the lab; set `FAILBACK_HEALTHY_SEC`).
 - Scaling never goes below the baseline, and live EKS writes need `scripts/end_to_end.py execute --approve-live-write`.
 - Real fault injection schedules its own recovery before it starts the fault.

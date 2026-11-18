@@ -302,3 +302,36 @@ def test_controller_requires_explicit_mode_and_rejects_removed_shadow_mode(scena
         SafetyController(journal, gateway, mode="shadow")
     assert journal.pending() is None
     assert gateway.calls == 0
+
+
+def test_blocked_step_retries_on_its_own_after_the_wait(verification, scenario, monkeypatch):
+    from adaptivenet.controller.safety import BLOCK_RETRY_SEC
+    controller, gateway, window = verification
+    monkeypatch.setattr("adaptivenet.controller.journal.time.time", lambda: NOW + 12)
+    gateway.weight = 60
+    assert controller.verify(window).state == "blocked"
+    journal, _, snapshot, proposal = scenario
+    monkeypatch.setattr("adaptivenet.controller.safety.time.time", lambda: NOW + 12 + BLOCK_RETRY_SEC - 1)
+    assert controller.step(snapshot, proposal, observed_at=None, source_degraded=False).state == "blocked"
+    later = NOW + 12 + BLOCK_RETRY_SEC + 1
+    monkeypatch.setattr("adaptivenet.controller.safety.time.time", lambda: later)
+    result = controller.step(snapshot, proposal, observed_at=later - 1, source_degraded=True)
+    assert result.state in ("observing", "qualifying")
+    assert journal.pending() is None
+
+
+def test_stuck_pending_action_is_journaled_then_released(scenario, monkeypatch):
+    from adaptivenet.controller.safety import BLOCK_RETRY_SEC
+    journal, gateway, snapshot, proposal = scenario
+    controller = SafetyController(journal, gateway, mode="local")
+    monkeypatch.setattr("adaptivenet.controller.journal.time.time", lambda: NOW)
+    gateway.failure = "before_update"
+    assert qualify(controller, snapshot, proposal)[-1].state == "blocked"
+    t = NOW + BLOCK_RETRY_SEC + 1
+    monkeypatch.setattr("adaptivenet.controller.safety.time.time", lambda: t)
+    monkeypatch.setattr("adaptivenet.controller.journal.time.time", lambda: t)
+    assert controller.step(snapshot, proposal, observed_at=None, source_degraded=False).state == "blocked"
+    assert journal.outcome().state == "blocked"
+    monkeypatch.setattr("adaptivenet.controller.safety.time.time", lambda: t + BLOCK_RETRY_SEC + 1)
+    assert controller.step(snapshot, proposal, observed_at=None, source_degraded=False).state == "observing"
+    assert journal.pending() is None

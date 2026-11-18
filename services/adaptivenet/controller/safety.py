@@ -23,6 +23,9 @@ from .kubernetes_hpa import KubernetesReadError
 
 Mode = Literal["disabled", "local", "eks"]
 COOLDOWN_SEC = 120
+# A blocked step is not final: after this long the controller re-reads the route,
+# journals any stuck action and goes back to observing, so it never waits for a person.
+BLOCK_RETRY_SEC = 300
 
 
 class LocalRoute(Protocol):
@@ -78,14 +81,20 @@ class SafetyController:
             previous = self._journal.outcome(pending.action_id if pending else None)
         except (OSError, sqlite3.Error, ValueError):
             return ControllerResult(self.mode, "blocked", ("journal_read_failed",))
+        now = time.time()
         if previous is not None and previous.state == "blocked":
-            return ControllerResult(self.mode, "blocked", (previous.reason,), previous.action_id)
+            if now - previous.resolved_at < BLOCK_RETRY_SEC:
+                return ControllerResult(self.mode, "blocked", (previous.reason,), previous.action_id)
+            try:
+                self._journal.release_blocked(previous.action_id)
+            except (OSError, sqlite3.Error):
+                return ControllerResult(self.mode, "blocked", ("journal_release_failed",), previous.action_id)
+            pending = None
         if pending is not None:
             if pending.intent.startswith("scale:"):
                 return ControllerResult(self.mode, "blocked", ("scale_action_pending",), pending.action_id)
-            return self._reconcile(pending)
+            return self._retire_if_stuck(pending, self._reconcile(pending), now)
 
-        now = time.time()
         evidence_after = None
         if previous is not None:
             evidence_after = previous.resolved_at
@@ -116,7 +125,8 @@ class SafetyController:
             return ControllerResult(self.mode, "observing", ("degradation_evidence_missing_or_stale",))
 
         target = proposal["target_region_a_percent"]
-        if previous is not None and previous.state == "continue_candidate":
+        if (previous is not None and previous.state == "continue_candidate"
+                and now - previous.resolved_at < BLOCK_RETRY_SEC):
             if original != previous.target_weight:
                 self._evidence.observe(observed_at=observed_at, qualified_intent=None)
                 return ControllerResult(self.mode, "blocked", ("route_changed_since_verification",))
@@ -154,15 +164,21 @@ class SafetyController:
             previous = self._journal.outcome(pending.action_id if pending else None)
         except (OSError, sqlite3.Error, ValueError):
             return ControllerResult(self.mode, "blocked", ("journal_read_failed",))
-        if previous is not None and previous.state == "blocked":
-            return ControllerResult(self.mode, "blocked", (previous.reason,), previous.action_id)
-
         now = time.time()
+        if previous is not None and previous.state == "blocked":
+            if now - previous.resolved_at < BLOCK_RETRY_SEC:
+                return ControllerResult(self.mode, "blocked", (previous.reason,), previous.action_id)
+            try:
+                self._journal.release_blocked(previous.action_id)
+            except (OSError, sqlite3.Error):
+                return ControllerResult(self.mode, "blocked", ("journal_release_failed",), previous.action_id)
+            pending = None
         if pending is not None:
             if pending.intent.startswith("scale:") and self.mode in ("local", "eks"):
-                return self._reconcile_scale(pending, now)
+                return self._retire_if_stuck(pending, self._reconcile_scale(pending, now), now)
             return ControllerResult(self.mode, "blocked", ("action_pending",), pending.action_id)
-        if previous is not None and previous.state == "continue_candidate":
+        if (previous is not None and previous.state == "continue_candidate"
+                and now - previous.resolved_at < BLOCK_RETRY_SEC):
             return ControllerResult(self.mode, "blocked", ("routing_sequence_in_progress",), previous.action_id)
         evidence_after = previous.resolved_at + COOLDOWN_SEC if previous is not None else 0
         if now < evidence_after:
@@ -335,6 +351,12 @@ class SafetyController:
         if self.mode == "eks":
             reason = reason.replace("emulated_", "eks_")
         return ControllerResult(self.mode, state, (reason,), pending.action_id)
+
+    def _retire_if_stuck(self, pending: PendingAction, result: ControllerResult, now: float) -> ControllerResult:
+        """Journal an action that has stayed blocked past BLOCK_RETRY_SEC, so the retry clock can start."""
+        if result.state != "blocked" or now - pending.recorded_at < BLOCK_RETRY_SEC:
+            return result
+        return self._record_verification(pending, "blocked", result.reasons[-1] if result.reasons else "stuck_action")
 
     def _reconcile(
         self, pending: PendingAction, reasons: tuple[str, ...] = (),
