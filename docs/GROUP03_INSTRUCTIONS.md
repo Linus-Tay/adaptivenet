@@ -231,9 +231,9 @@ This adds 1.5 seconds of delay on the network path to Singapore. The servers sta
 | after the fault ends | the cards return to **Healthy**; Controller shows "Waiting: Singapore must stay healthy" |
 | about 2 minutes after the fault ends | traffic steps back to **75%**, then **100% Singapore** (failback); Controller returns to **Idle** |
 
-![Main demo page during Test 1 (13 Nov version of the page; the current page also has the packet-loss button and the Shadow ML panel), about 50 s after the latency fault was injected: AWS only is Healthy, both external views show Network degradation, and the safety review has approved moving traffic.](demo_fault_screenshot.png)
+![Main demo page during Test 1 (18 Nov 2026), with the latency fault still active: AWS only stays Healthy, AWS + RIPE + HTTP detected the fault 2 s after it started and AWS + RIPE Atlas after 12 s, the safety review approved moving traffic, the traffic bar has moved to 75% Singapore · 25% Virginia, and the Shadow ML panel shows the trained models beside the rule detector without acting.](demo_fault_screenshot_20261118.png)
 
-The "What happened, step by step" log on the right records each decision with a time stamp.
+The "What happened, step by step" log, lower on the page, records each decision with a time stamp.
 
 **What this shows:** with the same data, the view that uses only AWS-internal metrics cannot see a network-path fault, while the views that add outside measurements detect it. The system then moves traffic in bounded 25-point steps, only after the confidence rules, the safety reviewer and its own fresh checks agree, and moves it back once the region stays healthy.
 
