@@ -231,7 +231,7 @@ Wait about 30 seconds, then open:
 | http://127.0.0.1:8192 | debug only: the raw decision state that the control room reads |
 | http://127.0.0.1:8000/experiments | the lab API's experiment view |
 
-Port 8766 belongs to the real AWS telemetry pipeline, which only group members can run (Part D). Lab faults never touch it, and you do not need it.
+The page on :3000 shows the local lab only. Live telemetry from our real AWS system is on a separate page, port 8766, served by the real pipeline that only group members can run (Part D). Lab faults never touch it, and you do not need it.
 
 The "What AdaptiveNet is doing about it" row should read: Data in "a few s old", Detector sees **Healthy**, Detector suggests **Do nothing**, Safety review **No action**, Controller **Idle**.
 
@@ -306,12 +306,9 @@ demo/run.sh lab-down
 
 **Expected:** `lab-reset` restarts the gateway and lab controller (traffic back at 100% Singapore, faults cleared). `lab-down` prints `Removed` for each container and the network; `docker ps` then shows no `adaptivenet-lab-` containers.
 
-### B8. Two parts of the page that stay empty on your machine
+### B8. The Shadow ML panel stays partly empty on your machine
 
-- **Shadow ML panel.** It shows the rule detector (which drives decisions) and a baseline predictor. The trained models are not shipped with the repository, so their rows say "none loaded". Please skip `scripts/export_demo_models.py`, which needs those model files.
-- **Real AWS telemetry tab.** It shows recorded data from our real system only when that recorded data is mounted (`REAL_DATA_DIR`). Those recordings are not shipped either, so the tab says that no recorded data is mounted. Please skip this step.
-
-Neither affects Tests 1 to 3. We can show both working live on our own machine, and the recorded results behind them are reproduced in Part C.
+The **Shadow ML** panel shows the rule detector (which drives decisions) and a baseline predictor. The trained models are not shipped with the repository, so their rows say "none loaded". Please skip `scripts/export_demo_models.py`, which needs those model files. This does not affect Tests 1 to 3. We can show the trained models live on our own machine, and the recorded results behind them are reproduced in Part C.
 
 ---
 
@@ -437,7 +434,7 @@ In both tests AWS's own mechanisms acted (CloudFront origin failover, the HPA), 
 | 6 | `infra/helm/demo` | the EKS app with its HPA |
 | 7 | `scripts/ripe_campaign_measurements.py` (reads `ATLAS_API_KEY`) | the RIPE Atlas ping measurements to both origins; this spends RIPE credits |
 
-Several values are tied to our account and must be changed: the AMP workspace IDs and queue settings in `.env` (copy `.env.example`), the RIPE target addresses and measurement IDs, and the EC2 instance IDs in `scripts/aws_fault.py`. After that, the real pipeline runs with `python scripts/live_monitor.py --sqs` (dashboard on port 8766), and guarded faults run through `scripts/aws_fault.py`, which schedules its own recovery before it starts a fault. Always review `terraform plan` before `terraform apply`.
+Several values are tied to our account and must be changed: the AMP workspace IDs and queue settings in `.env` (copy `.env.example`), the RIPE target addresses and measurement IDs, and the EC2 instance IDs in `scripts/aws_fault.py`. After that, the real pipeline runs with `python scripts/live_monitor.py --sqs --traffic` (dashboard on port 8766). Run it on one machine only: two pipelines share one SQS queue and would take each other's messages, and guarded faults run through `scripts/aws_fault.py`, which schedules its own recovery before it starts a fault. Always review `terraform plan` before `terraform apply`.
 
 ---
 
