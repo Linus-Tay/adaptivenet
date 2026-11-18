@@ -21,7 +21,7 @@ The tests are in four parts. **Parts A, B and C need no AWS account, no RIPE Atl
 
 | Part | What you do | Time | What it shows |
 |---|---|---|---|
-| **A. Automated tests** | run 496 unit and integration tests and two smoke tests | 5 min | the collector, queue, feature snapshots, safety reviewer, confidence rules, safety controller and ML code behave as designed |
+| **A. Automated tests** | run 497 unit and integration tests and two smoke tests | 5 min | the collector, queue, feature snapshots, safety reviewer, confidence rules, safety controller and ML code behave as designed |
 | **B. Docker demo** | start 11 containers and inject three kinds of fault from a web page | 15–20 min | the whole loop working: a fault that AWS-only monitoring misses is detected by the external views, traffic is moved in bounded steps, and moved back when the region recovers |
 | **C. Rerun our analysis** | rerun three analyses on the data we recorded on the real system | 5–10 min | the main numbers in our article come from the saved data and the committed code, not from hand editing |
 | **D. Real AWS and RIPE (optional)** | rebuild the cloud system in your own AWS account | hours, costs money | the real deployment. **We have not tested a rebuild in a fresh account**, so we describe it and offer a live demonstration instead |
@@ -77,9 +77,9 @@ docker compose version
 > powershell -ExecutionPolicy Bypass -File demo\run.ps1 lab-up
 > ```
 >
-> On plain Windows the test line should end with `495 passed, 1 skipped` (one test checks bash syntax and is skipped when bash is not installed). Use `demo\run.ps1 lab-reset`, `lab-down`, `lab-logs` or `status` in place of `demo/run.sh`. Inject faults with the page buttons, or with `python -m demo.faultctl lab-latency|lab-errors|lab-loss ...` (B6) once `$env:PYTHONPATH` is set as above. Leave out the `PYTHONPATH=services:.` prefix shown in the commands. A2 runs as `python -m demo.smoke_local` and A3 as `python scripts/smoke.py`. In Part C set the variables with `$env:CAMP = "evidence/ripe-campaign-20261112"` and `$env:LIVE = "evidence/live-shadow-20261114"`, and write `$env:CAMP` where the guide writes `$CAMP`.
+> On plain Windows the test line should end with `496 passed, 1 skipped` (one test checks bash syntax and is skipped when bash is not installed). Use `demo\run.ps1 lab-reset`, `lab-down`, `lab-logs` or `status` in place of `demo/run.sh`. Inject faults with the page buttons, or with `python -m demo.faultctl lab-latency|lab-errors|lab-loss ...` (B6) once `$env:PYTHONPATH` is set as above. Leave out the `PYTHONPATH=services:.` prefix shown in the commands. A2 runs as `python -m demo.smoke_local` and A3 as `python scripts/smoke.py`. In Part C set the variables with `$env:CAMP = "evidence/ripe-campaign-20261112"` and `$env:LIVE = "evidence/live-shadow-20261114"`, and write `$env:CAMP` where the guide writes `$CAMP`.
 >
-> *Windows is less tested than Linux and macOS.* A first PowerShell run of Option B found three problems (text encoding, a bash-only test and line endings), which are fixed in `main`; we have not yet confirmed a full run after the fix. Option A has not been tested. If Option B fails, please use Option A.
+> *Windows status:* with Option B on a real Windows machine, the tests passed (apart from three problems that were then fixed in `main`: text encoding, a bash-only test and line endings) and the A2 smoke test printed `PASS`. The Docker demo through `demo\run.ps1` has not yet been confirmed on Windows, and Option A has not been tested. If the demo fails with Option B, please use Option A.
 
 ---
 
@@ -118,7 +118,7 @@ PYTHONPATH=services:. python -m pytest -q tests demo/tests ml/team_starter/tests
 **Expected:** after about 10 seconds the last line is
 
 ```
-496 passed, 1 warning, 4 subtests passed in 13.36s
+497 passed, 1 warning, 4 subtests passed in 13.38s
 ```
 
 The time will differ. The one warning is a library deprecation notice. **No test should fail.** None of these tests call AWS or the internet; AWS, RIPE and Kubernetes responses are replaced by fixtures.
@@ -190,7 +190,7 @@ It makes no AWS calls and uses no credentials. The values are real measurements 
 | `lab-ml` | the detector, which only suggests; it also serves the decision state for the dashboard |
 | `lab-controller` | acts only after the confidence rules, the safety reviewer and its own probes agree |
 | `lab-users` | steady user traffic, so there is something to measure and move |
-| `dashboard`, `demo-web` | the demo page (:3000) and the shop site (:3001) |
+| `dashboard`, `demo-web` | the control room (:3000) and the Harbour Lane Coffee café website (:3001) |
 
 Decisions in the demo come from transparent threshold rules (`demo/lab/detectors.py`). The trained ML models run only in shadow mode and never drive the controller; Part C explains why.
 
@@ -226,10 +226,12 @@ Wait about 30 seconds, then open:
 
 | Address | What you should see |
 |---|---|
-| http://127.0.0.1:3000 | **Main demo page.** Title "Can AWS-only monitoring see this failure?", a "Where customers are sent" bar at **100% Singapore · 0% Virginia**, three fault buttons (**Inject +1.5 s latency**, **Inject HTTP 503**, **Inject 80% packet loss**), three cards (AWS only, AWS + RIPE Atlas, AWS + RIPE + HTTP), all **Healthy**, and a **Shadow ML, side by side (never acts)** panel |
-| http://127.0.0.1:3001 | the shop site (a product catalogue served through the gateway) |
-| http://127.0.0.1:8192 | a debug view of the raw decision state that the dashboard reads |
+| http://127.0.0.1:3000 | **Control room for the local lab (main demo page).** Title "Can AWS-only monitoring see this failure?", a "Where customers are sent" bar at **100% Singapore · 0% Virginia**, three fault buttons (**Inject +1.5 s latency**, **Inject HTTP 503**, **Inject 80% packet loss**), three cards (AWS only, AWS + RIPE Atlas, AWS + RIPE + HTTP), all **Healthy**, and a **Shadow ML, side by side (never acts)** panel |
+| http://127.0.0.1:3001 | **Harbour Lane Coffee**, the demo café that the lab's users visit through the gateway. The *Customer website* tab is what a customer sees; the *Behind the scenes* tab shows the load time and the serving region of each request, so you can watch customers move to Virginia during a fault |
+| http://127.0.0.1:8192 | debug only: the raw decision state that the control room reads |
 | http://127.0.0.1:8000/experiments | the lab API's experiment view |
+
+Port 8766 belongs to the real AWS telemetry pipeline, which only group members can run (Part D). Lab faults never touch it, and you do not need it.
 
 The "What AdaptiveNet is doing about it" row should read: Data in "a few s old", Detector sees **Healthy**, Detector suggests **Do nothing**, Safety review **No action**, Controller **Idle**.
 
@@ -459,5 +461,5 @@ Several values are tied to our account and must be changed: the AMP workspace ID
 
 - **Parts A and C** (18 Nov 2026): on a clean Linux machine (Python 3.13) with a fresh copy of the final code (commit `f8eb946`, the same code as `main` at `1b3aa64`) and the saved data in `evidence/`: 496 passed, 0 failed; both smoke tests printed `PASS`; C1 printed 0/20 against 13/20 and p = 0.000244; C3's output was identical to the amendment 10 section of `docs/ml/live/WEDNESDAY_RESULTS.md`. On the earlier commit `2170d47` (the analysis code has not changed since) C2's output was byte-for-byte identical to `docs/ml/action-replay-campaign.json` (167 s), and C4 (158 s) reproduced every row of the official report and made no git commit.
 - **Part B** (18 Nov 2026, current 11-container demo): a fresh ZIP of the final code installed, passed all tests and started with `lab-up`. Latency: detected in 15 s, 100→75% at 76 s. HTTP 503: detected in 5 s, 100→75% at 101 s. 80% packet loss: detected in 5 s, 100→75% at 66 s, 75→50% at 106 s. At 50% loss the fault was detected but traffic did not move. The longer sequence in B3 (second step, failback) is from our 13 Nov runs of the earlier 13-container version on a clean Linux machine.
-- **Windows:** a first PowerShell run (Option B) found three problems, now fixed; a full run after the fix is not yet confirmed. WSL 2 (Option A) is untested.
+- **Windows** (18 Nov 2026, PowerShell, Option B): the tests passed apart from three problems now fixed in `main`, and `demo.smoke_local` printed `PASS` (commit `ddbc046`). On Linux, `main` at `ddbc046` gave 497 passed and both smoke tests `PASS`. The Docker demo through `demo\run.ps1` is not yet confirmed; WSL 2 (Option A) is untested.
 - **Not tested by us:** a rebuild of Part D in a fresh AWS account.
