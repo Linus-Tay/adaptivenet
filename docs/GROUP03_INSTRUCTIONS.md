@@ -21,7 +21,7 @@ The tests are in four parts. **Parts A, B and C need no AWS account, no RIPE Atl
 
 | Part | What you do | Time | What it shows |
 |---|---|---|---|
-| **A. Automated tests** | run 497 unit and integration tests and two smoke tests | 5 min | the collector, queue, feature snapshots, safety reviewer, confidence rules, safety controller and ML code behave as designed |
+| **A. Automated tests** | run 500 unit and integration tests and two smoke tests, with one script | 5 min | the collector, queue, feature snapshots, safety reviewer, confidence rules, safety controller and ML code behave as designed |
 | **B. Docker demo** | start 11 containers and inject three kinds of fault from a web page | 15–20 min | the whole loop working: a fault that AWS-only monitoring misses is detected by the external views, traffic is moved in bounded steps, and moved back when the region recovers |
 | **C. Rerun our analysis** | rerun three analyses on the data we recorded on the real system | 5–10 min | the main numbers in our article come from the saved data and the committed code, not from hand editing |
 | **D. Real AWS and RIPE (optional)** | rebuild the cloud system in your own AWS account | hours, costs money | the real deployment. **We have not tested a rebuild in a fresh account**, so we describe it and offer a live demonstration instead |
@@ -30,95 +30,94 @@ Each step below shows the command to type, **what you should see**, and what the
 
 ---
 
-## 1. Install the tools
+## 1. What to download
 
-| Tool | Version we used | Needed for |
-|---|---|---|
-| Git | any recent | getting the code |
-| Python | 3.11 or newer (we tested 3.12, 3.13 and 3.14) | Parts A and C |
-| Docker Desktop (macOS/Windows) or Docker Engine with Compose v2 (Linux) | Engine 29.9, Compose v2 | Part B |
-| A web browser | any | Part B |
+You need two programs. Everything else is installed by our script.
 
-Node.js, Terraform, Helm and the AWS CLI are **not** needed for Parts A to C.
+| Download | Version | Where | Needed for |
+|---|---|---|---|
+| **Python** | 3.11 or newer (we tested 3.12, 3.13 and 3.14) | https://www.python.org/downloads/ (on Windows, tick **"Add python.exe to PATH"** in the installer) | Parts A and C, and the run script |
+| **Docker Desktop** | any recent version (it includes Docker Compose v2) | https://www.docker.com/products/docker-desktop/ | Part B (on Linux, Docker Engine with the Compose v2 plugin also works) |
+| Git (optional) | any recent version | https://git-scm.com/downloads | only if you clone instead of downloading the ZIP |
+| AWS CLI v2 (optional) | any recent version | https://aws.amazon.com/cli/ | only Part D |
 
-```bash
-git --version
-python3 --version
-docker --version
-docker compose version
-```
+Node.js, Terraform, Helm and kubectl are **not** needed for Parts A to C. Start Docker Desktop after installing it and wait until it says it is running.
 
-**Expected:** each command prints a version number. `python3 --version` must print 3.11 or higher.
+## 2. Get the code and set it up with one script
 
-> **macOS:** if `docker` is "command not found" although Docker Desktop is installed, run
-> `export PATH=/Applications/Docker.app/Contents/Resources/bin:$PATH`
->
-> **Windows.** The commands in this guide are Linux/macOS shell commands (`demo/run.sh` is a bash script; `source .venv/bin/activate`, the `PYTHONPATH=services:. python ...` prefix, `/tmp` and `cmp` do not work in PowerShell or Command Prompt). There are two ways to run it on Windows.
->
-> **Option A (recommended): WSL 2.**
->
-> 1. Install WSL 2 with Ubuntu (`wsl --install -d Ubuntu` in an administrator PowerShell, then restart).
-> 2. Install Docker Desktop and turn on *Settings → Resources → WSL integration* for Ubuntu.
-> 3. Open the **Ubuntu** terminal and run every command in this guide there, unchanged. Install Python and Git inside Ubuntu (`sudo apt install python3 python3-venv git`), and clone the repository into your Ubuntu home folder (`cd ~`), not under `/mnt/c`.
-> 4. Open the demo pages in your normal Windows browser at the same `127.0.0.1` addresses.
->
-> Inside WSL 2 the steps are the Linux steps, including the Linux-only `chmod` step in B1.
->
-> **Option B: PowerShell, without WSL.** Install Python 3.11+, Git and Docker Desktop for Windows, then in PowerShell, from the repository folder:
->
-> ```
-> python -m venv .venv
-> Set-ExecutionPolicy -Scope Process Bypass
-> .venv\Scripts\Activate.ps1
-> python -m pip install -r requirements-dev.lock -r ml\team_starter\requirements-ml-inference.lock
-> python -m pip install --no-deps -e .
-> $env:PYTHONPATH = "services;."
-> python -m pytest -q tests demo/tests ml/team_starter/tests step7_finish step8_finish
-> powershell -ExecutionPolicy Bypass -File demo\run.ps1 lab-up
-> ```
->
-> On plain Windows the test line should end with `496 passed, 1 skipped` (one test checks bash syntax and is skipped when bash is not installed). Use `demo\run.ps1 lab-reset`, `lab-down`, `lab-logs` or `status` in place of `demo/run.sh`. Inject faults with the page buttons, or with `python -m demo.faultctl lab-latency|lab-errors|lab-loss ...` (B6) once `$env:PYTHONPATH` is set as above. Leave out the `PYTHONPATH=services:.` prefix shown in the commands. A2 runs as `python -m demo.smoke_local` and A3 as `python scripts/smoke.py`. In Part C set the variables with `$env:CAMP = "evidence/ripe-campaign-20261112"` and `$env:LIVE = "evidence/live-shadow-20261114"`, and write `$env:CAMP` where the guide writes `$CAMP`.
->
-> *Windows status:* with Option B on a real Windows machine, the tests passed (apart from three problems that were then fixed in `main`: text encoding, a bash-only test and line endings) and the A2 smoke test printed `PASS`. The Docker demo through `demo\run.ps1` also ran on that machine. Option A has not been tested by us. If anything fails with Option B, please try Option A.
-
----
-
-## 2. Get the code and install the Python packages
+Download https://github.com/Linus-Tay/adaptivenet/archive/refs/heads/main.zip and unzip it, or clone it:
 
 ```bash
 git clone https://github.com/Linus-Tay/adaptivenet.git
-cd adaptivenet
 ```
 
-**Expected:** `git branch` shows `* main`. `ls` shows folders such as `demo`, `services`, `ml`, `infra`, `tests` and the file `README.md`.
+Open a terminal (macOS: Terminal; Windows: PowerShell) in the repository folder (`adaptivenet`, or `adaptivenet-main` if you used the ZIP). Please test the `main` branch.
 
-> Please test the `main` branch (commit `1b3aa64` or later). It holds the final system, the 14–18 November live run and the analysis behind our final results. If you download the ZIP instead of using Git, unzip it and `cd` into the folder `adaptivenet-main`.
+Everything in this guide goes through one script, `run.py`, at the repository root. It works the same way on macOS, Linux and Windows PowerShell and needs only Python to start. **On macOS and Linux type `python3` where this guide says `python`** if `python` is not found.
 
-Create a virtual environment and install the packages:
+| Command | What it does |
+|---|---|
+| `python run.py check` | checks Python, Docker, Docker Compose, the virtual environment, the demo ports and (optionally) the AWS CLI, and says what to fix |
+| `python run.py setup` | creates `.venv` and installs every Python package from our lock files |
+| `python run.py test` | runs all test suites, then the end-to-end smoke test (Part A) |
+| `python run.py demo-up`, `demo-reset`, `demo-down`, `status` | starts, resets and stops the Docker demo, and shows active faults (Part B) |
+| `python run.py fault lab-latency --region sg --ms 1500` | injects a demo fault from the command line (B6) |
+| `python run.py live` | the real AWS pipeline (Part D only; needs AWS sign-in) |
+
+### 2.1 Check the prerequisites
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements-dev.lock -r ml/team_starter/requirements-ml-inference.lock
-pip install --no-deps -e .
+python run.py check
 ```
 
-**Expected:** your prompt now starts with `(.venv)`. The first `pip` command ends with `Successfully installed ...` (packages such as `fastapi`, `pytest`, `scikit-learn`, `numpy`, `scipy`), the second with `Successfully installed adaptivenet-0.1.0`. Both lock files are needed: without the second one, the ML tests fail on import. If you open a new terminal later, run `source .venv/bin/activate` again.
+**Expected** (on a fresh copy with Docker running; your Python version will differ):
+
+```
+Prerequisites
+  OK  Python 3.13.18
+  OK  Docker is running
+  OK  Docker Compose v2
+  --  .venv not created yet  -> python run.py setup
+  OK  demo ports free
+  --  AWS CLI not found (only needed for live AWS: https://aws.amazon.com/cli/)
+All required prerequisites are present.
+```
+
+Any line marked `FIX` says what to do. Lines marked `--` are fine at this point. If a demo port is in use, close the program using it (a local LM Studio server often uses 8080).
+
+### 2.2 Install
+
+```bash
+python run.py setup
+```
+
+**Expected** (about 1 minute): `pip` installs the packages and the script ends with
+
+```
+Successfully installed adaptivenet-0.1.0
+Setup done. Next:  python run.py test
+```
+
+The packages go into the `.venv` folder inside the repository, not into your system Python.
+
+> **macOS:** if `run.py check` cannot find Docker although Docker Desktop is installed, start Docker Desktop once and run the check again. The script also looks in `/Applications/Docker.app`.
+>
+> **Windows:** `run.py` runs in plain PowerShell; you do not need WSL. We verified `run.py` on macOS and Linux. On a real Windows machine we confirmed the tests, the smoke test and the Docker demo through the older PowerShell route (`demo\run.ps1`, see B9), which `run.py` replaces; `run.py` itself has not yet been run on Windows. If it fails there, use the route in B9.
 
 ---
 
 ## 3. Part A: automated tests
 
-### A1. All test suites
+### A1. All test suites and the smoke test
 
 ```bash
-PYTHONPATH=services:. python -m pytest -q tests demo/tests ml/team_starter/tests step7_finish step8_finish
+python run.py test
 ```
 
-**Expected:** after about 10 seconds the last line is
+**Expected** (about 1 to 2 minutes). First the test suites:
 
 ```
-497 passed, 1 warning, 4 subtests passed in 13.38s
+500 passed, 1 warning, 4 subtests passed in 10.77s
 ```
 
 The time will differ. The one warning is a library deprecation notice. **No test should fail.** None of these tests call AWS or the internet; AWS, RIPE and Kubernetes responses are replaced by fixtures.
@@ -132,13 +131,7 @@ The time will differ. The one warning is a library deprecation notice. **No test
 
 **What this shows:** each part of the pipeline does what the article describes, including the failure cases (duplicate messages, stale or future-dated data, a reviewer that blocks an unsafe proposal, a controller that refuses to move traffic to an unhealthy region).
 
-### A2. End-to-end smoke test without Docker
-
-```bash
-PYTHONPATH=services:. python -m demo.smoke_local
-```
-
-**Expected** (about 1 to 2 minutes; the numbers can differ slightly):
+Then the script runs the end-to-end smoke test, which starts every demo service as a local process (no Docker). **Expected** (the numbers can differ slightly):
 
 ```
 baseline healthy: {'aws_only': 'healthy', 'aws_ripe': 'healthy', 'aws_ripe_http': 'healthy'}
@@ -151,10 +144,18 @@ PASS: gray failure seen only with external signals; bounded failover applied on 
 
 **What this shows:** the main story in one run. AWS-only stays `healthy` during a network fault, the two views with external signals report `network_degradation`, and the gateway moves to 75% Singapore. The last line must start with `PASS`.
 
-### A3. Control-plane smoke test (also run in our CI)
+### A2. Control-plane smoke test (optional, also run in our CI)
+
+macOS and Linux:
 
 ```bash
-python scripts/smoke.py
+.venv/bin/python scripts/smoke.py
+```
+
+Windows PowerShell:
+
+```
+.venv\Scripts\python scripts\smoke.py
 ```
 
 **Expected:** some server log lines, then
@@ -196,23 +197,19 @@ Decisions in the demo come from transparent threshold rules (`demo/lab/detectors
 
 ### B1. Start the demo
 
-Start Docker and check that ports 3000, 3001, 8000, 8080, 8101, 8102 and 8192 are free (for example, a local LM Studio server often uses 8080).
-
-> **Linux only:** the containers run as a non-root user (uid 10001) and write to `data/`. Run this once first, or some containers restart in a loop with "Permission denied":
-> ```bash
-> mkdir -p data/lab-live data/demo-replay data/demo-models && chmod -R a+rwX data
-> ```
+Make sure Docker Desktop is running and `python run.py check` shows no `FIX` line.
 
 ```bash
-demo/run.sh lab-up
+python run.py demo-up
 ```
 
 **Expected:** the first run builds the images, which takes several minutes. It ends with
 
 ```
-Demo dashboard: http://127.0.0.1:3000   shop site: http://127.0.0.1:3001
-Debug view of the decision pipeline: http://127.0.0.1:8192
+Demo dashboard: http://127.0.0.1:3000   cafe site: http://127.0.0.1:3001   debug: http://127.0.0.1:8192
 ```
+
+The script also creates the lab's random local token (`demo/.env.demo`, not an AWS credential) and the `data/` folders, with the permissions Linux needs.
 
 ```bash
 docker ps --format '{{.Names}}  {{.Status}}'
@@ -288,27 +285,41 @@ This drops 80% of requests on the gateway path to Singapore.
 ### B6. The same faults from the command line (optional)
 
 ```bash
-set -a; source demo/.env.demo; set +a
-PYTHONPATH=services:. python -m demo.faultctl lab-latency --region sg --ms 1500 --duration 120
-PYTHONPATH=services:. python -m demo.faultctl lab-errors --region sg --rate 1.0
-PYTHONPATH=services:. python -m demo.faultctl lab-loss --region sg --pct 80
-demo/run.sh status
+python run.py fault lab-latency --region sg --ms 1500 --duration 120
+python run.py fault lab-errors --region sg --rate 1.0
+python run.py fault lab-loss --region sg --pct 80
+python run.py status
 ```
 
-**Expected:** JSON output containing `"status": "active"` and `"latency_ms": 1500`, `"error_rate": 1.0` or `"loss_pct": 80`; `status` shows the active faults. The main page then behaves as in B3, B4 or B5. Faults inside an origin (`app-5xx --region us --rate 0.5`, `cpu --region sg`, `region-down --region sg`) are described in `demo/DEMO.md`. (`demo/.env.demo` is created by `demo/run.sh` and holds only a random local token for the lab, not an AWS credential.)
+**Expected:** JSON output containing `"status": "active"` and `"latency_ms": 1500`, `"error_rate": 1.0` or `"loss_pct": 80`; `status` shows the active faults. The main page then behaves as in B3, B4 or B5. Faults inside an origin (`app-5xx --region us --rate 0.5`, `cpu --region sg`, `region-down --region sg`) are described in `demo/DEMO.md`.
 
 ### B7. Reset and stop
 
 ```bash
-demo/run.sh lab-reset
-demo/run.sh lab-down
+python run.py demo-reset
+python run.py demo-down
 ```
 
-**Expected:** `lab-reset` restarts the gateway and lab controller (traffic back at 100% Singapore, faults cleared). `lab-down` prints `Removed` for each container and the network; `docker ps` then shows no `adaptivenet-lab-` containers.
+**Expected:** `demo-reset` clears the faults and restarts the gateway and lab controller (traffic back at 100% Singapore, faults cleared). `demo-down` prints `Removed` for each container and the network; `docker ps` then shows no `adaptivenet-lab-` containers.
 
 ### B8. The Shadow ML panel stays partly empty on your machine
 
 The **Shadow ML** panel shows the rule detector (which drives decisions) and a baseline predictor. The trained models are not shipped with the repository, so their rows say "none loaded". Please skip `scripts/export_demo_models.py`, which needs those model files. This does not affect Tests 1 to 3. We can show the trained models live on our own machine, and the recorded results behind them are reproduced in Part C.
+
+---
+
+### B9. Alternative without run.py
+
+The same demo commands exist as shell scripts, if you prefer them or `run.py` fails:
+
+| `run.py` | macOS / Linux | Windows PowerShell |
+|---|---|---|
+| `python run.py demo-up` | `demo/run.sh lab-up` | `powershell -ExecutionPolicy Bypass -File demo\run.ps1 lab-up` |
+| `python run.py demo-reset` | `demo/run.sh lab-reset` | `... demo\run.ps1 lab-reset` |
+| `python run.py demo-down` | `demo/run.sh lab-down` | `... demo\run.ps1 lab-down` |
+| `python run.py status` | `demo/run.sh status` | `... demo\run.ps1 status` |
+
+On Linux, `demo/run.sh` needs this once first: `mkdir -p data/lab-live data/demo-replay data/demo-models && chmod -R a+rwX data`. The PowerShell route (`demo\run.ps1`) is the one we confirmed on a real Windows machine.
 
 ---
 
@@ -317,6 +328,27 @@ The **Shadow ML** panel shows the rule detector (which drives decisions) and a b
 Parts A and B use local stand-ins. The numbers in our article come from the **real** system: two EC2 regions, Amazon Managed Prometheus, four RIPE Atlas probes and an HTTP witness, recorded on 12 November (the 20-trial campaign) and 14 to 18 November (the live run and 10 more trials). Part C reruns the analysis on that recorded data with the committed code. No account is needed, because the data is already saved.
 
 ### C0. Get the saved data
+
+Part C uses the Python environment that `python run.py setup` created. Activate it first and set the module path:
+
+macOS / Linux:
+
+```bash
+source .venv/bin/activate
+export PYTHONPATH=services:.
+```
+
+Windows PowerShell (then write `$env:CAMP` and `$env:LIVE` where the commands below write `$CAMP` and `$LIVE`, and type each command on one line without the `\` line breaks):
+
+```
+Set-ExecutionPolicy -Scope Process Bypass
+.venv\Scripts\Activate.ps1
+$env:PYTHONPATH = "services;."
+$env:CAMP = "evidence/ripe-campaign-20261112"
+$env:LIVE = "evidence/live-shadow-20261114"
+```
+
+On Windows, C2's `cmp` becomes `fc.exe /b <file1> <file2>`, and C4's `cp -r $LIVE /tmp/live-copy` becomes `Copy-Item -Recurse $env:LIVE $env:TEMP\live-copy` (then use `$env:TEMP\live-copy` as the live folder).
 
 The recorded data is in two folders of the repository: `evidence/ripe-campaign-20261112/` (the 12 November campaign) and `evidence/live-shadow-20261114/` (the 14–18 November live run). Set two variables:
 
@@ -341,7 +373,7 @@ The AWS account number and EC2 instance IDs in the SSM records are identifiers, 
 ### C1. The campaign result (AWS-only 0/20, AWS+RIPE 13/20)
 
 ```bash
-PYTHONPATH=services:. python -m ml.team_starter.ripe_value study \
+python -m ml.team_starter.ripe_value study \
   --ripe region-a=$CAMP/ripe/236862553.json --ripe region-b=$CAMP/ripe/236862555.json \
   --campaign-dir $CAMP --campaign-plan $CAMP/campaign-plan.json
 ```
@@ -380,7 +412,7 @@ then `SAME`: your output is byte-for-byte identical to the committed result.
 ### C3. The ML results on unseen faults (amendment 10)
 
 ```bash
-PYTHONPATH=services:. python -m ml.team_starter.amendment10 $CAMP $LIVE
+python -m ml.team_starter.amendment10 $CAMP $LIVE
 ```
 
 **Expected** (about 30 seconds): a table headed `Amendment 10 (POST-HOC, ...)` that is identical to the section of the same name at the end of `docs/ml/live/WEDNESDAY_RESULTS.md`. Some rows to check:
@@ -400,7 +432,7 @@ and the last line: `AWS-only view of the frozen rule on the Tuesday trials: 0/10
 
 ```bash
 cp -r $LIVE /tmp/live-copy
-PYTHONPATH=services:. python -m ml.team_starter.live_shadow retrain --campaign-dir $CAMP --live-dir /tmp/live-copy
+python -m ml.team_starter.live_shadow retrain --campaign-dir $CAMP --live-dir /tmp/live-copy
 ```
 
 **Expected** (about 3 minutes): this retrains and rescores every model on the live data and writes `/tmp/live-copy/RETRAIN.md` and `/tmp/live-copy/retrain-report.json`. It runs on a copy because it overwrites `retrain-report.json`, which C3 reads. The new `RETRAIN.md` matches the part of `docs/ml/live/WEDNESDAY_RESULTS.md` above the amendment 10 section, for example `current/anomaly_aws_ripe_no_host | 28.14 (22.21-35.17) | 77 | 65.667 | 17/20`. It has one extra context row, `context/frozen_aws_rule | 2.19 ...`, which was added with amendment 10; no other number changes. The command does not touch git (only the group's own run used `--commit`). C3 does not need C4.
@@ -434,7 +466,7 @@ In both tests AWS's own mechanisms acted (CloudFront origin failover, the HPA), 
 | 6 | `infra/helm/demo` | the EKS app with its HPA |
 | 7 | `scripts/ripe_campaign_measurements.py` (reads `ATLAS_API_KEY`) | the RIPE Atlas ping measurements to both origins; this spends RIPE credits |
 
-Several values are tied to our account and must be changed: the AMP workspace IDs and queue settings in `.env` (copy `.env.example`), the RIPE target addresses and measurement IDs, and the EC2 instance IDs in `scripts/aws_fault.py`. After that, the real pipeline runs with `python scripts/live_monitor.py --sqs --traffic` (dashboard on port 8766). Run it on one machine only: two pipelines share one SQS queue and would take each other's messages, and guarded faults run through `scripts/aws_fault.py`, which schedules its own recovery before it starts a fault. Always review `terraform plan` before `terraform apply`.
+Several values are tied to our account and must be changed: the AMP workspace IDs and queue settings in `.env` (copy `.env.example`), the RIPE target addresses and measurement IDs, and the EC2 instance IDs in `scripts/aws_fault.py`. After that, install the AWS tools with `python run.py setup --cloud`, sign in to AWS (see `docs/ENV_SETUP.txt`), and start the real pipeline with `python run.py live --profile <your AWS profile>` (dashboard on port 8766; it polls AWS directly and does not use the SQS queue). Guarded faults run through `scripts/aws_fault.py`, which schedules its own recovery before it starts a fault. Always review `terraform plan` before `terraform apply`.
 
 ---
 
@@ -444,19 +476,20 @@ Several values are tied to our account and must be changed: the AMP workspace ID
 |---|---|
 | `docker: command not found` on macOS | `export PATH=/Applications/Docker.app/Contents/Resources/bin:$PATH` |
 | `Cannot connect to the Docker daemon` | start Docker Desktop (or `sudo systemctl start docker` on Linux) and wait until it is running |
-| `port is already allocated` | another program uses one of the ports in B1. Stop it, run `demo/run.sh lab-down`, then `demo/run.sh lab-up` |
-| containers keep `Restarting`, logs show `Permission denied: '/app/data/...'` (Linux) | run the `chmod` command in B1, then `lab-down` and `lab-up` |
-| `ModuleNotFoundError` | activate the environment (`source .venv/bin/activate`), run from the repository root, keep the `PYTHONPATH=services:.` prefix, and check that both lock files were installed |
+| `port is already allocated` | another program uses a demo port (`python run.py check` lists them). Stop it, then run `python run.py demo-down` and `python run.py demo-up` |
+| containers keep `Restarting`, logs show `Permission denied: '/app/data/...'` (Linux) | run `chmod -R a+rwX data`, then `python run.py demo-down` and `python run.py demo-up` |
+| `ModuleNotFoundError` in Part C | activate the environment and set `PYTHONPATH` as in C0, and run from the repository root |
 | cards say "unknown" or the data is old right after start | wait 30–60 seconds for the first probe rounds |
-| demo seems stuck after many faults | `demo/run.sh lab-reset`, then wait 30 seconds |
-| `demo/run.sh up` or `down` says "usage" | those older commands were removed; use `lab-up`, `lab-down`, `lab-reset`, `lab-logs` or `status` |
+| demo seems stuck after many faults | `python run.py demo-reset`, then wait 30 seconds |
+| `python` not found (macOS/Linux) | use `python3`; on Windows, reinstall Python with "Add python.exe to PATH" ticked, or use `py` |
+| `No .venv yet. Run: python run.py setup` | run `python run.py setup` first |
 | Part C: `FileNotFoundError` for a trial file | check that `$CAMP` and `$LIVE` point at the saved data folder, and that you run from the repository root |
 
 ---
 
 ## Appendix: how we checked these instructions
 
-- **Parts A and C** (18 Nov 2026): on a clean Linux machine (Python 3.13) with a fresh copy of the final code (commit `f8eb946`, the same code as `main` at `1b3aa64`) and the saved data in `evidence/`: 496 passed, 0 failed; both smoke tests printed `PASS`; C1 printed 0/20 against 13/20 and p = 0.000244; C3's output was identical to the amendment 10 section of `docs/ml/live/WEDNESDAY_RESULTS.md`. On the earlier commit `2170d47` (the analysis code has not changed since) C2's output was byte-for-byte identical to `docs/ml/action-replay-campaign.json` (167 s), and C4 (158 s) reproduced every row of the official report and made no git commit.
-- **Part B** (18 Nov 2026, current 11-container demo): a fresh ZIP of the final code installed, passed all tests and started with `lab-up`. Latency: detected in 15 s, 100→75% at 76 s. HTTP 503: detected in 5 s, 100→75% at 101 s. 80% packet loss: detected in 5 s, 100→75% at 66 s, 75→50% at 106 s. At 50% loss the fault was detected but traffic did not move. The longer sequence in B3 (second step, failback) is from our 13 Nov runs of the earlier 13-container version on a clean Linux machine.
-- **Windows** (18 Nov 2026, PowerShell, Option B): the tests passed apart from three problems now fixed in `main`, and `demo.smoke_local` printed `PASS` (commit `ddbc046`). On Linux, `main` at `ddbc046` gave 497 passed and both smoke tests `PASS`. The Docker demo also ran through `demo\run.ps1` on the same machine. WSL 2 (Option A) is untested.
+- **Parts A and C** (18 Nov 2026): on a clean Linux machine (Python 3.13) with a fresh copy of `main` at `d4e457a`: `python run.py setup` succeeded, `python run.py test` gave 500 passed, 0 failed, and the smoke test printed `PASS`; A2 printed `PASS`; C1 printed 0/20 against 13/20 and p = 0.000244; C3's output was identical to the amendment 10 section of `docs/ml/live/WEDNESDAY_RESULTS.md`. On earlier commits with the same analysis code, C2's output was byte-for-byte identical to `docs/ml/action-replay-campaign.json` (167 s), and C4 (158 s) reproduced every row of the official report and made no git commit. The group also ran `run.py` on macOS.
+- **Part B** (18 Nov 2026, current 11-container demo): a fresh ZIP of the code installed, passed all tests and started the demo with `demo/run.sh lab-up`, which `python run.py demo-up` now wraps. Latency: detected in 15 s, 100→75% at 76 s. HTTP 503: detected in 5 s, 100→75% at 101 s. 80% packet loss: detected in 5 s, 100→75% at 66 s, 75→50% at 106 s. At 50% loss the fault was detected but traffic did not move. The longer sequence in B3 (second step, failback) is from our 13 Nov runs of the earlier 13-container version on a clean Linux machine.
+- **Windows** (18 Nov 2026, plain PowerShell, before `run.py` existed): the tests and the smoke test passed after three fixes now in `main`, and the Docker demo ran through `demo\run.ps1`. `run.py` itself has not yet been run on Windows.
 - **Not tested by us:** a rebuild of Part D in a fresh AWS account.
