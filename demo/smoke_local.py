@@ -37,7 +37,7 @@ def main() -> int:
     ports = {k: free_port() for k in ("a", "b", "gw", "ml")}
     url = {k: f"http://127.0.0.1:{p}" for k, p in ports.items()}
     token = secrets.token_hex(8)
-    env = {**os.environ, "PYTHONPATH": f"{root/'services'}:{root}", "LAB_TOKEN": token,
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join([str(root/'services'), str(root)]), "LAB_TOKEN": token,
            "DEMO_DATA_DIR": str(data), "REGION_A_URL": url["a"], "REGION_B_URL": url["b"],
            "GATEWAY_URL": url["gw"], "OBSERVER_GATEWAY_URL": url["gw"], "ML_URL": url["ml"],
            "WITNESS_INTERVAL_SEC": "2", "INTERNAL_INTERVAL_SEC": "4", "EXTERNAL_INTERVAL_SEC": "6",
