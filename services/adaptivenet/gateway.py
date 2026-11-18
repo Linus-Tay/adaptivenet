@@ -1,7 +1,8 @@
 """LOCAL simulator, not an implementation of AWS Global Accelerator.
 
 Each request selects a region. Failures are not silently retried. Faults expire
-on a monotonic clock even if the experiment runner disappears.
+on a monotonic clock even if whoever set them disappears. A fault sits on the path
+in front of the region, so the region's own metrics never see it.
 """
 import asyncio
 from contextlib import asynccontextmanager
@@ -88,6 +89,8 @@ async def probe(
 async def regional_catalog(region: str, upstream: httpx.AsyncClient):
     fault, expiry = faults.get(region, ({}, 0))
     if expiry > time.monotonic():
+        if random.random() * 100 < fault.get("loss_pct", 0):
+            return JSONResponse({"region": region, "error": "injected packet loss"}, status_code=504)
         await asyncio.sleep(fault["latency_ms"] / 1000)
         if random.random() < fault["error_rate"]:
             return JSONResponse({"region": region, "error": "injected HTTP error"}, status_code=503)

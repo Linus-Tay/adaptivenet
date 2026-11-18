@@ -12,11 +12,14 @@ type Decision={at:number;state?:string;condition?:string;decision?:string;reason
   plan?:Record<string,unknown>|null;executed_locally?:{step?:Step;verify?:Step;state?:string;reason?:string}|null};
 type Features=Record<string,number|null>;
 type Snapshot={regions:Record<string,{features:Features;quality:{internal:string;external:string}}>};
-type Adaptive={error?:string;assessment?:{detectors:Record<string,Detector>;snapshot_age_seconds?:number;ready_for_shadow_assessment?:boolean}|null;
+type Proposal={action?:string;confidence?:number;evidence?:string[];model_id?:string;error?:string};
+type Adaptive={error?:string;assessment?:{detectors:Record<string,Detector>;snapshot_age_seconds?:number;ready_for_shadow_assessment?:boolean;
+  predictor?:{proposal?:Proposal;safety_review?:{effective_action?:string}|null};trained?:Record<string,Proposal>}|null;
   snapshot?:Snapshot|null;
   fast?:{scopes:Record<string,{windows:Record<string,{failure_ratio:number|null;http_latency_p95_ms:number|null}>}>};
   decisions?:Decision[]};
-type Fault={region:string;latency_ms:number;error_rate:number;duration_seconds:number;remaining_seconds:number};
+type Fault={region:string;latency_ms:number;error_rate:number;loss_pct?:number;duration_seconds:number;remaining_seconds:number};
+const faultKind=(f:Fault)=>f.error_rate>0?`HTTP ${Math.round(f.error_rate*100)}% errors`:(f.loss_pct??0)>0?`${Math.round(f.loss_pct??0)}% packet loss`:`+${f.latency_ms} ms latency`;
 type Lab={mode?:string;error?:string;region_a_percent?:number;faults?:Record<string,Fault>};
 type FaultWindow={key:string;region:string;kind:string;start:number;end:number};
 
@@ -84,10 +87,10 @@ export default function Page(){
   useEffect(()=>{
     if(!active)return;
     const start=Math.round(Date.now()/1000-(active.duration_seconds-active.remaining_seconds));
-    const kind=active.error_rate>0?`HTTP ${Math.round(active.error_rate*100)}% errors`:`+${active.latency_ms} ms latency`;
+    const kind=faultKind(active);
     const key=`${active.region}:${kind}:${Math.round(start/10)}`;
     setFw(prev=>prev&&prev.key===key?prev:{key,region:active.region,kind,start,end:start+active.duration_seconds});
-  },[active?.region,active?.latency_ms,active?.error_rate,active?.duration_seconds,active?.remaining_seconds]);
+  },[active?.region,active?.latency_ms,active?.error_rate,active?.loss_pct,active?.duration_seconds,active?.remaining_seconds]);
 
   const decisions=ad.decisions??[];
   if(fw){
@@ -151,7 +154,7 @@ export default function Page(){
       <div className="an-route">
         <div className="an-route-head"><b>Where customers are sent</b><span>{weight===undefined?"?":`${weight}% Singapore · ${100-weight}% Virginia`}</span></div>
         <div className="an-bar"><i style={{width:`${weight??100}%`}}/></div>
-        <div className="an-fault">{active?<><Pill c="application_failure">FAULT ACTIVE</Pill> {REGION_NAME[active.region]} · {active.error_rate>0?`HTTP ${Math.round(active.error_rate*100)}% errors`:`+${active.latency_ms} ms latency`} · {Math.round(active.remaining_seconds)} s left</>
+        <div className="an-fault">{active?<><Pill c="application_failure">FAULT ACTIVE</Pill> {REGION_NAME[active.region]} · {faultKind(active)} · {Math.round(active.remaining_seconds)} s left</>
           :<><Pill c="healthy">NO FAULT</Pill> everything normal</>}</div>
       </div>
       <div className="an-controls">
@@ -162,13 +165,14 @@ export default function Page(){
         <div className="an-row">
           <button disabled={busy} onClick={()=>void act("/api/lab",{action:"latency",region:target,duration},"Latency fault injected (+1500 ms on the gateway path)")}>Inject +1.5 s latency</button>
           <button disabled={busy} onClick={()=>void act("/api/lab",{action:"failure",region:target,duration},"HTTP 503 fault injected")}>Inject HTTP 503</button>
+          <button disabled={busy} onClick={()=>void act("/api/lab",{action:"loss",region:target,duration},"Packet loss injected (80% of requests on the gateway path dropped)")}>Inject 80% packet loss</button>
         </div>
         <div className="an-row">
           <button className="ghost" disabled={busy} onClick={()=>void act("/api/lab",{action:"reset"},"Faults cleared")}>Clear faults</button>
           <button className="ghost" disabled={busy} onClick={()=>void act("/api/lab",{action:"route-a"},"All traffic to Singapore")}>Route → Singapore</button>
           <button className="ghost" disabled={busy} onClick={()=>void act("/api/adaptive",{action:"reset-demo"},"Demo reset: faults cleared, 100% Singapore, fresh controller journal")}>Reset demo</button>
         </div>
-        <p className="an-msg" role="status">{message||"Faults only affect this local lab. Latency = slow network path; HTTP 503 = requests fail."}</p>
+        <p className="an-msg" role="status">{message||"Faults only affect this local lab. Latency = slow network path; HTTP 503 = requests fail; packet loss = requests dropped on the path."}</p>
       </div>
     </section>
 
@@ -191,6 +195,7 @@ export default function Page(){
         <span className="operator-badge">{fw?`last fault: ${REGION_NAME[fw.region]} ${fw.kind} at ${clock(fw.start)}${seen.shift!==undefined?` · first traffic shift after ${Math.round(seen.shift)} s`:""}`:"no fault yet"}</span></div>
       <div className="an-flow">{stage.map((s,i)=><div key={s.k} className="an-stage">
         <small>{i+1}. {s.k}</small><Pill c={s.c}>{s.v}</Pill>{s.sub&&<span>{s.sub}</span>}</div>)}</div>
+      <ShadowMl a={ad.assessment} rule={ad.assessment?.detectors?.aws_ripe_http?.condition}/>
       <p className="muted">The rule detector only suggests (the trained ML models are shadow-only and not used here). An independent safety reviewer must approve, then the controller confirms the problem with three of its own checks before moving 25% of traffic, and checks real customer requests before moving more. Adding servers on EKS is shown as a plan only.</p>
     </section>
 
@@ -225,4 +230,17 @@ export default function Page(){
     </div>
     <footer className="operator-footer">Local lab only. Lab rule detectors per feature group (not the trained models); AWS-only cannot read RIPE or HTTP inputs. Nothing on this page changes AWS, CloudFront, EKS or Route 53.</footer>
   </main>;
+}
+
+/* Shadow ML beside the rule decision: shown for comparison, never acted on. */
+function ShadowMl({a,rule}:{a?:Adaptive["assessment"];rule?:string}){
+  const p=a?.predictor?.proposal;const trained=Object.entries(a?.trained??{});
+  const say=(x?:Proposal)=>x?.error?`error: ${x.error}`:x?`${x.action??"?"}${x.confidence!==undefined?` (${Math.round(x.confidence*100)}%)`:""}${x.evidence?.length?` · ${x.evidence.slice(0,2).join(", ")}`:""}`:"no output";
+  return <div className="an-shadow"><h3>Shadow ML, side by side (never acts)</h3>
+    <table><tbody>
+      <tr><td>Rule detector (drives decisions)</td><td>{rule??"?"}</td></tr>
+      <tr><td>Predictor {p?.model_id?`(${p.model_id})`:""}</td><td>{say(p)}</td></tr>
+      {trained.length?trained.map(([g,x])=><tr key={g}><td>Trained model: {g}</td><td>{say(x)}</td></tr>)
+        :<tr><td>Trained models</td><td>none loaded (put aws_only.pkl / aws_ripe.pkl / aws_ripe_http.pkl in data/demo-models and start with DEMO_MODELS_DIR=/app/models)</td></tr>}
+    </tbody></table></div>;
 }

@@ -105,3 +105,4 @@ body{background:#0b1423;color:#e6edf7;font-family:Arial,sans-serif;margin:0}main
 .rx-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}.rx-legend i.sg{background:#3fb8a0}.rx-legend i.us{background:#6aa7ff}
 .rx-legend small{margin-left:auto;color:#94a6bd}
 .rx-select,.rx-search{width:auto;min-width:220px;margin:0;padding:8px 10px}
+.an-shadow{margin:10px 0}.an-shadow h3{font-size:14px;margin:0 0 6px}.an-shadow table{width:100%;border-collapse:collapse;font-size:13px}.an-shadow td{padding:4px 6px;border-top:1px solid rgba(127,127,127,.25);vertical-align:top}.an-shadow td:first-child{width:38%;opacity:.8}

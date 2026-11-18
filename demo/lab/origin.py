@@ -4,7 +4,7 @@ Wraps ``adaptivenet.demo_api`` without changing it. ``/lab/metrics`` reports
 values measured inside this container (process CPU, cgroup/proc memory, load,
 request counters). It is the local stand-in for the AMP scrape of an EC2 origin
 and is labelled as such everywhere downstream. App faults here are visible to
-the internal (AWS-like) view; network faults live in ``edge.py`` instead.
+the internal (AWS-like) view; network faults live on the gateway instead.
 """
 from __future__ import annotations
 

@@ -4,7 +4,7 @@
 export const dynamic = "force-dynamic";
 const view = process.env.LAB_VIEW_URL;
 const control = process.env.CONTROL_API_URL ?? "http://127.0.0.1:8000";
-const runner = process.env.EXPERIMENT_URL ?? "http://127.0.0.1:8001";
+const runner = process.env.EXPERIMENT_URL ?? control;
 
 async function call(url: string, method = "GET", body?: unknown) {
   const token = process.env.LAB_TOKEN ?? "";

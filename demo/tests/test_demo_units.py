@@ -152,9 +152,11 @@ def test_replay_keeps_values_and_original_times(tmp_path):
 
 def test_faultctl_plans():
     ns = lambda **k: argparse.Namespace(**{"region": None, "duration": 60, **k})
-    assert faultctl.plan(ns(command="latency", region="sg", ms=400)) == [
-        ("POST", "edge", "/admin/faults", {"region": "region-a", "latency_ms": 400, "duration_seconds": 60})]
+    assert faultctl.plan(ns(command="lab-latency", region="sg", ms=400)) == [
+        ("POST", "lab-gateway", "/admin/faults", {"region": "region-a", "latency_ms": 400, "duration_seconds": 60})]
+    assert faultctl.plan(ns(command="lab-loss", region="sg", pct=50))[0][3]["loss_pct"] == 50
     down = faultctl.plan(ns(command="region-down", region="us"))
-    assert [c[1] for c in down] == ["region-b", "edge"]
+    assert [c[1] for c in down] == ["region-b", "lab-gateway"]
     assert faultctl.plan(ns(command="app-5xx", region="us", rate=0.5))[0][3]["kind"] == "app_5xx"
-    assert len(faultctl.plan(ns(command="clear"))) == 3
+    assert faultctl.plan(ns(command="lab-errors", region="sg", rate=1.0, duration=900))[0][3]["duration_seconds"] == 120
+    assert len(faultctl.plan(ns(command="lab-clear"))) == 3

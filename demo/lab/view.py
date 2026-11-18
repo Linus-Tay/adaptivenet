@@ -1,4 +1,7 @@
-"""Read-only decision and telemetry view for the demo (published on loopback only)."""
+"""Debug view of the decision pipeline, served by the detector service (lab-ml).
+
+The main dashboard (:3000) reads ``/api/state``; ``/`` is a raw debug page.
+"""
 from __future__ import annotations
 
 import json
@@ -8,7 +11,7 @@ from pathlib import Path
 import secrets
 import time
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import HTMLResponse
 import httpx
 
@@ -16,7 +19,7 @@ from adaptivenet.ingestion.fast_signals import load_fast_signals
 
 from .file_queue import FileQueue
 
-app = FastAPI(title="AdaptiveNet demo decision view")
+router = APIRouter()
 HTML = (Path(__file__).with_name("view.html")).read_text(encoding="utf-8")
 
 
@@ -44,22 +47,24 @@ def _get(client: httpx.Client, url: str, token: str | None = None):
         return None
 
 
-@app.get("/", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse)
 def index():
     return HTML
 
 
-@app.get("/api/state")
+@router.get("/api/state")
 def state():
+    from .ml_service import assess, latest
     data = data_dir()
     token = os.environ.get("LAB_TOKEN", "")
+    snapshot = latest()
+    try:
+        assessment = assess(snapshot) if snapshot else None
+    except Exception as exc:  # show the error on the page, never crash the view
+        assessment = {"error": f"{type(exc).__name__}: {exc}"}
     with httpx.Client(trust_env=False) as client:
-        assessment = _get(client, os.environ["ML_URL"].rstrip("/") + "/v1/assessment")
-        snapshot = _get(client, os.environ["ML_URL"].rstrip("/") + "/v1/snapshot")
         faults = {}
-        if os.environ.get("EDGE_URL"):
-            faults["network"] = _get(client, os.environ["EDGE_URL"].rstrip("/") + "/admin/faults", token)
-        if os.environ.get("PATH_MODE") == "gateway":
+        if os.environ.get("OBSERVER_GATEWAY_URL"):
             gw = _get(client, os.environ["OBSERVER_GATEWAY_URL"].rstrip("/") + "/admin/state", token)
             faults["gateway"] = gw
             faults["region_a_percent"] = (gw or {}).get("region_a_percent")
@@ -72,7 +77,7 @@ def state():
     return {
         "mode": os.environ.get("DEMO_MODE", "live_lab"),
         "assessment": assessment,
-        "snapshot": snapshot if isinstance(snapshot, dict) and "regions" in snapshot else None,
+        "snapshot": snapshot,
         "fast": load_fast_signals(data / "probe-events.jsonl"),
         "decisions": tail_jsonl(data / "decisions.jsonl", 40)[::-1],
         "fault_log": tail_jsonl(data / "fault-log.jsonl", 20)[::-1],
@@ -81,7 +86,7 @@ def state():
     }
 
 
-@app.post("/api/reset")
+@router.post("/api/reset")
 def reset(x_lab_token: str | None = Header(default=None)):
     """Ask the lab controller to start a fresh journal (lab gateway only)."""
     expected = os.environ.get("LAB_TOKEN", "")

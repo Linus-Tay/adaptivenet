@@ -108,7 +108,7 @@ class DecisionLog:
 
 
 class DemoLoop:
-    def __init__(self, *, client: httpx.Client, ml_url: str, edge_url: str, gateway_url: str,
+    def __init__(self, *, client: httpx.Client, ml_url: str, gateway_url: str,
                  token: str, data_dir: Path, mode: str, group: str):
         self.client, self.ml = client, ml_url.rstrip("/")
         self.paths = ObserverPaths()
@@ -155,7 +155,7 @@ class DemoLoop:
         return True
 
     def probe(self, scope: str) -> HttpMeasurement:
-        """Controller-owned HTTP observation over the external (edge) path."""
+        """Controller-owned HTTP observation over the external (gateway) path."""
         started = time.time()
         region, status = None, None
         try:
@@ -345,7 +345,7 @@ def main() -> None:
     data = Path(os.environ.get("DEMO_DATA_DIR", "/app/data"))
     interval = float(os.environ.get("DECISION_INTERVAL_SEC", "5"))
     with httpx.Client(trust_env=False) as client:
-        loop = DemoLoop(client=client, ml_url=os.environ["ML_URL"], edge_url=os.environ.get("EDGE_URL", ""),
+        loop = DemoLoop(client=client, ml_url=os.environ["ML_URL"],
                         gateway_url=os.environ.get("GATEWAY_URL", "http://127.0.0.1:8000"),
                         token=os.environ.get("LAB_TOKEN", ""), data_dir=data,
                         mode="review" if mode == "disabled" else mode,

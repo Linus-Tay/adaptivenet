@@ -80,24 +80,6 @@
         "registry-data:/app/data"
       ]
     },
-    "experiment-runner": {
-      "build": ".",
-      "command": [
-        "uvicorn",
-        "adaptivenet.experiment_runner:app",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8000"
-      ],
-      "environment": {
-        "LAB_TOKEN": "${LAB_TOKEN:?Set LAB_TOKEN in .env}",
-        "GATEWAY_URL": "http://gateway:8000"
-      },
-      "ports": [
-        "127.0.0.1:8001:8000"
-      ]
-    },
     "dashboard": {
       "build": {
         "context": ".",
@@ -108,7 +90,7 @@
       },
       "environment": {
         "CONTROL_API_URL": "http://control-api:8000",
-        "EXPERIMENT_URL": "http://experiment-runner:8000",
+        "EXPERIMENT_URL": "http://control-api:8000",
         "LAB_TOKEN": "${LAB_TOKEN:?Set LAB_TOKEN in .env}"
       },
       "ports": [

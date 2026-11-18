@@ -1,4 +1,4 @@
-"""Steady background user traffic on the user path (edge or lab gateway -> origins)."""
+"""Steady background user traffic on the user path (lab gateway -> origins)."""
 from __future__ import annotations
 
 import os

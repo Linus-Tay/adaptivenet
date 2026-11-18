@@ -124,37 +124,36 @@ The demo runs the full loop in local containers with no AWS calls. You need Dock
 On Linux only, the containers run as uid 10001, so prepare `data/` once:
 
 ```bash
-mkdir -p data/lab-live data/demo-live data/demo-replay data/demo-models && chmod -R a+rwX data
+mkdir -p data/lab-live data/demo-replay data/demo-models && chmod -R a+rwX data
 ```
 
-Start the group lab (13 containers: `compose.yaml` plus `demo/compose.lab-overlay.yaml`). Port 8080 must be free.
+Start the demo (11 containers: `compose.yaml` plus `demo/compose.lab-overlay.yaml`). Port 8080 must be free.
 
 ```bash
 demo/run.sh lab-up
 ```
 
-Open **http://127.0.0.1:3000** once the first build finishes (a few minutes). It shows the fault buttons, the traffic split, the three views and the decision pipeline. The shop site served through the gateway is on :3001. Port 8190 is only a debug view of the raw decision service, since :3000 already shows the pipeline.
+Open **http://127.0.0.1:3000** once the first build finishes (a few minutes). It has the fault buttons, the traffic split, the three views side by side, the decision pipeline and a **Real AWS telemetry** tab. The shop site served through the gateway is on :3001. Port 8192 is a debug view of the raw decision state that the dashboard reads.
 
 Why each container is there:
 
 | Container | Role |
 |---|---|
 | `demo-a`, `demo-b` | the Singapore and Virginia origins, kept separate so each is its own failure domain |
-| `gateway` | stands in for CloudFront; the traffic split it holds is the only thing the controller changes |
+| `gateway` | stands in for CloudFront: path faults sit on it, and its traffic split is the only thing the controller changes |
+| `control-api` | the group's original lab API: manual routes and bounded faults for the dashboard buttons and the routing experiment |
 | `lab-collector`, `lab-feature-worker` | mirror the real collector and feature worker, with a file queue in place of SQS, so the decoupling is the same |
-| `lab-ml` | the detector: suggests only. Demo decisions come from the rule detector (`demo/lab/detectors.py`) turned into a `proposal.v1`; trained models can be shown beside it |
+| `lab-ml` | the detector, suggest only. Demo decisions come from the rule detector (`demo/lab/detectors.py`) turned into a `proposal.v1`; trained models can be shown beside it. It also serves the decision state for the dashboard |
 | `lab-controller` | acts only after the confidence rules, the safety reviewer and its own probes agree, keeping suggest and act separate |
 | `lab-users` | steady user traffic, so there is something to measure and move |
 | `dashboard`, `demo-web` | the demo page (:3000) and the shop site (:3001) |
-| `control-api`, `experiment-runner` | the group's original lab: fault control and the static-vs-controller routing experiment |
-| `lab-view` | the :8190 debug view |
 
 1. Press **Reset demo**, then **Inject +1.5 s latency** (Singapore, 120 s).
 2. In about 15 s, AWS + RIPE + HTTP flags `region-a` while AWS-only stays healthy. Internal metrics cannot see a path fault.
-3. After 3 confidence windows and 3 controller probes, Singapore's share drops from 100 % to 75 % (about 65 to 93 s in our runs). A longer fault takes further 25-point steps.
-4. When Singapore stays clean, traffic returns to 100 % (about 100 s after the fault ended in our run).
+3. After 3 confidence windows and 3 controller probes, Singapore's share drops from 100 % to 75 % (76 s in our 18 Nov run). A longer fault takes further 25-point steps.
+4. When Singapore stays clean, traffic returns to 100 % (about 110 s after the fault ended).
 
-The same faults from the command line, then reset and stop:
+**Inject HTTP 503** and **Inject 80% packet loss** work the same way. The same faults from the command line, then reset and stop:
 
 ```bash
 PYTHONPATH=services:. python -m demo.faultctl lab-latency --region sg --ms 1500 --duration 120
@@ -165,6 +164,10 @@ PYTHONPATH=services:. python -m demo.faultctl lab-errors --region sg --rate 1.0
 ```
 
 ```bash
+PYTHONPATH=services:. python -m demo.faultctl lab-loss --region sg --pct 80
+```
+
+```bash
 demo/run.sh lab-reset
 ```
 
@@ -172,7 +175,13 @@ demo/run.sh lab-reset
 demo/run.sh lab-down
 ```
 
-Other modes are in [demo/DEMO.md](demo/DEMO.md). The standalone 10-container stack (`demo/run.sh up`) is optional and only needed for packet-loss injection, because it emulates the internet path. It also covers replay of recorded telemetry (`demo/run.sh replay`) and plugging in trained models. The real-AWS telemetry pair (collector and feature worker, 2 containers) is in `compose.telemetry.yaml`.
+**Shadow ML beside the rules.** The dashboard's Shadow ML panel shows the three frozen trained models next to the rule detector. They never act. To load them, copy them into `data/demo-models/` (each model's hash is checked first) and restart the demo:
+
+```bash
+python scripts/export_demo_models.py --root /path/to/folder/holding/data
+```
+
+App faults inside an origin (`app-5xx`, `cpu`, `region-down`), replay of recorded real telemetry (`demo/run.sh replay`) and plugging in trained models are in [demo/DEMO.md](demo/DEMO.md). The real-AWS telemetry pair (collector and feature worker, 2 containers) is in `compose.telemetry.yaml`.
 
 ---
 

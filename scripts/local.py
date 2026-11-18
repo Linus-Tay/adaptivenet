@@ -24,7 +24,7 @@ def start(env):
     processes = []
     try:
         for module, port, region in [("demo_api",8101,"region-a"),("demo_api",8102,"region-b"),
-                                     ("gateway",8080,""),("control_api",8000,""),("experiment_runner",8001,"")]:
+                                     ("gateway",8080,""),("control_api",8000,"")]:
             processes.append(subprocess.Popen([sys.executable,"-m","uvicorn",f"adaptivenet.{module}:app",
                 "--host","127.0.0.1","--port",str(port)],cwd=ROOT,env={**env,"REGION":region}))
         return processes

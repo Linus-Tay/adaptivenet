@@ -1,5 +1,5 @@
 const control=process.env.CONTROL_API_URL??"http://127.0.0.1:8000";
-const runner=process.env.EXPERIMENT_URL??"http://127.0.0.1:8001";
+const runner=process.env.EXPERIMENT_URL??control;
 async function call(url:string,method="GET",body?:unknown){
  const token=process.env.LAB_TOKEN;
  if(!token)return Response.json({error:"LAB_TOKEN is not configured"},{status:503});
@@ -15,6 +15,6 @@ export async function POST(request:Request){
  let action:string;let duration=30;let region="region-a";try{const body=await request.json();action=body.action;if(body.region==="region-b")region="region-b";if([30,60,120].includes(body.duration))duration=body.duration;}catch{return Response.json({error:"Invalid JSON"},{status:400});}
  if(action==="route-a"||action==="route-b")return call(`${control}/routes`,"PUT",{region_a_percent:action==="route-a"?100:0});
  if(action==="reset")return call(`${runner}/experiments`,"DELETE");
- if(action==="latency"||action==="failure")return call(`${runner}/experiments`,"POST",{region,latency_ms:action==="latency"?1500:0,error_rate:action==="failure"?1:0,duration_seconds:duration});
+ if(action==="latency"||action==="failure"||action==="loss")return call(`${runner}/experiments`,"POST",{region,latency_ms:action==="latency"?1500:0,error_rate:action==="failure"?1:0,loss_pct:action==="loss"?80:0,duration_seconds:duration});
  return Response.json({error:"Unknown action"},{status:400});
 }

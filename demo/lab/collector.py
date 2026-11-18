@@ -6,8 +6,8 @@ transport: a directory queue instead of SQS, so no AWS access is needed.
 
 Three measurement streams, all real measurements of the local lab:
 * internal (AMP stand-in): origin ``/lab/metrics`` scraped on the internal network;
-* external (RIPE stand-in): several lab probes ping each region via the edge path;
-* HTTP witness: one 5-second request per scope via the edge path, appended to
+* external (RIPE stand-in): several lab probes ping each region via the gateway path;
+* HTTP witness: one 5-second request per scope via the gateway path, appended to
   the same ``probe-events.jsonl`` journal format the native witness writes.
 
 Observations reuse the existing ``aws_amp`` / ``ripe_atlas`` source names because
@@ -59,7 +59,7 @@ def probe_observations(region: str, probe_id: str, replies: list[float | None],
     if not replies:
         return []
     lost = sum(1 for r in replies if r is None)
-    labels = {"lab": "edge_emulator"}
+    labels = {"lab": "gateway_path"}
     out = [Observation(region, "ripe_atlas", "packet_loss_pct", round(100 * lost / len(replies), 3),
                        "percent", observed_at, collected_at, probe_id, labels)]
     rtts = sorted(r for r in replies if r is not None)
@@ -71,7 +71,7 @@ def probe_observations(region: str, probe_id: str, replies: list[float | None],
 
 class Collector:
     def __init__(self, *, data_dir: Path, client: httpx.Client, origins: dict[str, str],
-                 edge_url: str, probes: int = 5, pings: int = 3):
+                 probes: int = 5, pings: int = 3):
         self.data_dir = data_dir
         self.client = client
         self.origins = origins
@@ -150,7 +150,7 @@ def main() -> None:
     external_every = float(os.environ.get("EXTERNAL_INTERVAL_SEC", "30"))
     with httpx.Client(trust_env=False) as client:
         collector = Collector(
-            data_dir=data, client=client, edge_url=os.environ.get("EDGE_URL", ""),
+            data_dir=data, client=client,
             origins={"region-a": os.environ["REGION_A_URL"], "region-b": os.environ["REGION_B_URL"]},
             probes=int(os.environ.get("LAB_PROBES", "5")))
         next_internal = next_external = 0.0

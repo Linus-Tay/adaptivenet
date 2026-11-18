@@ -1,4 +1,4 @@
-# Image for every service of the local demo (docker compose -f demo/compose.yaml).
+# Image for every service of the local demo (demo/compose.lab-overlay.yaml, demo/compose.replay.yaml).
 # Separate from the root lab Dockerfile and Dockerfile.telemetry, which stay unchanged.
 FROM python:3.12-slim
 WORKDIR /app

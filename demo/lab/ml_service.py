@@ -7,6 +7,9 @@ from the latest stored snapshot and HTTP witness journal, then reports:
 * optional trained proposals per feature group from ``DEMO_MODELS_DIR``
   (``aws_only.pkl``, ``aws_ripe.pkl``, ``aws_ripe_http.pkl``);
 * the lab rule detector for each feature group, side by side.
+
+It also serves the decision view (``view.py``): ``/api/state`` for the dashboard and
+a raw debug page at ``/``. Its only write is a reset request file for the controller.
 """
 from __future__ import annotations
 
@@ -25,8 +28,10 @@ from ml import predictor
 from ml.team_starter.feature_views import GROUPS
 
 from .detectors import assess_group
+from .view import router as view_router
 
 app = FastAPI(title="AdaptiveNet demo ML (shadow)")
+app.include_router(view_router)
 
 
 def data_dir() -> Path:
@@ -87,9 +92,13 @@ def health():
     return {"status": "ok", "mode": "shadow_only"}
 
 
+def latest() -> dict | None:
+    return Store(data_dir() / "adaptivenet-ingestion.db").latest_snapshot()
+
+
 @app.get("/v1/assessment")
 def assessment():
-    snapshot = Store(data_dir() / "adaptivenet-ingestion.db").latest_snapshot()
+    snapshot = latest()
     if snapshot is None:
         return JSONResponse({"error": "no feature snapshot yet"}, status_code=404)
     return assess(snapshot)
@@ -97,7 +106,7 @@ def assessment():
 
 @app.get("/v1/snapshot")
 def latest_snapshot():
-    snapshot = Store(data_dir() / "adaptivenet-ingestion.db").latest_snapshot()
+    snapshot = latest()
     if snapshot is None:
         return JSONResponse({"error": "no feature snapshot yet"}, status_code=404)
     return snapshot

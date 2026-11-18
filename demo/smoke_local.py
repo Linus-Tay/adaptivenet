@@ -2,9 +2,9 @@
 
   PYTHONPATH=services:. python -m demo.smoke_local
 
-Starts origins, gateway, edge, collector, feature worker, ML and controller as
+Starts origins, gateway, collector, feature worker, ML and controller as
 local processes on loopback ports, waits for healthy telemetry, injects a
-network-path latency fault on region-a, and checks that:
+gateway-path latency fault on region-a, and checks that:
 * AWS-only stays healthy, AWS+RIPE+HTTP reports network degradation in region-a;
 * the decision path proposes failover and the safety controller shifts the
   local gateway in bounded steps.
@@ -34,12 +34,12 @@ def free_port() -> int:
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
     data = Path(tempfile.mkdtemp(prefix="adaptivenet-demo-smoke-"))
-    ports = {k: free_port() for k in ("a", "b", "gw", "edge", "ml")}
+    ports = {k: free_port() for k in ("a", "b", "gw", "ml")}
     url = {k: f"http://127.0.0.1:{p}" for k, p in ports.items()}
     token = secrets.token_hex(8)
     env = {**os.environ, "PYTHONPATH": f"{root/'services'}:{root}", "LAB_TOKEN": token,
            "DEMO_DATA_DIR": str(data), "REGION_A_URL": url["a"], "REGION_B_URL": url["b"],
-           "GATEWAY_URL": url["gw"], "EDGE_URL": url["edge"], "ML_URL": url["ml"],
+           "GATEWAY_URL": url["gw"], "OBSERVER_GATEWAY_URL": url["gw"], "ML_URL": url["ml"],
            "WITNESS_INTERVAL_SEC": "2", "INTERNAL_INTERVAL_SEC": "4", "EXTERNAL_INTERVAL_SEC": "6",
            "DECISION_INTERVAL_SEC": "3", "LAB_PROBES": "3", "USER_RPS": "3"}
     env.pop("ADAPTIVENET_SHADOW_MODEL", None)
@@ -48,7 +48,7 @@ def main() -> int:
                                       "--log-level", "warning"], extra)
     specs = [uv("demo.lab.origin:app", ports["a"], REGION="region-a"),
              uv("demo.lab.origin:app", ports["b"], REGION="region-b"),
-             uv("adaptivenet.gateway:app", ports["gw"]), uv("demo.lab.edge:app", ports["edge"]),
+             uv("adaptivenet.gateway:app", ports["gw"]),
              uv("demo.lab.ml_service:app", ports["ml"]),
              ([py, "-m", "demo.lab.traffic"], {}), ([py, "-m", "demo.lab.collector"], {}),
              ([py, "-m", "demo.lab.worker"], {}),
@@ -60,7 +60,7 @@ def main() -> int:
         for i, (cmd, extra) in enumerate(specs):
             out = (logs / f"{i}.log").open("w")
             procs.append(subprocess.Popen(cmd, cwd=root, env={**env, **extra}, stdout=out, stderr=out))
-            if i == 4:
+            if i == 3:
                 time.sleep(2)  # servers up before clients
         client = httpx.Client(timeout=10, trust_env=False)
 
@@ -80,10 +80,10 @@ def main() -> int:
         healthy = wait(lambda a: all(d["condition"] == "healthy" for d in a["detectors"].values()), 90,
                        "all feature groups healthy")
         print("baseline healthy:", {g: d["condition"] for g, d in healthy["detectors"].items()})
-        r = client.post(url["edge"] + "/admin/faults", headers={"X-Lab-Token": token},
-                        json={"region": "region-a", "latency_ms": 700, "duration_seconds": 240})
+        r = client.post(url["gw"] + "/admin/faults", headers={"X-Lab-Token": token},
+                        json={"region": "region-a", "latency_ms": 700, "duration_seconds": 120})
         r.raise_for_status()
-        print("injected 700 ms path latency on region-a (external path only)")
+        print("injected 700 ms latency on the gateway path to region-a (the origin itself is untouched)")
         degraded = wait(lambda a: a["detectors"]["aws_ripe_http"]["condition"] == "network_degradation", 90,
                         "external groups to detect network degradation")
         groups = {g: d["condition"] for g, d in degraded["detectors"].items()}

@@ -1,5 +1,5 @@
 # Replay recorded REAL telemetry (archive folder or ingestion .db) through ML,
-# safety review and the decision view. Controller runs in review mode: no actuation.
+# safety review and the decision view (http://127.0.0.1:8192). Controller runs in review mode: no actuation.
 #   REPLAY_SOURCE=/abs/path/to/data/ml-archive demo/run.sh replay
 name: adaptivenet-demo-replay
 
@@ -28,7 +28,7 @@ services:
     <<: *image
     restart: unless-stopped
     command: ["uvicorn", "demo.lab.ml_service:app", "--host", "0.0.0.0", "--port", "8000"]
-    environment: {<<: *env, ADAPTIVENET_SHADOW_MODEL: "${ADAPTIVENET_SHADOW_MODEL:-}", DEMO_MODELS_DIR: "${DEMO_MODELS_DIR:-}"}
+    environment: {<<: *env, DEMO_MODE: replay_recorded_data, ADAPTIVENET_SHADOW_MODEL: "${ADAPTIVENET_SHADOW_MODEL:-}", DEMO_MODELS_DIR: "${DEMO_MODELS_DIR:-}"}
     volumes:
       - "${DEMO_REPLAY_DATA_HOST:-../data/demo-replay}:/app/data"
       - "${DEMO_MODELS_HOST:-../data/demo-models}:/app/models:ro"
@@ -39,12 +39,4 @@ services:
     command: ["python", "-m", "demo.lab.controller"]
     environment: {<<: *env, DEMO_CONTROLLER_MODE: review, DEMO_DECISION_GROUP: "${DEMO_DECISION_GROUP:-aws_ripe_http}"}
     volumes: ["${DEMO_REPLAY_DATA_HOST:-../data/demo-replay}:/app/data"]
-    depends_on: [ml]
-  view:
-    <<: *image
-    restart: unless-stopped
-    command: ["uvicorn", "demo.lab.view:app", "--host", "0.0.0.0", "--port", "8000"]
-    environment: {<<: *env, DEMO_MODE: replay_recorded_data}
-    volumes: ["${DEMO_REPLAY_DATA_HOST:-../data/demo-replay}:/app/data"]
-    ports: ["127.0.0.1:8190:8000"]
     depends_on: [ml]
