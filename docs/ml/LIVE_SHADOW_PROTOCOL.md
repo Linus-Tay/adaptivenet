@@ -167,3 +167,21 @@ at 11:52 UTC with its rollback armed. Slots 0 and 1 are not counted as trials or
 *Make-up (approved by MY at 13:55 UTC, added before slots 7-9 ran and decided only from the skipped status):*
 slots 10 and 11 repeat skipped slots 0 and 1 (region-a 30%, region-b 15%) at 15:12 and 15:37 UTC. They use the
 same runner and rollback, and are appended to the frozen plan.
+
+**Amendment 10 (18 Nov 2026, POST HOC: made after the held-out data and the Tuesday trials were scored;
+approved by MY on 18 Nov 12:06 SGT): corrected false-alarm count.** Amendment 4 said the Tuesday trials would
+be excluded from the held-out false-alarm count through their SSM commands. But `ssm_exclusions()` ends each
+exclusion at the command's `TimeoutSeconds` (180 s), so with the pads a trial was excluded only from
+request - 60 s to request + 780 s. Each fault lasted 960 s, and the RIPE loss window (480 s) keeps showing it
+afterwards. 60 held-out rows lay inside a live fault and 255 within fault + 600 s, so a detector still in
+alarm when the exclusion ended was charged a false-alarm onset. The independent reviewer found this from the
+loss-only rule's main-comparison counts, before any S1 or S2 held-out number was computed. Correction: for every
+confirmed Tuesday trial, held-out rows of the impaired region with request - 60 <= ts <= request + duration + 600
+are dropped. These are the protocol's own pads and the campaign_ml.build_rows labelling window; no parameter was
+chosen on the results. Every held-out false-alarm number is now reported twice, "as pre-registered" and
+"amendment 10 (post hoc)" (`ml/team_starter/amendment10.py`; table in `docs/ml/live/WEDNESDAY_RESULTS.md`).
+Held-out rows go from 7,880 (65.667 region-h) to 7,625 (63.542 region-h). **The pre-registered verdicts stand.**
+S1 is described as "did not pass as pre-registered; meets the limit after the post hoc correction by one
+alarm" (13 onsets = 4.91/day; 14 would be 5.29), never as passed. Picks, pass marks, thresholds, trial
+detection and control counts are unchanged. Also added: the AWS-only view of the frozen rule
+(`aws_view_alert`) on the Tuesday trials, 0/10 detected and 0/10 controls alarmed.

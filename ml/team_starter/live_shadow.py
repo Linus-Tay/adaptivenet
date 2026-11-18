@@ -269,6 +269,7 @@ def frozen_rules(rows: list[dict], amp: dict[str, list[dict]]) -> dict[str, dict
             hist = [x.get("http_p95_ms") for x in series[region][bisect_left(st, t - 6 * 3600):bisect_left(st, t)]]
             vals = {f"{region}.{k}": v for k, v in row["values"].items() if k in cm.AWS_FEATURES}
             aws = bool(aws_view_alert(vals, True, region, hist))
+            out.setdefault("frozen_aws_rule", {})[key] = aws   # AWS-only view of the frozen rule (context)
             out["frozen_aws_ripe_rule"][key] = aws or bool(ripe)
         for v in AMENDMENT_7["rule_variants"]:
             rv = bool(ripe_path_alert(row["values"], v))
@@ -757,6 +758,10 @@ def team_summary(rep: dict) -> str:
 
 
 # ---------------------------------------------------------------------------- I/O
+# Amendment 10 (18 Nov 2026, POST HOC, approved by MY): the exclusion below ends at the SSM command
+# timeout (180 s), not at the end of the 960 s fault, so Tuesday fault rows leaked into the held-out
+# healthy count. ml/team_starter/amendment10.py reports corrected counts beside the pre-registered ones;
+# this function is left unchanged so the pre-registered numbers stay reproducible.
 def ssm_exclusions(start: float, end: float, profile: str) -> list[dict]:
     """READ-ONLY: every SSM command sent to either origin during the run becomes an exclusion."""
     out = []
