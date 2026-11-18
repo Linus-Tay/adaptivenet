@@ -53,7 +53,14 @@ docker compose version
 > **macOS:** if `docker` is "command not found" although Docker Desktop is installed, run
 > `export PATH=/Applications/Docker.app/Contents/Resources/bin:$PATH`
 >
-> **Windows:** the scripts are bash scripts. Use WSL 2 (Ubuntu) with Docker Desktop's WSL integration turned on, and run every command in the WSL terminal. *We have not tested Windows ourselves.*
+> **Windows: please use WSL 2.** The commands in this guide are Linux/macOS shell commands (`demo/run.sh` is a bash script; `source .venv/bin/activate`, the `PYTHONPATH=services:. python ...` prefix, `/tmp` and `cmp` do not work in PowerShell or Command Prompt). On Windows:
+>
+> 1. Install WSL 2 with Ubuntu (`wsl --install -d Ubuntu` in an administrator PowerShell, then restart).
+> 2. Install Docker Desktop and turn on *Settings → Resources → WSL integration* for Ubuntu.
+> 3. Open the **Ubuntu** terminal and run every command in this guide there, unchanged. Install Python and Git inside Ubuntu (`sudo apt install python3 python3-venv git`), and clone the repository into your Ubuntu home folder (`cd ~`), not under `/mnt/c`.
+> 4. Open the demo pages in your normal Windows browser at the same `127.0.0.1` addresses.
+>
+> Inside WSL 2 the steps are the Linux steps, including the Linux-only `chmod` step in B1. *We have not tested Windows ourselves*; we tested on Linux and macOS.
 
 ---
 
