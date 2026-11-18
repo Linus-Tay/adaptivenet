@@ -42,7 +42,7 @@ Everything in sections 3 and 4 runs on a laptop with no AWS or RIPE account. Ste
 | View | Source | What it can see |
 |---|---|---|
 | AWS-internal | AMP: app up, HTTP 5xx ratio, handler p95 latency, host CPU and memory | the app and host from inside the region |
-| Network path | RIPE Atlas: the same 4 probes ping both origins every 240 s | packet loss and RTT on real internet paths, independent of AWS |
+| Network path | RIPE Atlas: the same 4 probes ping both origins every 240 s; the collector polls the REST "latest results" endpoint every 60 s (not the Streaming API) | packet loss and RTT on real internet paths, independent of AWS |
 | Client | HTTP witness: one GET every 15 s from one machine in Singapore, recording status, latency and which region answered | what a user actually gets |
 
 CloudWatch CloudFront metrics (requests, error rates) are also collected, for display only. They are global aggregates, not per-region signals.
@@ -133,7 +133,21 @@ Start the group lab (13 containers: `compose.yaml` plus `demo/compose.lab-overla
 demo/run.sh lab-up
 ```
 
-Open **http://127.0.0.1:3000** once the first build finishes (a few minutes). The site served through the gateway is on :3001, and a raw decision view for debugging is on :8190.
+Open **http://127.0.0.1:3000** once the first build finishes (a few minutes). It shows the fault buttons, the traffic split, the three views and the decision pipeline. The shop site served through the gateway is on :3001. Port 8190 is only a debug view of the raw decision service, since :3000 already shows the pipeline.
+
+Why each container is there:
+
+| Container | Role |
+|---|---|
+| `demo-a`, `demo-b` | the Singapore and Virginia origins, kept separate so each is its own failure domain |
+| `gateway` | stands in for CloudFront; the traffic split it holds is the only thing the controller changes |
+| `lab-collector`, `lab-feature-worker` | mirror the real collector and feature worker, with a file queue in place of SQS, so the decoupling is the same |
+| `lab-ml` | the detector: suggests only. Demo decisions come from the rule detector (`demo/lab/detectors.py`) turned into a `proposal.v1`; trained models can be shown beside it |
+| `lab-controller` | acts only after the confidence rules, the safety reviewer and its own probes agree, keeping suggest and act separate |
+| `lab-users` | steady user traffic, so there is something to measure and move |
+| `dashboard`, `demo-web` | the demo page (:3000) and the shop site (:3001) |
+| `control-api`, `experiment-runner` | the group's original lab: fault control and the static-vs-controller routing experiment |
+| `lab-view` | the :8190 debug view |
 
 1. Press **Reset demo**, then **Inject +1.5 s latency** (Singapore, 120 s).
 2. In about 15 s, AWS + RIPE + HTTP flags `region-a` while AWS-only stays healthy. Internal metrics cannot see a path fault.
@@ -158,7 +172,7 @@ demo/run.sh lab-reset
 demo/run.sh lab-down
 ```
 
-Other modes are in [demo/DEMO.md](demo/DEMO.md): a standalone 10-container stack with an emulated internet path for packet-loss faults (`demo/run.sh up`), replay of recorded telemetry (`demo/run.sh replay`), and plugging in trained models. The real-AWS telemetry pair (collector and feature worker, 2 containers) is in `compose.telemetry.yaml`.
+Other modes are in [demo/DEMO.md](demo/DEMO.md). The standalone 10-container stack (`demo/run.sh up`) is optional and only needed for packet-loss injection, because it emulates the internet path. It also covers replay of recorded telemetry (`demo/run.sh replay`) and plugging in trained models. The real-AWS telemetry pair (collector and feature worker, 2 containers) is in `compose.telemetry.yaml`.
 
 ---
 
