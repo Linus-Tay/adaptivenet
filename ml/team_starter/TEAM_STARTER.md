@@ -2,12 +2,9 @@
 
 Separate, additive and runnable handoff for the ML teammate. Everything under ml/team_starter/; no edits to the existing collector, SQS worker, UI, SQLite schema, Terraform, deployed AWS resources or ml/predictor.py.
 
-## Status (4 November 2026)
+## Historical note (4 November 2026)
 
-- Verified on Mac: Dockerized AWS/RIPE/CloudFront collector → SQS → Docker feature worker → SQLite. CloudFront fresh snapshots were observed.
-- Still native on Mac: read-only Observatory (:8766), operator (:3000), workload page (:3001) and optional five-second HTTP witnesses.
-- There is a stable model_input.v1, fast_signals.v1 and read-only detection_input.v1. No trained predictive model or automatic mitigation exists.
-- Important GitHub caveat: this branch builds on remote PR #19, whose old default witness cadence and read-only SSO mounts predate local Mac hotfixes. This branch does NOT include those local Docker changes; avoid overwriting the Mac checkout or assuming remote code reproduces local settings.
+Written when the ML work started: no trained model or automatic mitigation existed yet. The current status is in the top-level README.
 
 ## Quick start (offline, no AWS credentials)
 

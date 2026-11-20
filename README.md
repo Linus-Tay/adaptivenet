@@ -6,8 +6,6 @@ The question behind it: **do outside network signals catch failures that AWS's o
 
 Everything in sections 3 and 4 runs on a laptop with no AWS or RIPE account. Step-by-step marking instructions with expected output are in [docs/GROUP03_INSTRUCTIONS.md](docs/GROUP03_INSTRUCTIONS.md) ([PDF](docs/GROUP03_INSTRUCTIONS.pdf)).
 
-**Branches.** `main` is the current, handoff version (the same as `v2`). The original course submission is kept at tag `v1.0-submission`.
-
 ## Quick start (macOS, Linux or Windows PowerShell)
 
 **Download first**
@@ -296,12 +294,12 @@ The candidate frozen on Monday failed review before scoring (it watched only RIP
 | `services/adaptivenet/controller/` | confidence rules, safety controller, decision path, failback, read-only EKS HPA access, journal |
 | `services/adaptivenet/gateway.py` | local traffic-split gateway, the only thing the demo controller changes |
 | `ml/team_starter/` | ML datasets, training, evaluation, RIPE value study, campaign and live-run analysis |
-| `step5_finish/`, `step7_finish/`, `step8_finish/` | frozen-model shadow inference service, its container and EKS manifest, final ML checks |
+| `step5_finish/`, `step7_finish/`, `step8_finish/` | the ML shadow-inference service, its container and EKS manifest, and the final ML checks. The folder names are our ML milestones (steps 5, 7 and 8 of the ML plan) |
 | `demo/` | Docker demo, fault CLI, smoke test |
 | `apps/dashboard/`, `apps/demo-web/` | Next.js demo page (:3000) and demo site (:3001) |
 | `scripts/` | operator tools: live pipeline, probes, guarded AWS faults, RIPE campaign, live shadow job, EKS checks |
 | `infra/terraform/`, `infra/helm/` | AWS infrastructure (EC2, CloudFront, AMP, SQS, IAM, alarms, EKS) and the Helm chart with the HPA |
-| `docs/` | design notes and result reports |
+| `docs/` | design notes and result reports; [docs/README.md](docs/README.md) is the index |
 | `tests/` | tests for services, controller, ingestion and scripts |
 
 Further reading: [docs/ARCHITECTURE_AND_ML_2026.md](docs/ARCHITECTURE_AND_ML_2026.md) (data rates, runtime), [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) (feature fields), [docs/TEAM_HANDOFF.md](docs/TEAM_HANDOFF.md) (model contracts), [docs/ml/PREDICTION_GUIDE.md](docs/ml/PREDICTION_GUIDE.md), [ml/team_starter/TEAM_STARTER.md](ml/team_starter/TEAM_STARTER.md), [docs/ml/STEP7_SHADOW_SERVICE.md](docs/ml/STEP7_SHADOW_SERVICE.md).
