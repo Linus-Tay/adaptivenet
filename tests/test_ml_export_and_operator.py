@@ -28,27 +28,8 @@ def test_ml_export_has_real_timestamp_and_missing_masks_without_stale_display_va
     assert "last_known" not in row["cloudfront_live_at_collection"]
     assert row["missing"]["region-a"]["app_up"] is True
 
-def test_operator_supports_local_one_button_demo_faults():
-    server=(ROOT/"apps/dashboard/app/api/aws-fault/route.ts").read_text(encoding="utf-8")
-    ui=(ROOT/"apps/dashboard/app/page.tsx").read_text(encoding="utf-8")+(ROOT/"apps/dashboard/app/components/AwsFaultPanel.tsx").read_text(encoding="utf-8")
-    # No separate arming toggle or arbitrary remote command.
-    assert 'ENABLE_REAL_AWS_FAULT_UI' not in server
-    assert 'requestInProgress' in server
-    assert 'ADAPTIVENET_MODE' in server
-    assert '"region-a"' in server and '"region-b"' in server
-    assert '[10, 20, 30, 45, 60]' in server
-    assert 'aws_fault.py' in server
-    assert '"--execute"' in server and '"--confirm"' in server
-    assert 'shell: false' in server
-    # A locally initiated button press remains a user-confirmed action.
-    assert 'window.confirm(' in ui
-    assert '/api/aws-fault' in ui
-
-def test_fault_controls_are_separate_from_public_workload():
-    ui=(ROOT/"apps/dashboard/app/page.tsx").read_text(encoding="utf-8")+(ROOT/"apps/dashboard/app/components/AwsFaultPanel.tsx").read_text(encoding="utf-8")
+def test_public_workload_has_no_fault_controls():
     workload=(ROOT/"apps/demo-web/app/page.tsx").read_text(encoding="utf-8")
-    assert "/api/aws-fault" in ui and 'function Info(' in ui
-    assert "window.confirm(" in ui
-    assert "/api/aws-fault" not in workload
+    assert "/api/aws-fault" not in workload and "/api/lab" not in workload
     assert 'className="catalogue"' in workload and workload.count('className="timeline"')==1
     assert "+item.price.toFixed(2))" not in workload

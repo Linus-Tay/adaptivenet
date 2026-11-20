@@ -11,7 +11,7 @@ from adaptivenet.ingestion.models import Observation
 from adaptivenet.ingestion.sqs_transport import Outbox, encode_poll, receive_one
 from adaptivenet.ingestion.store import Store
 
-from demo import faultctl, replay
+from demo import faultctl
 from demo.lab.collector import internal_observations, probe_observations
 from demo.lab.controller import build_proposal, emulated_hpa
 from demo.lab.file_queue import FileQueue, QUEUE_URL
@@ -127,27 +127,6 @@ def test_missing_internal_gives_unknown_not_healthy(tmp_path, monkeypatch):
     _, a = _assessment(tmp_path, monkeypatch, events, now)
     assert a["detectors"]["aws_only"]["condition"] == "unknown"
     assert build_proposal(a, "aws_only", 100)["action"] == "investigate"
-
-
-def test_replay_keeps_values_and_original_times(tmp_path):
-    now = time.time()
-    snaps = [make_snapshot(fixture_events(t), t) for t in (now - 7200, now - 7170)]
-    archive = tmp_path / "archive"
-    archive.mkdir()
-    (archive / "feature_snapshots.jsonl").write_text("\n".join(json.dumps(s) for s in snaps), encoding="utf-8")
-    loaded = replay.load_snapshots(archive)
-    slept = []
-    clock = [now]
-    def fake_sleep(s):
-        slept.append(s); clock[0] += s
-    count = replay.replay(loaded, [], tmp_path / "out", speed=10, sleep=fake_sleep, clock=lambda: clock[0])
-    assert count == 2 and round(sum(slept), 3) == 3.0
-    stored = Store(tmp_path / "out" / "adaptivenet-ingestion.db").latest_snapshot()
-    original = snaps[1]
-    assert stored["snapshot_id"] == original["snapshot_id"]
-    assert stored["regions"]["region-a"]["features"] == original["regions"]["region-a"]["features"]
-    assert stored["replay"]["original_computed_at_unix"] == original["computed_at_unix"]
-    assert stored["demo"]["mode"] == "replay" and abs(stored["computed_at_unix"] - clock[0]) < 1
 
 
 def test_faultctl_plans():

@@ -25,7 +25,6 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (process.env.ADAPTIVENET_MODE === "aws") return Response.json({error: "Local demo only"}, {status: 403});
   const origin = request.headers.get("origin");
   if (origin && new URL(origin).host !== request.headers.get("host")) return Response.json({error: "Invalid origin"}, {status: 403});
   let action = "";

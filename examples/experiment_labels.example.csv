@@ -1,3 +1,0 @@
-experiment_id,start_utc,end_utc,affected_region,ground_truth_action,injector_config_reference,notes
-EXAMPLE-001,2026-10-14T15:00:00Z,2026-10-14T15:05:00Z,region-a,normal,none,"EXAMPLE ONLY: replace with real controlled experiment metadata"
-EXAMPLE-002,2026-10-14T15:05:00Z,2026-10-14T15:10:00Z,region-a,http_delay,experiment-configs/delay-200ms.json,"EXAMPLE ONLY: these labels were not measured or injected"

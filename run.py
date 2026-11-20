@@ -69,12 +69,28 @@ def need_venv() -> str:
 
 # ---------------------------------------------------------------- commands
 
+PY_FIX = ("install Python 3.14 (64-bit) from https://www.python.org/downloads/ "
+          "(on Windows: the 'Windows installer (64-bit)'), then run this again with that Python")
+
+
+def python_problem() -> str | None:
+    """The pinned scikit-learn, numpy and scipy have ready-made packages only for 64-bit Python 3.11 to 3.14."""
+    v = sys.version_info
+    if v < (3, 11):
+        return f"Python {v[0]}.{v[1]} is too old"
+    if v >= (3, 15):
+        return f"Python {v[0]}.{v[1]} is too new for the pinned ML packages"
+    if sys.maxsize <= 2**32:
+        return "this Python is 32-bit; the ML packages need 64-bit"
+    return None
+
+
 def check() -> int:
     print("Prerequisites")
     problems = 0
-    ok = sys.version_info >= (3, 11)
-    say(ok, f"Python {sys.version.split()[0]}" + ("" if ok else "  -> install Python 3.11+ from https://www.python.org/downloads/"))
-    problems += not ok
+    issue = python_problem()
+    say(issue is None, f"Python {sys.version.split()[0]}" + (f": {issue}  -> {PY_FIX}" if issue else ""))
+    problems += issue is not None
     d = docker()
     if not d:
         say(False, "Docker not found  -> install Docker Desktop: https://www.docker.com/products/docker-desktop/")
@@ -100,9 +116,15 @@ def check() -> int:
 
 
 def setup(cloud: bool) -> int:
-    if sys.version_info < (3, 11):
-        sys.exit("Python 3.11+ is needed: https://www.python.org/downloads/")
-    if not VENV_PY.exists():
+    issue = python_problem()
+    if issue:
+        sys.exit(f"{issue}. Fix: {PY_FIX}")
+    if VENV_PY.exists():
+        probe = subprocess.run([str(VENV_PY), "-c", "import sys;print(sys.version_info[:2]>=(3,11) and sys.version_info[:2]<(3,15) and sys.maxsize>2**32)"],
+                               capture_output=True, text=True)
+        if probe.stdout.strip() != "True":
+            sys.exit("The existing .venv was made with an unsupported Python. Delete the .venv folder, then run setup again.")
+    else:
         if run([sys.executable, "-m", "venv", str(VENV)]):
             return 1
     py = str(VENV_PY)
@@ -130,7 +152,7 @@ def test() -> int:
 def demo_files() -> None:
     if not ENV_DEMO.exists():
         ENV_DEMO.write_text(f"LAB_TOKEN={secrets.token_hex(16)}\n", encoding="ascii")
-    for name in ("lab-live", "demo-replay", "demo-models"):
+    for name in ("lab-live", "demo-models"):
         folder = ROOT / "data" / name
         folder.mkdir(parents=True, exist_ok=True)
         if sys.platform.startswith("linux"):

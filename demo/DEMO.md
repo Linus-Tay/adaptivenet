@@ -9,7 +9,7 @@ collector -> durable outbox -> file queue -> feature worker -> SQLite snapshots
    -> dashboard (:3000)
 ```
 
-There are two modes. **Live lab** (`demo/run.sh lab-up`) runs containers you can break from the dashboard or a fault CLI. **Replay** (`demo/run.sh replay`) feeds recorded real AdaptiveNet telemetry through the same detector, reviewer and decision steps.
+The live lab (`demo/run.sh lab-up`, or `python run.py demo-up`) runs containers you can break from the dashboard or a fault CLI.
 
 ## 1. Start the live lab
 
@@ -98,27 +98,7 @@ demo/run.sh lab-reset
 
 The first two rows are the point of the demo: the same telemetry, seen only through the AWS-only projection, cannot see a path-only fault. Latency is 1500 ms because the controller's own client deadline is 500 ms; below that the safety controller (correctly) does not treat the source as degraded.
 
-## 3. Replay recorded real data
-
-Use an archive folder made by `python -m ml.team_starter.archive` (with `feature_snapshots.jsonl` and `http_witness.jsonl`), or an ingestion `.db`. These files are private, so keep them under `data/` and never commit them.
-
-```bash
-REPLAY_SOURCE=/absolute/path/to/data/ml-archive \
-REPLAY_START_AT=2026-11-09T14:27:00Z REPLAY_SPEED=10 demo/run.sh replay
-```
-
-Open http://127.0.0.1:8192. The header shows `replay_recorded_data`. Stop with `demo/run.sh replay-down`.
-
-Replay writes snapshots in their recorded order and spacing (divided by `REPLAY_SPEED`, idle gaps capped by `REPLAY_MAX_GAP`, default 120 s) into `data/demo-replay/`. Freshness gates compare against the wall clock, so each record is shifted by one constant offset; the original timestamps are kept under `replay`, and values, nulls and quality flags are never changed. The controller runs in `review` mode, assumes a 50/50 split (`DEMO_REVIEW_REGION_A_PERCENT`) and actuates nothing.
-
-**Replay of the verified episode `fault-run-20261109T142558Z-3fef5580`** (a region-b service stop, 14:29:35 to 14:31:27 UTC), checked on 12 Nov 2026 with the lab rule detectors:
-
-* AWS-only stays **healthy**, because the stored AMP features still read `app_up = 1`.
-* AWS+RIPE also stays healthy: it was a service stop, not a network fault.
-* AWS+RIPE+HTTP flags it from the witness `network_error` responses, first as `multi_region_degradation` (no action), then region-b at 14:31:25, which leads to a **failover** plan.
-* Detection lands near the end of the episode. Treat it as a demo of the pipeline on real data, not an evaluation result.
-
-## 4. Showing the trained models beside the rules
+## 3. Showing the trained models beside the rules
 
 The dashboard's **Shadow ML** panel shows what the trained models say next to the rule detector that drives decisions. To fill it, copy the three frozen network models (logistic regression, healthy vs network degradation, trained on recorded 9 to 10 November AWS + RIPE + witness data: healthy controls and packet-loss trials) into `data/demo-models/`. The script checks each model's SHA-256 against the frozen Step 4 report first:
 
@@ -128,7 +108,7 @@ python scripts/export_demo_models.py --root /path/to/folder/holding/data
 
 `--root` is the folder whose `data/ml-results/native/` holds the models (on the group Mac: the evidence copy of the repo). The models are not in the repository, so on a fresh clone the panel shows "none loaded" for them; the rule detector and the baseline predictor still appear. Then restart with `demo/run.sh lab-up`. Never download pickle files; use only artifacts the group made. The models were trained on real AWS data, so on lab data they can disagree with the rules (for example the AWS+RIPE+HTTP model flagging a healthy lab), which is exactly why they stay shadow-only. `ADAPTIVENET_SHADOW_MODEL=/app/models/<file>.pkl` makes `ml/predictor.py` use one. Decisions still come from the rule detector for `DEMO_DECISION_GROUP` (default `aws_ripe_http`), and every proposal still goes through the reviewer.
 
-## 5. Without Docker, and tests
+## 4. Without Docker, and tests
 
 ```bash
 demo/run.sh test

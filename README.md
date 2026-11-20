@@ -14,32 +14,40 @@ Everything in sections 3 and 4 runs on a laptop with no AWS or RIPE account. Ste
 
 | Tool | Needed for | Link |
 |---|---|---|
-| Python 3.11 or newer (tick "Add to PATH" on Windows) | everything | https://www.python.org/downloads/ |
+| **Python 3.14, 64-bit** (3.11 to 3.14 work; not 3.15 yet). On Windows pick the "Windows installer (64-bit)" and tick "Add python.exe to PATH" | everything | https://www.python.org/downloads/ |
 | Docker Desktop (running) | the demo | https://www.docker.com/products/docker-desktop/ |
 | Git (optional; you can download the ZIP instead) | getting the code | https://git-scm.com/downloads |
 | AWS CLI v2 (optional) | live AWS telemetry only | https://aws.amazon.com/cli/ |
 
 Node.js is not needed: the dashboards are built inside Docker.
 
-**Then, from the repository folder** (use `python3` on macOS if `python` is not found):
+**Open a terminal in the project folder.** Windows: open the folder in File Explorer, click the address bar, type `powershell`, press Enter. macOS: open Terminal, type `cd ` (with a space), drag the folder onto the window, press Enter. Type `ls`; you should see `run.py`.
+
+**Then copy the box for your computer, paste it, press Enter.** Run the lines one at a time if you prefer.
+
+macOS / Linux:
 
 ```bash
+python3 run.py check
+python3 run.py setup
+python3 run.py test
+python3 run.py demo-up
+```
+
+Windows (PowerShell):
+
+```powershell
 python run.py check
-```
-
-```bash
 python run.py setup
-```
-
-```bash
 python run.py test
-```
-
-```bash
 python run.py demo-up
 ```
 
-Open http://127.0.0.1:3000 (control room) and http://127.0.0.1:3001 (café site). Inject faults from the buttons, or with `python run.py fault lab-latency --region sg --ms 1500`. Reset with `python run.py demo-reset` and stop with `python run.py demo-down`.
+`check` should end with `All required prerequisites are present.`, `test` with `498 passed` and `PASS`, and `demo-up` with the two addresses below.
+
+Open http://127.0.0.1:3000 (control room: fault buttons, the three views, the decision pipeline) and http://127.0.0.1:3001 (the café site). Stop with `python3 run.py demo-down` (macOS/Linux) or `python run.py demo-down` (Windows).
+
+The marker's step-by-step guide, with the expected output of every step and the analysis reruns, is [docs/GROUP03_INSTRUCTIONS.pdf](docs/GROUP03_INSTRUCTIONS.pdf).
 
 Live AWS telemetry (group members with AWS access, after `aws sso login`): `python run.py setup --cloud`, then `python run.py live` (dashboard on :8766). It reads AWS directly and never uses the shared SQS queue, so it is safe next to another running pipeline.
 
@@ -120,9 +128,9 @@ The recorded data behind the two headline evaluations is committed under `eviden
 
 ---
 
-## 3. Install and run the tests
+## 3. Install and run the tests by hand
 
-You need Git and Python 3.11 or newer (tested on 3.12 in CI and 3.14 locally). From the repository root:
+This is what `run.py setup` and `run.py test` do, for macOS/Linux; the Windows PowerShell versions are in the testing guide. You need Git and 64-bit Python 3.11 to 3.14 (tested on 3.12 in CI and 3.14 locally). From the repository root:
 
 ```bash
 git clone https://github.com/Linus-Tay/adaptivenet.git && cd adaptivenet
@@ -144,7 +152,7 @@ Run every Python suite (none of them call AWS):
 PYTHONPATH=services:. python -m pytest -q tests demo/tests ml/team_starter/tests step7_finish step8_finish
 ```
 
-On `main` (18 Nov 2026, clean install from a GitHub ZIP, Python 3.14) this gives **496 passed**. A no-Docker smoke test of the demo loop:
+On `main` (20 Nov 2026, fresh clone, Python 3.14) this gives **498 passed, 1 warning, 4 subtests passed**. A no-Docker smoke test of the demo loop:
 
 ```bash
 PYTHONPATH=services:. python -m demo.smoke_local
@@ -218,7 +226,7 @@ python scripts/export_demo_models.py --root /path/to/folder/holding/data
 
 The model files are not in the repository (they stay in the group's git-ignored `data/`). On a fresh clone the Shadow ML panel shows the rule detector and the baseline predictor with "none loaded" for the trained models; everything else in the demo works as described. Live AWS telemetry needs the group's AWS access; the recorded results themselves are reproduced from `evidence/` in Part C of the testing guide.
 
-App faults inside an origin (`app-5xx`, `cpu`, `region-down`), replay of recorded real telemetry (`demo/run.sh replay`) and plugging in trained models are in [demo/DEMO.md](demo/DEMO.md). The real-AWS telemetry pair (collector and feature worker, 2 containers) is in `compose.telemetry.yaml`.
+App faults inside an origin (`app-5xx`, `cpu`, `region-down`) and plugging in trained models are in [demo/DEMO.md](demo/DEMO.md). The real-AWS telemetry pair (collector and feature worker, 2 containers) is in `compose.telemetry.yaml`.
 
 ---
 
@@ -289,7 +297,7 @@ The candidate frozen on Monday failed review before scoring (it watched only RIP
 | `services/adaptivenet/gateway.py` | local traffic-split gateway, the only thing the demo controller changes |
 | `ml/team_starter/` | ML datasets, training, evaluation, RIPE value study, campaign and live-run analysis |
 | `step5_finish/`, `step7_finish/`, `step8_finish/` | frozen-model shadow inference service, its container and EKS manifest, final ML checks |
-| `demo/` | Docker demo, fault CLI, replay, smoke test |
+| `demo/` | Docker demo, fault CLI, smoke test |
 | `apps/dashboard/`, `apps/demo-web/` | Next.js demo page (:3000) and demo site (:3001) |
 | `scripts/` | operator tools: live pipeline, probes, guarded AWS faults, RIPE campaign, live shadow job, EKS checks |
 | `infra/terraform/`, `infra/helm/` | AWS infrastructure (EC2, CloudFront, AMP, SQS, IAM, alarms, EKS) and the Helm chart with the HPA |

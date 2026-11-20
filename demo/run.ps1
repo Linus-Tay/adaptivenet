@@ -14,7 +14,7 @@ if (-not (Test-Path $EnvFile)) {
     $token = -join ($bytes | ForEach-Object { $_.ToString("x2") })
     Set-Content -Path $EnvFile -Value "LAB_TOKEN=$token" -Encoding ascii -NoNewline
 }
-foreach ($d in "lab-live", "demo-replay", "demo-models") {
+foreach ($d in "lab-live", "demo-models") {
     New-Item -ItemType Directory -Force -Path (Join-Path $Root "data\$d") | Out-Null
 }
 

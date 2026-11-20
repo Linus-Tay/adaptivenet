@@ -31,3 +31,11 @@ def test_compose_uses_lab_files(monkeypatch):
     monkeypatch.setattr(entry, "run", lambda cmd, **kw: calls.append(cmd) or 0)
     entry.main(["demo-down"])
     assert calls[-1][:6] == ["docker", "compose", "-f", "compose.yaml", "-f", "demo/compose.lab-overlay.yaml"]
+
+
+def test_python_check_names_versions_without_ml_wheels(monkeypatch):
+    for version, bits, bad in (((3, 15, 0), 2**63, True), ((3, 10, 9), 2**63, True),
+                               ((3, 14, 0), 2**31 - 1, True), ((3, 12, 1), 2**63, False)):
+        monkeypatch.setattr(entry.sys, "version_info", version)
+        monkeypatch.setattr(entry.sys, "maxsize", bits)
+        assert (entry.python_problem() is not None) == bad

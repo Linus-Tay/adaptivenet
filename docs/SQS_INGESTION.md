@@ -131,7 +131,7 @@ Stop any old `ingestion.py watch` and `live_monitor.py` processes first, to avoi
 ~~~bash
 # SQS-backed ingestion, read-only observer, independent real HTTP witness
 # and two separate local Next.js UIs:
-python scripts/live_monitor.py --sqs --traffic --with-ui
+python scripts/live_monitor.py --sqs --traffic
 ~~~
 
 This launches (1) the SQS producer every 120 seconds, (2) an independent SQS consumer that long-polls for up to 20 seconds, (3) the existing read-only observatory on `127.0.0.1:8766`, (4) optional real HTTP witness, and (5) local workload and operator UIs on `:3001` and `:3000`. No fault is automatically injected.

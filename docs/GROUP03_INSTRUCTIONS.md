@@ -10,7 +10,7 @@ AdaptiveNet watches a web service in two AWS regions, Singapore and Virginia. It
 
 | Part | What you do | Time | What it shows |
 |---|---|---|---|
-| **A. Tests** | run 502 automated tests and a smoke test | 5 min | each component behaves as designed, including the failure cases |
+| **A. Tests** | run 498 automated tests and a smoke test | 5 min | each component behaves as designed, including the failure cases |
 | **B. Docker demo** | start the demo in Docker and inject three faults from a web page | 20 min | a fault that AWS-only monitoring misses is caught from outside, traffic moves away in safe steps and comes back |
 | **C. Our analysis** | rerun three analyses on the data we recorded on the real AWS system | 5 min | the article's main numbers come from the saved data and the committed code |
 
@@ -24,7 +24,7 @@ AdaptiveNet watches a web service in two AWS regions, Singapore and Virginia. It
 
 | You need | Where |
 |---|---|
-| **Python 3.11 or newer** | https://www.python.org/downloads/ (on Windows, tick **"Add python.exe to PATH"** on the first screen of the installer) |
+| **Python 3.14, 64-bit** | https://www.python.org/downloads/ (versions 3.11 to 3.14 work; 3.15 does not yet. On Windows choose "Windows installer (64-bit)" and tick **"Add python.exe to PATH"** on the first screen of the installer) |
 | **Docker Desktop** | https://www.docker.com/products/docker-desktop/ (after installing, start Docker Desktop and wait until it says it is running) |
 
 **Step 2. Download the code.** Download https://github.com/Linus-Tay/adaptivenet/archive/refs/heads/main.zip and unzip it. You get a folder named `adaptivenet-main`. (With Git you can use `git clone https://github.com/Linus-Tay/adaptivenet.git` instead; the folder is then named `adaptivenet`.)
@@ -134,7 +134,7 @@ python run.py test
 First, the test run ends with this line (the time at the end of the line will differ):
 
 ```
-502 passed, 1 warning, 4 subtests passed
+498 passed, 1 warning, 4 subtests passed
 ```
 
 The warning is a library deprecation notice. **No test should fail.**
@@ -200,11 +200,11 @@ The servers stay healthy; only the network path to Singapore becomes slow. Watch
 | After about | What you should see |
 |---|---|
 | 0 s | red **FAULT ACTIVE** badge |
-| 5–15 s | **AWS + RIPE + HTTP** and then **AWS + RIPE Atlas** show **Network degradation**; **AWS only** stays **Healthy** the whole time, with a yellow banner "AWS-only says healthy, but the external signals see a problem." |
+| 5–15 s | **AWS + RIPE + HTTP** and then **AWS + RIPE Atlas** show **Network degradation**; **AWS only** stays **Healthy** the whole time, with a yellow banner "AWS-only says healthy, but the external signals see a problem." Judge the **AWS only** box by its **Healthy** badges, even if it also shows a line that starts with "Detected". |
 | 20–60 s | Detector suggests **Move 25% of traffic**, Safety review **Approved: move traffic**, Controller **Confirming** |
-| 75 s | traffic bar **75% Singapore · 25% Virginia** |
+| 70–100 s | traffic bar **75% Singapore · 25% Virginia** |
 | later | while the fault lasts, possibly a further step to 50 · 50 |
-| about 2 min after the fault ends | traffic steps back to **100% Singapore**; Controller **Idle** |
+| 2 to 3 min after the fault ends | traffic steps back to **100% Singapore**; Controller **Idle** |
 
 ![The control room during Test 1: AWS only is Healthy, both outside views show Network degradation, the safety review approved moving traffic, and traffic is at 75% Singapore · 25% Virginia.](demo_fault_screenshot_20261118.png)
 
@@ -215,14 +215,14 @@ The servers stay healthy; only the network path to Singapore becomes slow. Watch
 1. Press **Reset demo** and wait 30 seconds.
 2. Press **Inject HTTP 503**.
 
-**Expected:** within about 5 s both outside views show **Network degradation** while **AWS only** stays **Healthy**. Traffic moves to **75 · 25** (after about 100 to 120 s in our runs), and back to 100% Singapore after the fault ends.
+**Expected:** within about 10 s both outside views show **Network degradation** while **AWS only** stays **Healthy**. In most runs traffic then moves to **75 · 25** within about 2 minutes and back to 100% after the fault ends; occasionally the safety chain holds and traffic does not move.
 
 ### Test 3: packet loss
 
 1. Press **Reset demo** and wait 30 seconds.
 2. Press **Inject 80% packet loss**.
 
-**Expected:** both outside views flag Singapore within about 10 s and **AWS only** stays **Healthy**. In most runs traffic then moves to **75 · 25** within about 2 minutes, sometimes on to **50 · 50**, and back to 100% after the fault ends. Occasionally the safety chain holds and traffic does not move, as in our campaign replay. This is the same kind of fault as our real campaign.
+**Expected:** both outside views flag Singapore within about 10 s and **AWS only** stays **Healthy**. After that, either result is correct. Traffic may move to **75 · 25** within about 2 minutes, sometimes on to **50 · 50**, and back to 100% after the fault ends. Or the safety chain holds and traffic does not move, as in our campaign replay. This is the same kind of fault as our real campaign.
 
 The **Shadow ML** panel on the control room shows the rule detector and a baseline. The trained models are not shipped, so their rows say "none loaded". That is expected and does not affect the tests.
 
@@ -363,5 +363,6 @@ The whole output is identical to the end of the file `docs/ml/live/WEDNESDAY_RES
 | demo seems stuck after many faults | press **Reset demo** on the control room page and wait 30 s |
 | Part C says `No such file or directory` or `cannot find the path` for `.venv` | run the `setup` box in Step 5 (section 2) first |
 | `ModuleNotFoundError` in Part C | copy the whole box again, including its first line |
+| setup fails while building scikit-learn, or `check` says Python is too new or 32-bit | install Python 3.14 (64-bit), delete the folder `.venv` inside the code folder, then run `py -3.14 run.py setup` on Windows, or `python3.14 run.py setup` on macOS. If setup says "Delete the .venv folder, then run setup again", do exactly that. |
 
 The live AWS and RIPE Atlas parts are not needed for these tests; we can show them on request. Tested by us on macOS and Linux; on Windows we ran the tests, the smoke test and the demo through Way 2.

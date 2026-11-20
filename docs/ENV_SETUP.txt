@@ -83,7 +83,6 @@ On the group Mac the whole live pipeline starts with:
 4. Optional demo settings (set in your shell before demo/run.sh, not in .env)
 -----------------------------------------------------------------------------
   FAILBACK_HEALTHY_SEC   seconds Singapore must stay clean before failback (lab: 60)
-  REPLAY_SOURCE          folder of recorded telemetry for demo/run.sh replay
 
 
 5. Live AWS telemetry on Windows (PowerShell, no WSL; untested by the group)

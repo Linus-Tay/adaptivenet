@@ -12,15 +12,6 @@ def test_observer_has_no_mutation_route_and_uses_separate_probe_journal():
     assert '"/v1/experiments/probes"' in api
     assert 'recent_probes(' in api
 
-def test_real_aws_mode_blocks_operator_browser_mutation():
-    operator = read("apps/dashboard/app/api/lab/route.ts")
-    assert "process.env.ADAPTIVENET_MODE==='aws'" in operator
-    assert "status:403" in operator
-    # The real-AWS panel lives in a component used by the dashboard page.
-    page = read("apps/dashboard/app/page.tsx") + read("apps/dashboard/app/components/AwsFaultPanel.tsx")
-    assert "/api/aws-fault" in page and "LOCAL SIMULATOR" in page
-    assert "function Info(" in page and "window.confirm(" in page
-
 def test_public_website_queries_real_cloudfront_and_both_origins_not_operator():
     route = read("apps/demo-web/app/api/catalog/route.ts")
     assert "DEMO_TARGET_URL" in route and "DEMO_REGION_A_URL" in route and "DEMO_REGION_B_URL" in route
@@ -34,4 +25,4 @@ def test_live_monitor_traffic_is_explicit_and_no_faults_scheduled():
     assert "action='store_true'" in monitor or 'action="store_true"' in monitor
     assert "continuous_probe.py" in monitor
     assert "aws_fault.py" not in monitor
-    assert "DEMO_TARGET_URL" in monitor
+    assert "with-ui" not in monitor and "npm" not in monitor

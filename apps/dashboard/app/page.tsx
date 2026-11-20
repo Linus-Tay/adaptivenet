@@ -1,6 +1,5 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
-import AwsFaultPanel from "./components/AwsFaultPanel";
 
 /* ---------- types (subset of the decision service /api/state) ---------- */
 type RegionView={state:string;reasons:string[]};
@@ -79,7 +78,6 @@ export default function Page(){
   }
   useEffect(()=>{void refresh();const h=setInterval(()=>void refresh(),2000);return()=>clearInterval(h);},[]);
 
-  const aws=lab.mode==="aws";
   const active=Object.values(lab.faults??{})[0];
   /* Remember the latest fault window so detection times stay visible after it expires. */
   useEffect(()=>{
@@ -111,12 +109,6 @@ export default function Page(){
       const d=await r.json();setMessage(r.ok?ok:(d.error??"Action failed"));}
     catch{setMessage("Request failed");}finally{setBusy(false);void refresh();}
   }
-
-  if(aws)return <main className="operator">
-    <header className="operator-header"><small>ADAPTIVENET / REAL AWS</small><span className="operator-badge live">REAL AWS · LOCAL</span></header>
-    <h1>Resilience experiment <span>control room.</span></h1>
-    <AwsFaultPanel/>
-  </main>;
 
   const ex=latest?.executed_locally;const step=ex?.verify??ex?.step;
   const stage:{k:string;v:string;c?:string;sub?:string}[]=[

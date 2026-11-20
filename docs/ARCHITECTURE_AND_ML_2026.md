@@ -107,7 +107,7 @@ runtimes for the same source collection.
 ~~~bash
 source .venv/bin/activate
 export AWS_PROFILE=adaptivenet-admin
-python scripts/live_monitor.py --sqs --traffic --with-ui --interval 60 --probe-interval 15
+python scripts/live_monitor.py --sqs --traffic --interval 60 --probe-interval 15
 ~~~
 
 ### Option B: Dockerized collector and consumer (opt-in validation)
@@ -131,7 +131,7 @@ In a separate terminal, while Docker workers remain running:
 ~~~bash
 source .venv/bin/activate
 export AWS_PROFILE=adaptivenet-admin
-python scripts/live_monitor.py --external-workers --traffic --with-ui
+python scripts/live_monitor.py --external-workers --traffic
 ~~~
 
 This launches **only** the native read-only API, bounded witnesses and two
