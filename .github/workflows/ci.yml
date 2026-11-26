@@ -21,7 +21,7 @@ jobs:
       - run: pip install -r requirements-dev.lock && pip install --no-deps -e .
       - run: python -m pytest -q
       - run: python scripts/smoke.py
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           cache: npm
